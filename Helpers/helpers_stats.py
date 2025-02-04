@@ -1,0 +1,262 @@
+import sqlite3
+import os
+from datetime import datetime
+import logging
+
+from Helpers.helpers import normalize_username
+
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+
+
+# ACTUALIZAR ESTADISTICAS DE LA CATEGORIA PARAMETRIZADA
+async def update_global_stats(stat_category, user, value):
+    """
+    Actualiza las estadísticas globales.
+    :param stat_category: Categoría de la estadística (ej. 'wordle_wins', 'top_chatter')
+    :param user: Nombre del usuario
+    :param value: Cantidad a incrementar
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Normalizar el nombre de usuario
+        user = normalize_username(user)
+
+        # Verificar si el usuario ya tiene un valor para esta categoría
+        cursor.execute('''
+            SELECT value, hvalue FROM stats_channel
+            WHERE category = ? AND username = ?
+        ''', (stat_category, user))
+
+        result = cursor.fetchone()
+
+        if result:
+            # Si el usuario ya tiene una estadística, actualizar el valor
+            new_value = 0 if result[0] + value < 0 else result[0] + value
+            hvalue = result[1] + value
+            if stat_category=='wordle_wins' and new_value >= 5:
+                new_value=0
+            cursor.execute('''
+                UPDATE stats_channel
+                SET value = ?, hvalue = ?
+                WHERE category = ? AND username = ?
+            ''', (new_value, hvalue, stat_category, user))
+        else:
+            # Si no existe, insertar un nuevo registro
+            new_value=value
+            cursor.execute('''
+                INSERT INTO stats_channel (category, username, value, hvalue)
+                VALUES (?, ?, ?, ?)
+            ''', (stat_category, user, value, value))
+            
+
+        # Confirmar los cambios y cerrar la conexión
+        conn.commit()
+        conn.close()
+        # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
+        return new_value
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al actualizar las estadísticas en la base de datos: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return None
+    
+#OBTENER ESTADISTICAS DE LA CATEGORIA PARAMETRIZADA
+async def get_stats(stat_category,user,tipo):
+    """
+    Obtener las estadísticas de la categoria.
+    :param stat_category: Categoría de la estadística (ej. 'wordle_wins', 'top_chatter')
+    :param user: Nombre del usuario
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Normalizar el nombre de usuario
+        if user is not None:
+            user = normalize_username(user)
+            # Verificar si el usuario ya tiene un valor para esta categoría
+            cursor.execute('''
+                SELECT username, value, hvalue FROM stats_channel
+                WHERE category = ? AND username = ?
+                GROUP BY username
+            ''', (stat_category, user))
+            result = cursor.fetchone()
+            
+            if result:
+                formatted_users = f"@{result[0]} ({result[1]})" if tipo == 0 else f"@{result[0]} ({result[2]})"
+                retorno = formatted_users
+            else:
+                retorno = None
+        else:
+            cursor.execute('''
+                SELECT username, value
+                FROM stats_channel
+                WHERE category = ?
+                GROUP BY username
+                ORDER BY value DESC
+                LIMIT 5
+            ''', (stat_category,))
+            result = cursor.fetchall()
+            
+            if result:
+                formatted_users = ", ".join([f"@{username} ({value})" for username, value in result])
+                retorno = formatted_users
+            else:
+                retorno = None
+        # Confirmar los cambios y cerrar la conexión
+        conn.commit()
+        conn.close()
+        return retorno
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener las estadísticas de la base de datos: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return None
+
+async def check_primero(user):
+    """
+        Verifica la aplicación del comando !primero para identificar si
+        existe algun registro previo de un primer usuario del día
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        #Verificar si existe algun usuario previo del dia
+        cursor.execute('''
+            SELECT value, DATE(date) as fecha
+            FROM stream_data
+            WHERE accion = 'first_user' and DATE(date)=DATE('now','localtime')
+            LIMIT 1;
+        ''',)
+        result = cursor.fetchone()
+        if result:
+            #Regresar nombre de usuario anterior
+            retorno = result[0]
+        else:
+            #Inserta al usuario como primero en los datos del Stream
+            current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute('''
+                INSERT INTO stream_data (accion, value, date)
+                VALUES ('first_user', ?, ?)
+            ''', (user,current_date))
+            retorno = None
+        # Confirmar los cambios y cerrar la conexión
+
+        conn.commit()
+        conn.close()
+
+        return retorno
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener las estadísticas de la base de datos: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return None
+        
+async def get_top_chatter_day():
+    """
+    Estadistica de top chatter del día
+        -Asignar punto de top_chatter_dia
+        ...
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        now = datetime.now()
+        year = now.year
+        month = now.month
+        table_name = f"chat_{year}{month:02}"
+        # Verificar si el usuario ya tiene un valor para esta categoría
+        cursor.execute(f'''
+            SELECT username, count(username) AS nMsg from {table_name} 
+            WHERE date like '%'''+current_date+'''%'
+            GROUP BY username
+            order by 2 DESC
+            LIMIT 1
+        ''',)
+
+        current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        result = cursor.fetchone()
+        usuario = False
+
+        if result:
+            #Inserta al usuario que haya enviado mas mensajes en el directo
+            usuario = result[0]
+            cursor.execute('''
+            INSERT INTO stream_data (accion,value,date)
+                VALUES("top_chatter",?,?)
+            ''',(usuario, current_date,))
+        else:
+            logging.error("Ha ocurrido un error al obtener al top_chatter_day")
+            usuario = None
+        conn.commit()
+        conn.close()
+        # Confirmar los cambios y cerrar la conexión
+        return usuario
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener top_chatter: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return None
+    
+async def count_user_messages(username, start_date=0, end_date=0):
+    """
+    Cuenta todos los mensajes enviados por un usuario en todas las tablas de chat.
+    Si no se proporcionan fechas, cuenta el total histórico.
+
+    :param username: Nombre del usuario.
+    :param start_date: Fecha de inicio (formato 'YYYY-MM-DD HH:MM:SS'). Usa 0 para no filtrar por fecha.
+    :param end_date: Fecha de fin (formato 'YYYY-MM-DD HH:MM:SS'). Usa 0 para no filtrar por fecha.
+    :return: Número total de mensajes enviados por el usuario en el rango de fechas o en total.
+    """
+    total_messages = 0
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Obtener todas las tablas 'chat_'
+        cursor.execute('''
+            SELECT name 
+            FROM sqlite_master 
+            WHERE type='table' AND name LIKE 'chat_%';
+        ''')
+        tables = cursor.fetchall()
+
+        for table in tables:
+            table_name = table[0]
+            if start_date == 0 and end_date == 0:
+                # Contar todos los mensajes del usuario sin filtrar por fecha
+                cursor.execute(f'''
+                    SELECT COUNT(*) 
+                    FROM {table_name} 
+                    WHERE username = ?;
+                ''', (username,))
+            else:
+                # Contar los mensajes dentro del rango de fechas
+                cursor.execute(f'''
+                    SELECT COUNT(*) 
+                    FROM {table_name} 
+                    WHERE username = ? 
+                    AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?);
+                ''', (username, start_date, end_date))
+
+            count = cursor.fetchone()[0]
+            total_messages += count
+
+        return total_messages
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al contar mensajes: {e}")
+        return -1  # Indica un error
+    finally:
+        if conn:
+            conn.close()
+

@@ -1,0 +1,150 @@
+2025-02-04 11:36:51,050 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:36:51,074 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:36:51,074 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:36:52,154 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:36:52,252 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:36:52,253 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:36:52,254 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:37:28,417 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:37:28,423 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:37:28,423 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:37:29,482 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:37:29,544 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:37:29,545 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:37:29,545 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:37:33,896 - INFO - helpers_bot.py - Tabla 'chat_202502' creada correctamente.
+2025-02-04 11:37:33,926 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94maaa[0m
+2025-02-04 11:37:35,796 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94m!hola[0m
+2025-02-04 11:37:44,256 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94m!heeee[0m
+2025-02-04 11:38:39,499 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:38:39,506 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:38:39,506 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:38:40,435 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:38:40,526 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:38:40,527 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:38:40,527 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:38:41,610 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94maaaa[0m
+2025-02-04 11:38:42,977 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94maa[0m
+2025-02-04 11:38:44,373 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mholaaa[0m
+2025-02-04 11:38:47,111 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94m!hola[0m
+2025-02-04 11:38:58,582 - INFO - helpers_bot.py - [1;35mmaikolteve se ha unido[0m
+2025-02-04 11:40:04,754 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mmaikol[0m
+2025-02-04 11:40:07,656 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mandas[0m
+2025-02-04 11:46:12,075 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:46:12,081 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:46:12,081 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:46:13,068 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:46:13,130 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:46:13,130 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:46:13,131 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:46:30,491 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:46:30,496 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:46:30,496 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:46:31,265 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:46:31,344 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:46:31,344 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:46:31,345 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:46:34,279 - ERROR - helpers_bot.py - Error al gestionar la tabla de chat: Error binding parameter 2: type 'Message' is not supported
+2025-02-04 11:46:35,251 - ERROR - helpers_bot.py - Error al gestionar la tabla de chat: Error binding parameter 2: type 'Message' is not supported
+2025-02-04 11:46:52,607 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:46:52,613 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:46:52,613 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:46:53,629 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:46:53,694 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:46:53,696 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:46:53,697 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:46:59,133 - ERROR - helpers_bot.py - Error al gestionar la tabla de chat: Error binding parameter 2: type 'Message' is not supported
+2025-02-04 11:47:14,323 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:47:14,328 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:47:14,328 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:47:15,351 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:47:15,411 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:47:15,412 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:47:15,413 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:47:15,469 - ERROR - helpers_bot.py - Error al gestionar la tabla de chat: Error binding parameter 2: type 'Message' is not supported
+2025-02-04 11:47:16,695 - ERROR - helpers_bot.py - Error al gestionar la tabla de chat: Error binding parameter 2: type 'Message' is not supported
+2025-02-04 11:47:30,547 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:47:30,552 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:47:30,553 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:47:31,364 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:47:31,438 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:47:31,438 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:47:31,439 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:47:33,928 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94maaaa[0m
+2025-02-04 11:47:34,847 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mheee[0m
+2025-02-04 11:47:35,405 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mhola[0m
+2025-02-04 11:47:36,460 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mcomo estan[0m
+2025-02-04 11:47:37,067 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mxd[0m
+2025-02-04 11:47:38,401 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mcon razon[0m
+2025-02-04 11:47:41,911 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94meso[0m
+2025-02-04 11:47:45,143 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mestaba fallando[0m
+2025-02-04 11:47:45,474 - INFO - helpers_bot.py - [1;33mdannprod[0m:[94mxd[0m
+2025-02-04 11:50:27,930 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:50:27,940 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:50:27,940 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:50:29,001 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:50:29,070 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:50:29,071 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:50:29,071 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:53:18,350 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:53:18,360 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:53:18,360 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:53:19,456 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:53:19,542 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:53:19,542 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:53:19,542 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:55:57,919 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 11:55:57,923 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 11:55:57,924 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 11:55:59,216 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 11:55:59,301 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 11:55:59,302 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 11:55:59,302 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 11:55:59,605 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aa [0m
+2025-02-04 11:56:01,554 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m hola [0m
+2025-02-04 11:56:07,044 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m hola aaaa [0m
+2025-02-04 11:56:12,123 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m  [0m
+2025-02-04 11:56:46,126 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !hola [0m
+2025-02-04 13:24:49,119 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 13:24:49,126 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 13:24:49,126 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 13:24:50,368 - INFO - websocket.py - Successfully logged onto Twitch WS: danndato
+2025-02-04 13:24:50,459 - INFO - bot.py - Bot conectado como danndato
+2025-02-04 13:24:50,459 - INFO - bot.py - En el canal: [0m439400816
+2025-02-04 13:25:45,778 - INFO - helpers_bot.py - [1;35mlauunieves se ha unido[0m
+2025-02-04 13:26:15,545 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 13:26:15,552 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 13:26:15,552 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 13:26:16,928 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 13:26:17,040 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 13:26:17,041 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 13:26:17,041 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 14:09:37,705 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 14:09:37,712 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 14:09:37,714 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 14:09:38,727 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 14:09:38,807 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 14:09:38,807 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 14:09:38,808 - INFO - bot.py - En el canal: [0m1003698641
+2025-02-04 14:13:28,852 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 14:13:28,858 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 14:13:28,858 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 14:13:29,866 - INFO - websocket.py - Successfully logged onto Twitch WS: dannprod
+2025-02-04 14:13:29,957 - INFO - helpers_bot.py - [1;35mdannprod se ha unido[0m
+2025-02-04 14:13:29,957 - INFO - bot.py - Bot conectado como dannprod
+2025-02-04 14:13:29,958 - INFO - bot.py - En el canal: [0m1003698641

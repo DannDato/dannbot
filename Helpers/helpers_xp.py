@@ -1,0 +1,346 @@
+import sqlite3
+import os
+import math
+from math import log, sqrt
+from datetime import datetime
+import logging
+
+from Helpers.helpers import normalize_username
+from Helpers.helpers_stats import update_global_stats, count_user_messages, get_stats
+from Helpers.roles import role_rules, complemento_roles, role_emojis
+
+#Ruta de la base de datos
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+
+
+# Regresa las estadisticas RPG del usuario
+async def get_player(user):
+    """
+    Obtiene las estadísticas completas RPG del usuario.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        user = normalize_username(user)
+
+        # Consulta para obtener las categorías relacionadas con XP ordenadas por valor
+        cursor.execute('''
+            SELECT REPLACE(category,'xp_','') as category, value
+            FROM stats_channel
+            WHERE username=? AND category LIKE '%xp_%'
+            ORDER BY value DESC
+        ''', (user,))
+        result = cursor.fetchall()
+
+        if result:
+            limiteC = 6
+            xp_total = 0
+            Player = []
+
+            # Procesar cada categoría para calcular XP y formar el arreglo Player
+            for category, value in result:
+                lcEmoji = role_emojis.get(category, "🔥")
+                Player.append([category, f"{value:.2f}"])
+                xp_total += float(value)
+
+            # XP final multiplicado por 100
+            xp_total *= 100
+
+            # Calcular nivel usando una función externa
+            nivel = await calculate_level(user)
+
+            # Ordenar Player por las mejores categorías (ya ordenado por la consulta SQL)
+            Player.sort(key=lambda x: float(x[1]), reverse=True)
+            # Determinar el rol (pendiente de ajustar en get_rol)
+            if len(Player) >= 3 and Player[0][1] == Player[1][1] == Player[2][1]:
+                lcRol = "Comandante supremo"
+            else:
+                lcRol = await get_rol(Player[0][0], Player[1][0], Player[2][0])
+
+            Player[0][0]=f"{Player[0][0]}{role_emojis.get(Player[0][0], "🔥")}"
+            Player[1][0]=f"{Player[1][0]}{role_emojis.get(Player[1][0], "🔥")}"
+            Player[2][0]=f"{Player[2][0]}{role_emojis.get(Player[2][0], "🔥")}"
+
+            # Insertar XP, Nivel y Rol al inicio de Player
+            Player.insert(0, ["Rol", lcRol])
+            Player.insert(0, ["Nivel", str(nivel)[:limiteC]])
+            Player.insert(0, ["XP", f"{xp_total:.2f}"])
+
+
+            """
+                Muestra el nivel de los jugadores segun sus estadísticas rpg
+                oPlayer[0][1] = XP
+                oPlayer[1][1] = Nivel
+                oPlayer[2][1] = Rol
+                    
+                oPlayer[3][1] = xp_categoria
+                oPlayer[4][1] = xp_categoria
+                ...
+                oPlayer[X][1] = xp_categoria
+            """
+            conn.rollback()
+            conn.close()
+            return Player
+        else:
+            return False
+
+    except sqlite3.Error as e:
+        print(f"Error en la base de datos: {e}")
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+    
+async def update_xp():
+    """
+    Calcula las estadísticas de los usuarios basadas en los datos del último stream.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Obtener las fechas de inicio y fin del último stream
+        cursor.execute('''
+            SELECT date
+            FROM stream_data
+            WHERE accion = "start_stream"
+            ORDER BY date DESC
+            LIMIT 1;
+        ''')
+        start_stream = cursor.fetchone()
+
+        cursor.execute('''
+            SELECT date
+            FROM stream_data
+            WHERE accion = "end_stream"
+            ORDER BY date DESC
+            LIMIT 1;
+        ''')
+        end_stream = cursor.fetchone()
+
+        if not start_stream or not end_stream:
+            logging.warning("No hay un stream iniciado o finalizado para calcular las estadísticas.")
+            return False
+
+        start_date = datetime.strptime(start_stream[0], '%Y-%m-%d %H:%M:%S')
+        end_date = datetime.strptime(end_stream[0], '%Y-%m-%d %H:%M:%S')
+
+        logging.info(f"Procesando datos entre {start_date} y {end_date}...")
+
+        # Obtener los usuarios únicos en ese rango
+        cursor.execute('''
+            SELECT DISTINCT username
+            FROM history_users
+            WHERE datetime(date) BETWEEN ? AND ?;
+        ''', (start_date, end_date))
+        users = cursor.fetchall()
+
+        for row in users:
+            username = row[0]
+            logging.info(f'\033[1;33m  Actualizando a: \033[0m: {username}')
+            # Obtener hora de entrada del usuario
+            cursor.execute('''
+                SELECT MIN(date)
+                FROM history_users
+                WHERE username = ? AND datetime(date) BETWEEN ? AND ?;
+            ''', (username, start_date, end_date))
+            result = cursor.fetchone()
+            hEntrada = result[0] if result and result[0] else None
+
+            # Obtener hora del último mensaje del usuario
+            now = datetime.now()
+            year, month = now.year, now.month
+            table_name = f"chat_{year}{month:02}"
+
+            cursor.execute(f'''
+                SELECT MAX(timestamp)
+                FROM {table_name}
+                WHERE username = ? AND datetime(timestamp) BETWEEN ? AND ?;
+            ''', (username, start_date, end_date))
+            result = cursor.fetchone()
+            LastMsg = result[0] if result and result[0] else None
+
+            # Obtener número de ingresos del usuario
+            cursor.execute('''
+                SELECT COUNT(date)
+                FROM history_users
+                WHERE username = ? AND datetime(date) BETWEEN ? AND ?;
+            ''', (username, start_date, end_date))
+            result = cursor.fetchone()
+            nEntradas = result[0] if result and result[0] else 0
+
+            # Obtener número de mensajes del usuario
+            nMensajes = await count_user_messages(username, start_date, end_date)
+
+            # Obtener número de caracteres enviados
+            cursor.execute(f'''
+                SELECT SUM(LENGTH(message))
+                FROM {table_name}
+                WHERE username = ? AND datetime(timestamp) BETWEEN ? AND ?;
+            ''', (username, start_date, end_date))
+            result = cursor.fetchone()
+            nCaracteres = result[0] if result and result[0] else 0
+
+            # Calcular estadísticas si hay datos de entrada y mensajes
+            if hEntrada and LastMsg:
+                try:
+                    hEntrada = datetime.strptime(hEntrada, '%Y-%m-%d %H:%M:%S')
+                    LastMsg = datetime.strptime(LastMsg, '%Y-%m-%d %H:%M:%S')
+
+                    if LastMsg<hEntrada:
+                        hEntrada=LastMsg
+                    time_difference = (LastMsg - hEntrada).total_seconds() / 60
+
+                    if nMensajes > 0:
+                        Resistencia = (time_difference / 1000) * log(nMensajes + 1, 10)
+                        Habilidad = sqrt((nCaracteres / 10) / nMensajes)
+                        Fuerza = log((nEntradas + 1) * ((nMensajes / 20) + 1), 10)
+
+                        await update_global_stats("xp_Resistencia", normalize_username(username), Resistencia)
+                        await update_global_stats("xp_Habilidad", normalize_username(username), Habilidad)
+                        await update_global_stats("xp_Fuerza", normalize_username(username), Fuerza)
+
+                except ValueError as e:
+                    logging.error(f"Error al procesar las fechas: {e}")
+
+        conn.commit()
+        conn.close()
+        logging.info("Actualización de estadísticas completada.")
+        return True
+
+    except sqlite3.Error as e:
+        logging.error(f"Error en la base de datos: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+
+
+async def calculate_xp(user):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        user = normalize_username(user)
+
+        # Consulta para obtener las categorías relacionadas con XP ordenadas por valor
+        cursor.execute('''
+            SELECT REPLACE(category,'xp_','') AS category, value
+            FROM stats_channel
+            WHERE username=? AND category LIKE '%xp_%'
+            ORDER BY value DESC
+        ''', (user,))
+        result = cursor.fetchall()
+
+        if result:
+            xp_total = 0
+
+            # Procesar cada categoría para calcular XP y formar el arreglo Player
+            for category, value in result:
+                xp_total += float(value)
+            # XP final multiplicado por 100
+            xp_total *= 100
+            xp_total = float(f"{xp_total:.2f}")
+            return xp_total
+        else:
+            xp_total=0
+            return xp_total
+
+            # XP final multiplicado por 100
+    except sqlite3.Error as e:
+        print(f"Error en la base de datos: {e}")
+        return False
+
+    finally:
+        if conn:
+            conn.close()
+
+
+#Calcular nivel en base al XP
+async def calculate_level(user):
+    """
+    Calcula el nivel del jugador basado en el XP, con una progresión lineal ajustada 
+    :param xp: XP total del jugador.
+    :return: Nivel calculado.
+    """
+    xp = await calculate_xp(user)
+    xp=int(xp)
+    level = 1
+    xp_required = 2000  # XP necesario para el primer nivel
+    increment = 1500    # Incremento para el siguiente nivel
+
+    # Itera hasta que el XP sea suficiente para el nivel actual
+    while xp >= xp_required:
+        level += 1
+        xp_required += (level*increment)  # Aumentamos el XP necesario para el siguiente nivel
+    return level
+
+
+    
+async def get_top_players():
+    """
+    OBTENER EL TOP 5 JUGADORES CON MEJOR XP
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        cursor.execute('''
+            SELECT s.username, 
+            (SELECT value FROM stats_channel WHERE username=s.username AND category='xp_Fuerza') AS fuerza,
+            (SELECT value FROM stats_channel WHERE username=s.username AND category='xp_Resistencia') AS resistencia,
+            (SELECT value FROM stats_channel WHERE username=s.username AND category='xp_Habilidad') AS habilidad
+            FROM stats_channel s
+            WHERE s.category LIKE '%xp_%'
+            GROUP BY username
+        ''',)
+        result = cursor.fetchall()
+        top=""
+        lntop=1
+        if result and result[0][0] is not None:
+            for row in result:
+                nFuerza=row[1]if not None else 0
+                nResistencia=row[1] if not None else 0
+                nHabilidad=row[1] if not None else 0
+
+                nXp = round(((nResistencia * 1.5) + (nHabilidad * 1.5) + (nFuerza * 1.5))*100)
+                Nivel  = round(((nResistencia * 1.5) + (nHabilidad * 1.5) + (nFuerza * 1.5)) /100) + 1
+
+                top=top+ f"{lntop} - @{row[0]} XP({nXp}) "
+                lntop=lntop+1
+                
+
+            conn.rollback()
+            conn.close()
+            return top
+        else:
+            return False
+        
+    except sqlite3.Error as e:
+        logging.error(f"Error al finalizar directo: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+    
+async def get_rol(h1, h2, h3):
+    """
+    Determina el rol principal y el complemento basado en las tres habilidades más destacadas.
+    """
+    
+    # Ordenar las habilidades en pares (sin importar el orden)
+    skills = (h1, h2)
+
+    # Buscar el rol principal en las reglas
+    lcRol = role_rules.get(skills, "Aventurero")
+    # Obtener el rol complementario según la tercera habilidad
+    lcRolComplemento = complemento_roles.get(h3, "Inicial")
+
+    # Resultado final
+    lcTitulo = f"{lcRolComplemento} {lcRol.lower()}"
+    return lcTitulo
+
+async def get_skin(user):
+    
+    return await get_stats("Skin",user,0)

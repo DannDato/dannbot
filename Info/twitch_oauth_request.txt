@@ -1,0 +1,1 @@
+curl -X POST "https://id.twitch.tv/oauth2/token" \ -d "client_id=unv55fdxf1p2pisxc6cpp98s4l25fj" \ -d "client_secret=vfsfte1y5wzptsiqfksy3fsxkl2y4l" \ -d "scope=channel:read:redemptions"

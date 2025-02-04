@@ -1,0 +1,82 @@
+#Librerias de control de consola y conexión a twitch
+import logging
+from logging.handlers import TimedRotatingFileHandler
+from twitchio.ext import commands
+
+
+# Importar módulos (Comandos)
+from Commands.admin import admin_commands
+from Commands.stats import stats_commands
+from Commands.general import general_commands
+from Commands.dynamic import dynamic_commands
+from Commands.xp import xp_commands
+
+# Importar Helpers basicos del bot
+from Helpers.helpers_bot import read_save_chat, user_joined
+
+#Importar configuraciónes
+from Helpers.token_loader import load_token
+from Helpers.console_log import init_console
+
+init_console() #Inicializar configuración de la consola (logging y colorlog)
+
+# Cargar credenciales desde el archivo token.json
+logging.info("Cargando token...\n ")
+token_data = load_token()
+access_token = token_data.get("access_token")
+client_id = token_data.get("client_id")
+initial_channels = token_data.get("initial_channels", [])
+broadcaster_id = token_data.get("broadcaster_id")
+
+# Verificar credenciales esenciales
+if not access_token or not client_id or not broadcaster_id:
+    logging.error(" Error: Faltan credenciales esenciales en token.json.")
+    exit()
+
+# Clase principal del bot
+class TwitchBot(commands.Bot):
+
+    #inicialización del bot
+    def __init__(self):
+        super().__init__( #Aplicación de credenciales para la conexión con la API
+            token=access_token,
+            prefix="!",
+            nick="diosito",  # Nombre de usuario del bot
+            initial_channels=initial_channels if isinstance(initial_channels, list) else [initial_channels],
+        )
+        logging.info("-> Iniciando Twitch ")
+        self.load_modules() #Cargar modulos en el objeto bot
+
+    # Validación de bot cargado
+    async def event_ready(self):
+        # Evento que se ejecuta cuando el bot se conecta correctamente.
+        logging.info(f"Bot conectado como {self.nick}")
+        logging.info(f"En el canal: \033[0m{self.user_id}")
+
+    # Registra comandos desde módulos separados.
+    def load_modules(self):
+        logging.info("-> Cargando comandos por módulos")
+        admin_commands(self)
+        general_commands(self)
+        stats_commands(self)
+        dynamic_commands(self)
+        xp_commands(self)
+
+    #Lectura del evento de nuevo mensaje en el chat del canal
+    async def event_message(self, message):
+        await read_save_chat(message)
+        if message.author is None:
+            return  # Ignorar mensajes sin autor
+        await self.handle_commands(message)
+
+    async def event_join(self, channel, user):
+        # Llamamos a la función user_joined para registrar al usuario
+        await user_joined(user.name)
+
+    
+
+
+# Iniciar el bot
+if __name__ == "__main__":
+    bot = TwitchBot()
+    bot.run()

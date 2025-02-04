@@ -1,0 +1,1 @@
+http://localhost/#access_token=1ddgtq9vtsjyz1or84n7zyzf5l9ooq&scope=chat%3Aread+chat%3Aedit&token_type=bearer
