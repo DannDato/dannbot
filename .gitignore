@@ -2,3 +2,5 @@ data.db
 /Credentials
 /logs
 /venv
+token.json
+token_main.json
