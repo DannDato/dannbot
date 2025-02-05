@@ -39,7 +39,7 @@ async def get_player(user):
 
             # Procesar cada categoría para calcular XP y formar el arreglo Player
             for category, value in result:
-                lcEmoji = role_emojis.get(category, "🔥")
+                lcEmoji = role_emojis.get(category, '🔥')
                 Player.append([category, f"{value:.2f}"])
                 xp_total += float(value)
 
@@ -57,9 +57,9 @@ async def get_player(user):
             else:
                 lcRol = await get_rol(Player[0][0], Player[1][0], Player[2][0])
 
-            Player[0][0]=f"{Player[0][0]}{role_emojis.get(Player[0][0], "🔥")}"
-            Player[1][0]=f"{Player[1][0]}{role_emojis.get(Player[1][0], "🔥")}"
-            Player[2][0]=f"{Player[2][0]}{role_emojis.get(Player[2][0], "🔥")}"
+            Player[0][0]=f"{Player[0][0]}{role_emojis.get(Player[0][0], '🔥')}"
+            Player[1][0]=f"{Player[1][0]}{role_emojis.get(Player[1][0], '🔥')}"
+            Player[2][0]=f"{Player[2][0]}{role_emojis.get(Player[2][0], '🔥')}"
 
             # Insertar XP, Nivel y Rol al inicio de Player
             Player.insert(0, ["Rol", lcRol])
