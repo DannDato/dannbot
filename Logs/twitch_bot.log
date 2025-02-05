@@ -185,3 +185,13 @@
 2025-02-04 18:38:58,038 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !ta jalando [0m
 2025-02-04 18:38:59,174 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m xD [0m
 2025-02-04 18:39:06,059 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !wordletop [0m
+2025-02-04 18:51:30,259 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 18:51:30,260 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 18:51:30,260 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 18:51:31,225 - INFO - websocket.py - Successfully logged onto Twitch WS: danndato
+2025-02-04 18:51:31,273 - INFO - bot.py - Bot conectado como danndato
+2025-02-04 18:51:31,274 - INFO - bot.py - En el canal: [0m439400816
+2025-02-04 18:51:40,971 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aaaaa mensaje de varias palabras [0m
+2025-02-04 18:51:41,335 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m xd [0m
+2025-02-04 18:51:58,659 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aaaa, mensaje con emojis y palabras [0m
