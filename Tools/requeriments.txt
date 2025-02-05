@@ -1,0 +1,15 @@
+requests
+twitchio
+obsws-python
+requests
+flask
+sqlite-utils
+selenium
+python-dotenv
+pyautogui
+colorama
+pandas
+logging
+colorlog
+premailer
+emoji

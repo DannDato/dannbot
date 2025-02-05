@@ -152,3 +152,46 @@
  
 2025-02-04 14:24:23,050 - INFO - bot.py - -> Iniciando Twitch 
 2025-02-04 14:24:23,050 - INFO - bot.py - -> Cargando comandos por m�dulos
+2025-02-04 18:35:41,344 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 18:35:41,345 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 18:35:41,345 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 18:35:42,298 - INFO - websocket.py - Successfully logged onto Twitch WS: danndato
+2025-02-04 18:35:42,370 - INFO - bot.py - Bot conectado como danndato
+2025-02-04 18:35:42,371 - INFO - bot.py - En el canal: [0m439400816
+2025-02-04 18:36:55,213 - INFO - helpers_bot.py - Tabla 'chat_202502' creada correctamente.
+2025-02-04 18:36:55,219 - ERROR - helpers_bot.py - Error al registrar conteo de mensajes del stream en la base de datos: no such table: stream_data
+2025-02-04 18:36:55,220 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aaa [0m
+2025-02-04 18:36:55,221 - ERROR - helpers_stats.py - Error al actualizar las estadísticas en la base de datos: no such table: stats_channel
+2025-02-04 18:36:55,222 - ERROR - helpers_stats.py - Error al actualizar las estadísticas en la base de datos: no such table: stats_channel
+2025-02-04 18:36:59,611 - ERROR - helpers_bot.py - Error al registrar conteo de mensajes del stream en la base de datos: no such table: stream_data
+2025-02-04 18:36:59,612 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m hola hola [0m
+2025-02-04 18:36:59,613 - ERROR - helpers_stats.py - Error al actualizar las estadísticas en la base de datos: no such table: stats_channel
+2025-02-04 18:36:59,614 - ERROR - helpers_stats.py - Error al actualizar las estadísticas en la base de datos: no such table: stats_channel
+2025-02-04 18:38:27,155 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 18:38:27,156 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 18:38:27,156 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 18:38:28,142 - INFO - websocket.py - Successfully logged onto Twitch WS: danndato
+2025-02-04 18:38:28,172 - INFO - bot.py - Bot conectado como danndato
+2025-02-04 18:38:28,172 - INFO - bot.py - En el canal: [0m439400816
+2025-02-04 18:38:33,277 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aa [0m
+2025-02-04 18:38:35,483 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m hola [0m
+2025-02-04 18:38:36,990 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m probandin [0m
+2025-02-04 18:38:38,435 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !mensajes [0m
+2025-02-04 18:38:41,158 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m ok [0m
+2025-02-04 18:38:45,317 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !mensajes [0m
+2025-02-04 18:38:54,610 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !bien [0m
+2025-02-04 18:38:58,038 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !ta jalando [0m
+2025-02-04 18:38:59,174 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m xD [0m
+2025-02-04 18:39:06,059 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m !wordletop [0m
+2025-02-04 18:51:30,259 - INFO - bot.py - Cargando token...
+ 
+2025-02-04 18:51:30,260 - INFO - bot.py - -> Iniciando Twitch 
+2025-02-04 18:51:30,260 - INFO - bot.py - -> Cargando comandos por módulos
+2025-02-04 18:51:31,225 - INFO - websocket.py - Successfully logged onto Twitch WS: danndato
+2025-02-04 18:51:31,273 - INFO - bot.py - Bot conectado como danndato
+2025-02-04 18:51:31,274 - INFO - bot.py - En el canal: [0m439400816
+2025-02-04 18:51:40,971 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aaaaa mensaje de varias palabras [0m
+2025-02-04 18:51:41,335 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m xd [0m
+2025-02-04 18:51:58,659 - INFO - helpers_bot.py - [1;33mdanndato[0m:[94m aaaa, mensaje con emojis y palabras [0m
