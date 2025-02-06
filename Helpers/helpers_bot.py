@@ -7,7 +7,7 @@ import emoji
 
 from Helpers.helpers import normalize_username, clean_text
 from Helpers.helpers_stats import update_global_stats
-from helpers.helpers_dynamic import gen_response
+from Helpers.helpers_dynamic import gen_response
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -45,13 +45,6 @@ async def read_save_chat(message):
         :param username: Nombre de usuario.
         :param message: Mensaje del usuario.
         """
-        mensaje = message.content.lower()
-        if any(word in mensaje for word in ["hola", "holaaa", "wolas",]):
-            await message.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
-
-        if any(word in mensaje for word in ["adios", "bye", "buenas noches"]):
-            await message.send(f'[BOT] - {gen_response("despedidas.txt")} @{message.author.name}')
-
         try:
             username = normalize_username(message.author.name)
             message = clean_text(message.content)
@@ -106,6 +99,13 @@ async def read_save_chat(message):
             await update_global_stats("xp_Habilidad",username,0.15)
             await update_global_stats("xp_Carisma",username,0.15)
   
+async def interactuar(ctx, message):
+    mensaje = message.content.lower()
+    if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
+        await ctx.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
+    if any(word in mensaje for word in ["adios", "bye"]):
+        await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} @{message.author.name}')
+
 async def update_stream_data(stat_category, value):
 
     try:

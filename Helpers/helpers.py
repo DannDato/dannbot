@@ -1,3 +1,4 @@
+import aiohttp
 import requests
 import unicodedata
 import time 
@@ -140,3 +141,12 @@ def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
+
+async def get_viewers_count(self, channel_name):
+        # Obtener el stream del canal usando el client
+        streams = await self.client.get_streams(user_logins=[channel_name])
+        if streams:
+            # La cantidad de viewers estará en streams[0].viewer_count
+            return streams[0].viewer_count
+        else:
+            return 0  # Si el canal no está transmitiendo
