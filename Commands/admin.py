@@ -13,7 +13,7 @@ def admin_commands(bot):
         else:
             streamEnded = await start_stream()
             if streamEnded==True:
-                await ctx.send(f' [BOT] - 🤖 Se ha Iniciado el directo correctamente en la base de datos 🟢')
+                await ctx.send(f' [BOT] - 🤖 Excelente! Se ha Iniciado el directo correctamente en la base de datos... ¿Estan listos? 🟢')
             else:
                 await ctx.send(f' [BOT] - 🟡 Ya existe un stream en proceso...')
     bot.commands["ini"].category = "Administrador"
@@ -26,16 +26,16 @@ def admin_commands(bot):
         else:
             streamEnded = await end_stream()
             if streamEnded==True:
-                await ctx.send(f' [BOT] - 🤖 Se ha terminado el stream, nos vemos en el siguiente directo ❤️')
+                await ctx.send(f' [BOT] - 🤖 Listo, Se ha terminado el stream, Gracias por todo! nos vemos en el siguiente directo... Chao ❤️')
             else:
                 await ctx.send(f' [BOT] - 🔴 No se puede finalizar un stream que no se ha iniciado...')
     bot.commands["end"].category = "Administrador"
 
-    # @bot.command(name='mail')
-    # async def mail(ctx):
-    #     if not is_authorized(ctx): return
-    #     html = await end_mail()        # Ejemplo de uso
-    #     await enviar_correo("danieltova97@gmail.com", "Prueba de correo", html)
+    @bot.command(name='mail')
+    async def mail(ctx):
+        if not is_authorized(ctx): return
+        html = await end_mail()        # Ejemplo de uso
+        #await enviar_correo("danieltova97@gmail.com", "Prueba de correo", html)
 
     
 

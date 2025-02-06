@@ -150,7 +150,6 @@ async def start_stream():
     
 async def end_mail():
     """Lee el contenido de un archivo HTML y lo devuelve como texto"""
-    """Lee el contenido de un archivo HTML y lo devuelve como texto"""
     HTML_PATH = os.path.join(os.path.dirname(__file__), '..', 'Html', 'mails', 'end_stream.html')
     with open(HTML_PATH, "r", encoding="utf-8") as archivo:
         contenido_html = archivo.read()
@@ -259,24 +258,50 @@ async def end_mail():
         else:
             contenido_html =contenido_html.replace('var(--pMensajes-color)','gray')
             
-        pMensajes = str(pMensajes)
         # Convertir las cadenas de texto a objetos datetime
         start_time_1 = datetime.strptime(start_time_1, "%Y-%m-%d %H:%M:%S")
         end_time_1 = datetime.strptime(end_time_1, "%Y-%m-%d %H:%M:%S")
         duration = end_time_1 - start_time_1
         duration=str(duration)
 
+        criterios = {
+            "Mensajes": safe_int(pMensajes),
+            "Viewers": safe_int(pViwers),
+        }
+        # Ordenar por valor convirtiéndolos a enteros (o flotantes si es necesario)
+        criterios_ordenados = dict(sorted(criterios.items(), key=lambda item: item[1], reverse=True))
+
+        # Obtener el primer elemento (clave y valor)
+        criterio, criterio_valor = next(iter(criterios_ordenados.items()))
+        segundo_criterio, segundo_criterio_valor = list(criterios_ordenados.items())[1]
+
+        print(criterios_ordenados)
+        
+        if criterio_valor > 0: rasunto = f'''Incremento del {criterio_valor}% en {criterio} '''
+        if criterio_valor == 0: rasunto = f'''Todo igual en {criterio} '''
+        if criterio_valor < 0: rasunto = f'''Disminución del {criterio_valor}% en {criterio} '''
+
+        rConclusion = f'''Todo parece indicar que en el último stream se ha registrado un movimiento del {criterio_valor}% en {criterio} y un {segundo_criterio_valor}% en {segundo_criterio}%'''
 
         pViwers=str(pViwers)[:5]+"%"
         pMensajes=str(pMensajes)[:5]+"%"
 
+  
+        now = datetime.now()
+        year = now.year
+        month = now.month
+        table_name = f"chat_{year}{month:02}"
+        pmonth = 12 if month-1 == 0 else month - 1
+        pyear = year if pmonth != 12 else year - 1
+        ptable_name = f"chat_{pyear}{pmonth:02}"
+
         # OBTENER EL CONTEO DE LAS PERSONAS QUE CHATEARON EN DIRECTO AL MENOS UNA VEZ
         cursor.execute(f'''
             WITH allmessages AS (
-                SELECT DISTINCT username, timestamp FROM chat_202412
+                SELECT DISTINCT username FROM {ptable_name}
                 WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
                 union
-                SELECT DISTINCT username, timestamp FROM chat_202501
+                SELECT DISTINCT username FROM {table_name}
                 WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
                 GROUP BY username
                 )
@@ -289,6 +314,9 @@ async def end_mail():
         cursor.execute(f'''
             SELECT username FROM history_users 
             WHERE date BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
+            UNION
+            SELECT username FROM {table_name}
+            WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
             GROUP BY username
         ''')
         # Obtener los usuarios y extraer solo los nombres (evitar que queden como tuplas)
@@ -318,6 +346,8 @@ async def end_mail():
         # Cerrar conexión
         conn.close()
         cerrar_conexion(conn, cursor)
+
+
         reemplazos = {
             "[nViwers]": str(total_users_1),
             "[nMensajes]": str(total_messages_1),
@@ -329,8 +359,11 @@ async def end_mail():
             "[aUsers]":str(aUsers),
             "[bUsers]":str(bUsers),
             "[fecha_reporte]":str(fecha_reporte),
-            "[cUsers]":str(cUsers)
+            "[cUsers]":str(cUsers),
+            "[rConclusion]":str(rConclusion)
         }
+
+        
 
         # Aplicar reemplazos correctamente
         for palabra, nuevo_valor in reemplazos.items():
@@ -352,7 +385,7 @@ async def end_mail():
         # Verificar el resultado
         # print(f'\n\n\n\n\n{contenido_html}\n\n')
 
-        return await enviar_correo("danieltova97@gmail.com", "Prueba de correo", contenido_html)
+        return await enviar_correo("danieltova97@gmail.com", rasunto, contenido_html)
 
     except sqlite3.Error as e:
         cerrar_conexion(conn, cursor)
