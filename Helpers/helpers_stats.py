@@ -54,11 +54,12 @@ async def update_global_stats(stat_category, user, value):
         conn.commit()
         conn.close()
         cerrar_conexion(conn, cursor)
+        
         # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
         return new_value
 
     except sqlite3.Error as e:
-        logging.error(f"Error al actualizar las estadísticas en la base de datos: {e}")
+        logging.error(f"Error al actualizar las estadísticas en la base de datos stats: {e}")
         if conn:
             conn.rollback()
             conn.close()

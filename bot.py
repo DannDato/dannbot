@@ -56,6 +56,7 @@ class TwitchBot(commands.Bot):
         # Evento que se ejecuta cuando el bot se conecta correctamente.
         logging.info(f"Bot conectado como {self.nick}")
         logging.info(f"En el canal: \033[0m{self.user_id}")
+        print('\n')
 
     # Registra comandos desde módulos separados.
     def load_modules(self):

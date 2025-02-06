@@ -153,11 +153,13 @@ async def update_stream_data(stat_category, value):
             # Confirmar los cambios y cerrar la conexión
             conn.commit()
             conn.close()
+            cerrar_conexion(conn, cursor)   
             return True
 
     except sqlite3.Error as e:
         logging.error(f"Error al registrar conteo de mensajes del stream en la base de datos: {e}")
         if conn:
+            cerrar_conexion(conn, cursor)   
             conn.rollback()
             conn.close()
         return None
@@ -205,6 +207,7 @@ async def count_user_joined(user):
             # Confirmar los cambios y cerrar la conexión
             conn.commit()
             conn.close()
+            cerrar_conexion(conn, cursor)
             return True
 
     except sqlite3.Error as e:
@@ -212,6 +215,7 @@ async def count_user_joined(user):
         if conn:
             conn.rollback()
             conn.close()
+            cerrar_conexion(conn, cursor)
         return None
     
 def deEmojify(text):

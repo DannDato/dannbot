@@ -10,8 +10,12 @@ def stats_commands(bot):
 
     @bot.command(name='mensajes')
     async def mensajes(ctx):
-        messages_hist =await count_user_messages(ctx.author.name,0,0)
-        await ctx.send(f"[BOT] - @{ctx.author.name} ha enviado: ({messages_hist}) mensaje(s)")
+        if ctx.message.content.strip().startswith('!mensajes @'):
+            user = ctx.message.content.strip().split('@')[1].strip()
+        else:
+            user=ctx.author.name
+        messages_hist =await count_user_messages(user,0,0)
+        await ctx.send(f"[BOT] - @{user} ha enviado: ({messages_hist}) mensaje(s)")
             
     @bot.command(name='ladrillo')
     async def ladrillo(ctx):
