@@ -6,7 +6,7 @@ import logging
 import emoji
 
 
-from Helpers.helpers import normalize_username, clean_text
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion
 from Helpers.helpers_stats import update_global_stats
 from Helpers.helpers_dynamic import gen_response
 
@@ -26,6 +26,7 @@ async def user_joined(username):
             # Confirmar los cambios y cerrar la conexión
             conn.commit()
             conn.close()
+            cerrar_conexion(conn, cursor)
             logging.info(f'\033[1;35m{username} se ha unido\033[0m')
 
         except sqlite3.Error as e:
@@ -34,6 +35,7 @@ async def user_joined(username):
             if conn:
                 conn.rollback()
                 conn.close()
+                cerrar_conexion(conn, cursor)
         
 
 async def read_save_chat(message):

@@ -26,6 +26,7 @@ def dynamic_commands(bot):
         -ruleta
         -bola8
         -insultar
+        -halago
         -meporte
         -nalgada
         -abrazo
@@ -150,6 +151,7 @@ def dynamic_commands(bot):
             lcExtra ="OMG  🤯🥵😈 increible"
         await ctx.send(f'[BOT] - A  @{ctx.author.name} le mide {lnCm}cm {lcExtra}')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
     
     @bot.command(name='ruleta')
     async def ruleta(ctx):
@@ -193,6 +195,16 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("insultos.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+
+    @bot.command(name='halago')
+    async def halago(ctx):
+        if not ctx.message.content.strip().startswith('!halago @'):
+            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !halago @usuario")
+            return
+        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        lcRespuesta = gen_response("halagos.txt")
+        await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
+        await update_global_stats("xp_Carisma",ctx.author.name,0.15)
 
     @bot.command(name='meporte')
     async def meporte(ctx):

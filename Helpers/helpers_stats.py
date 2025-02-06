@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 import logging
 
-from Helpers.helpers import normalize_username
+from Helpers.helpers import normalize_username, cerrar_conexion
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -53,6 +53,7 @@ async def update_global_stats(stat_category, user, value):
         # Confirmar los cambios y cerrar la conexión
         conn.commit()
         conn.close()
+        cerrar_conexion(conn, cursor)
         # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
         return new_value
 
@@ -108,6 +109,7 @@ async def get_stats(stat_category,user,tipo):
         # Confirmar los cambios y cerrar la conexión
         conn.commit()
         conn.close()
+        cerrar_conexion(conn, cursor)
         return retorno
 
     except sqlite3.Error as e:
@@ -148,7 +150,7 @@ async def check_primero(user):
 
         conn.commit()
         conn.close()
-
+        cerrar_conexion(conn, cursor)
         return retorno
     except sqlite3.Error as e:
         logging.error(f"Error al obtener las estadísticas de la base de datos: {e}")
@@ -196,6 +198,7 @@ async def get_top_chatter_day():
             usuario = None
         conn.commit()
         conn.close()
+        cerrar_conexion(conn, cursor)
         # Confirmar los cambios y cerrar la conexión
         return usuario
 
@@ -251,6 +254,7 @@ async def count_user_messages(username, start_date=0, end_date=0):
             count = cursor.fetchone()[0]
             total_messages += count
 
+        cerrar_conexion(conn, cursor)
         return total_messages
 
     except sqlite3.Error as e:
@@ -259,4 +263,5 @@ async def count_user_messages(username, start_date=0, end_date=0):
     finally:
         if conn:
             conn.close()
+            cerrar_conexion(conn, cursor)
 

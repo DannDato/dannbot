@@ -5,7 +5,7 @@ from math import log, sqrt
 from datetime import datetime
 import logging
 
-from Helpers.helpers import normalize_username
+from Helpers.helpers import normalize_username, cerrar_conexion
 from Helpers.helpers_stats import update_global_stats, count_user_messages, get_stats
 from Helpers.roles import role_rules, complemento_roles, role_emojis
 
@@ -313,8 +313,10 @@ async def get_top_players():
 
             conn.rollback()
             conn.close()
+            cerrar_conexion(conn, cursor)
             return top
         else:
+            cerrar_conexion(conn, cursor)
             return False
         
     except sqlite3.Error as e:
@@ -322,6 +324,7 @@ async def get_top_players():
         if conn:
             conn.rollback()
             conn.close()
+            cerrar_conexion(conn, cursor)
         return False
     
 async def get_rol(h1, h2, h3):

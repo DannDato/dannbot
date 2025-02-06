@@ -8,7 +8,7 @@ from Helpers.helpers_stats import update_global_stats, get_top_chatter_day
 from Helpers.helpers_xp import update_xp
 from Helpers.helpers_bot import update_stream_data
 from Helpers.mailer import enviar_correo
-from Helpers.helpers import safe_int
+from Helpers.helpers import safe_int, cerrar_conexion
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -60,9 +60,11 @@ async def end_stream():
             await update_xp()
             await end_mail()
             logging.info(f"Stream finalizado el {start_date} ha sido finalizado correctamente a las {current_date}.")
+            cerrar_conexion(conn, cursor)
             return True
         else:
             logging.warning("No se encontró ningún stream iniciado y sin cerrar.")
+            cerrar_conexion(conn, cursor)
             return False
 
     except sqlite3.Error as e:
@@ -72,6 +74,7 @@ async def end_stream():
     finally:
         if conn:
             conn.close()
+            cerrar_conexion(conn, cursor)
 
     
 async def start_stream():
@@ -132,15 +135,18 @@ async def start_stream():
         await update_stream_data("total_users",1)
         await update_stream_data("total_messages",1)
         logging.info(f"Nuevo stream iniciado correctamente a las {current_date}.")
+        cerrar_conexion(conn, cursor)
         return True
 
     except sqlite3.Error as e:
         logging.error(f"Error en la base de datos: {e}")
+        cerrar_conexion(conn, cursor)
         return False
 
     finally:
         if conn:
             conn.close()
+            cerrar_conexion(conn, cursor)
     
 async def end_mail():
     """Lee el contenido de un archivo HTML y lo devuelve como texto"""
@@ -311,7 +317,7 @@ async def end_mail():
 
         # Cerrar conexión
         conn.close()
-
+        cerrar_conexion(conn, cursor)
         reemplazos = {
             "[nViwers]": str(total_users_1),
             "[nMensajes]": str(total_messages_1),
@@ -349,11 +355,13 @@ async def end_mail():
         return await enviar_correo("danieltova97@gmail.com", "Prueba de correo", contenido_html)
 
     except sqlite3.Error as e:
+        cerrar_conexion(conn, cursor)
         logging.error(f"Error en la base de datos: {e}")
         return False
 
     finally:
         if conn:
             conn.close()
+            cerrar_conexion(conn, cursor)
     
     

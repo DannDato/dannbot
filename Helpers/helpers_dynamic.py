@@ -21,8 +21,19 @@ async def interactuar(ctx, message):
     mensaje = message.content.lower()
     if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
         await ctx.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
+
     if any(word in mensaje for word in ["adios", "bye"]):
-        await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} ')
+        await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} @{message.author.name}')
+
+    if any(word in mensaje for word in ["oye"]):
+        await ctx.send(f'[BOT] - Qué? @{message.author.name}')
+
+    if any(word in mensaje for word in ["peruano"]):
+        await ctx.send(f'[BOT] - déja en paz a los peruanos @{message.author.name}')
+
+    if any(word in mensaje for word in ["pito", "pene", "verga"]):
+        await ctx.send(f'[BOT] -  @{message.author.name} {gen_response("regaños.txt")}')
+
 
 async def desafiar(ctx, message):
     lnReto = random.randint(0, 300)
