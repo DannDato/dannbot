@@ -15,6 +15,19 @@ broadcaster_id = token_data.get("broadcaster_id")
 steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
 
+
+
+async def interactuar(ctx, message):
+    mensaje = message.content.lower()
+    if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
+        await ctx.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
+    if any(word in mensaje for word in ["adios", "bye"]):
+        await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} ')
+
+async def desafiar(ctx, message):
+    lnReto = random.randint(0, 300)
+    if lnReto == 49: await ctx.send(f'[BOT] - @{message.author.name} {gen_response("desafios.txt")}')
+
 #___________________________________________________________________________________________
 def gen_response(document):
     try:

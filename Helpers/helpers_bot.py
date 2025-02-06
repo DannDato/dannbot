@@ -1,3 +1,4 @@
+import random
 import sqlite3
 import os
 from datetime import datetime
@@ -99,12 +100,6 @@ async def read_save_chat(message):
             await update_global_stats("xp_Habilidad",username,0.15)
             await update_global_stats("xp_Carisma",username,0.15)
   
-async def interactuar(ctx, message):
-    mensaje = message.content.lower()
-    if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
-        await ctx.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
-    if any(word in mensaje for word in ["adios", "bye"]):
-        await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} @{message.author.name}')
 
 async def update_stream_data(stat_category, value):
 

@@ -14,8 +14,8 @@ from Commands.dynamic import dynamic_commands
 from Commands.xp import xp_commands
 
 # Importar Helpers basicos del bot
-from Helpers.helpers_bot import read_save_chat, user_joined, interactuar
-from Helpers.helpers_dynamic import gen_response
+from Helpers.helpers_bot import read_save_chat, user_joined
+from Helpers.helpers_dynamic import gen_response, interactuar, desafiar
 from Helpers.helpers import is_channel_online, get_viewers_count
 
 #Importar configuraciónes
@@ -73,6 +73,7 @@ class TwitchBot(commands.Bot):
             return  # Ignorar mensajes sin autor
         await read_save_chat(message)
         await interactuar(channel,message)
+        await desafiar(channel,message)
         await self.handle_commands(message)
     
     #Evento de unión de un usuario al canal
