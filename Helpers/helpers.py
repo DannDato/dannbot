@@ -20,6 +20,13 @@ steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
 #______________________________________________________________
 
+# Convierte los valores en enteros, asegurando que None, '' o valores inválidos sean 0
+def safe_int(value):
+    try:
+        return int(value) if value not in [None, ""] else 0
+    except ValueError:
+        return 0
+    
 # Función para verificar si el autor del mensaje está en la lista de usuarios permitidos
 def is_authorized(ctx):
     # Lista de usuarios autorizados

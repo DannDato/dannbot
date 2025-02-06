@@ -8,6 +8,7 @@ from Helpers.helpers_stats import update_global_stats, get_top_chatter_day
 from Helpers.helpers_xp import update_xp
 from Helpers.helpers_bot import update_stream_data
 from Helpers.mailer import enviar_correo
+from Helpers.helpers import safe_int
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -230,38 +231,38 @@ async def end_mail():
         total_messages_3 = streams[3]["total_messages"][0] if "total_messages" in streams[3] else None
         total_users_3 = streams[3]["total_users"][0] if "total_users" in streams[3] else None
 
-        incremento_users = int(total_users_1) - int(total_users_2)
-        pViwers=(incremento_users/int(total_users_2))*100
-        if int(pViwers)>0:
+        incremento_users = safe_int(total_users_1) - safe_int(total_users_2)
+        pViwers=(incremento_users/safe_int(total_users_2))*100
+        if safe_int(pViwers)>0:
             contenido_html =contenido_html.replace('var(--pViewers-color)','var(--main-color)')
-        elif int(pViwers)==0:
+        elif safe_int(pViwers)==0:
             contenido_html =contenido_html.replace('var(--pViewers-color)','var(--third-color)')
-        elif int(pViwers)<0:
+        elif safe_int(pViwers)<0:
             contenido_html =contenido_html.replace('var(--pViewers-color)','var(--second-color)')
         else:
             contenido_html =contenido_html.replace('var(--pViewers-color)','gray')
 
-        incremento_messages = int(total_messages_1) - int(total_messages_2)
+        incremento_messages = safe_int(total_messages_1) - safe_int(total_messages_2)
         pMensajes=(incremento_messages/int(total_messages_2))*100
-        if int(pMensajes)>0:
+        if safe_int(pMensajes)>0:
             contenido_html =contenido_html.replace('var(--pMensajes-color)','var(--main-color)')
-        elif int(pMensajes)==0:
+        elif safe_int(pMensajes)==0:
             contenido_html =contenido_html.replace('var(--pMensajes-color)','var(--third-color)')
-        elif int(pMensajes)<0:
+        elif safe_int(pMensajes)<0:
             contenido_html =contenido_html.replace('var(--pMensajes-color)','var(--second-color)')
         else:
             contenido_html =contenido_html.replace('var(--pMensajes-color)','gray')
             
         pMensajes = str(pMensajes)
         # Convertir las cadenas de texto a objetos datetime
+        start_time_1 = datetime.strptime(start_time_1, "%Y-%m-%d %H:%M:%S")
         end_time_1 = datetime.strptime(end_time_1, "%Y-%m-%d %H:%M:%S")
-        start_time_2 = datetime.strptime(start_time_2, "%Y-%m-%d %H:%M:%S")
-        duration = end_time_1 - start_time_2
+        duration = end_time_1 - start_time_1
         duration=str(duration)
 
 
-        pViwers=str(pViwers)+"%"
-        pMensajes=str(pMensajes)+"%"
+        pViwers=str(pViwers)[:5]+"%"
+        pMensajes=str(pMensajes)[:5]+"%"
 
         # OBTENER EL CONTEO DE LAS PERSONAS QUE CHATEARON EN DIRECTO AL MENOS UNA VEZ
         cursor.execute(f'''
@@ -288,10 +289,10 @@ async def end_mail():
         users = [user[0] for user in cursor.fetchall()]  
 
         # Convertir la cadena a un objeto datetime
-        fecha_obj = datetime.strptime(start_time_1, "%Y-%m-%d %H:%M:%S")
+        # fecha_obj = datetime.strptime(start_time_1, "%Y-%m-%d %H:%M:%S")
 
         # Formatear la fecha al formato deseado
-        fecha_reporte = fecha_obj.strftime("%d de %B del %Y")
+        fecha_reporte = start_time_1.strftime("%d de %B del %Y")
 
         # Verificar si hay usuarios
         if users:
@@ -314,9 +315,9 @@ async def end_mail():
         reemplazos = {
             "[nViwers]": str(total_users_1),
             "[nMensajes]": str(total_messages_1),
-            "[pMensajes]": str(pMensajes)[:5],
+            "[pMensajes]": str(pMensajes),
             "[topChatter]": str(top_chatter_1),
-            "[pViewers]": str(pViwers)[:5],
+            "[pViewers]": str(pViwers),
             "[nTiempo]": str(duration),
             "[nChatters]":str(nChatters),
             "[aUsers]":str(aUsers),

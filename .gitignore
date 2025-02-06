@@ -3,5 +3,6 @@ data.db
 /logs
 /Logs
 /venv
+/Venv
 token.json
 token_main.json

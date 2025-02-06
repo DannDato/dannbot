@@ -1,10 +1,7 @@
 import logging
 import requests
-import unicodedata
-import json
 import os
 from datetime import datetime
-import re
 import random
 
 #Cargar el token para operaciones con las credenciales
