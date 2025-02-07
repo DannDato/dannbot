@@ -56,21 +56,6 @@ def stats_commands(bot):
             await ctx.send(f'[BOT] - Creo que nunca has llegado primero @{user}')
     bot.commands["primeroscore"].category = "Llegar primero"
 
-
-    @bot.command(name='primerohist')
-    async def primerohist(ctx):
-        if ctx.message.content.strip().startswith('!primerohist @'):
-            user = ctx.message.content.strip().split('@')[1].strip()
-        else:
-            user=ctx.author.name
-        ranking =await get_stats("first_user",user,1)
-        if ranking is not None:
-            await ctx.send(f'[BOT] - 🏎️ En Llegar primero: {ranking} TOTAL 💎')
-        else:
-            await ctx.send(f'[BOT] - Creo que nunca has llegado primero @{user}')
-    bot.commands["primerohist"].category = "Llegar primero"
-
-
     @bot.command(name='primerotop')
     async def primerotop(ctx):
         ranking = await get_stats("first_user",None,0)

@@ -90,7 +90,7 @@ class TwitchBot(commands.Bot):
         while True:
             if channel:
                 if is_channel_online(): # Verificar si el canal está en vivo
-                    await channel.send(f'[BOT] - {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
+                    await channel.send(f'[DESAFIO RANDOM] 🔮 {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
                     sleep_time = random.randint(1200, 1800)
             await asyncio.sleep(1200)  # Esperar 20 minutos antes del siguiente mensaje
 
