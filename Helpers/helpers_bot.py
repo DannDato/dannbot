@@ -4,13 +4,16 @@ import os
 from datetime import datetime
 import logging
 import emoji
+import json
 
 
 from Helpers.helpers import normalize_username, clean_text, cerrar_conexion
 from Helpers.helpers_stats import update_global_stats
-from Helpers.helpers_dynamic import gen_response
+from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+token_data = load_token()
+OPENAI_API_KEY = token_data.get("openai_api_key")
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):
@@ -220,3 +223,5 @@ async def count_user_joined(user):
     
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
+
+

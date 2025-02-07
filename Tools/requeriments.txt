@@ -13,3 +13,5 @@ logging
 colorlog
 premailer
 emoji
+openai
+tiktoken

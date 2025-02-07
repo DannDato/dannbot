@@ -4,8 +4,9 @@ import time
 import locale
 from datetime import datetime, date
 
-from Helpers.helpers import send_large_message, is_authorized
-from Helpers.helpers import normalize_username
+
+from Helpers.helpers import send_large_message, is_authorized, normalize_username
+from Helpers.chatgpt import chatgpt
 from Helpers.helpers_dynamic import gen_response, get_steam_library, get_vips
 from Helpers.helpers_stats import update_global_stats
 
@@ -122,6 +123,17 @@ def dynamic_commands(bot):
             # Responder con la lista de comandos
             await ctx.send(f'[BOT] - 🤖 Comandos disponibles:')
             await send_large_message(ctx,command_string)
+    
+    @bot.command(name='bot')
+    async def botgpt(ctx):
+        texto = ctx.message.content.strip().split('!bot')[1].strip()
+        prompt = texto.replace('!bot', '').strip()
+        response = await chatgpt(prompt,ctx.author.name)
+        if response is not None:
+            await send_large_message(ctx,f'[BotGPT] - {response}')
+        else:
+            await ctx.send("[BotGPT] - Se acabó el money 🤑, no puedo responder más por hoy")
+
 
     @bot.command(name='so')
     async def so(ctx):
@@ -183,6 +195,12 @@ def dynamic_commands(bot):
     @bot.command(name='bola8')
     async def bola8(ctx):
         lcRespuesta = gen_response("respuestas.txt")
+        await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
+        await update_global_stats("xp_Astucia",ctx.author.name,0.15)
+
+    @bot.command(name='trivia')
+    async def trivia(ctx):
+        lcRespuesta = gen_response("trivias.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
         await update_global_stats("xp_Astucia",ctx.author.name,0.15)
     

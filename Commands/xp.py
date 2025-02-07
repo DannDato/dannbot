@@ -104,5 +104,6 @@ def xp_commands(bot):
         await ctx.send("Nivel [ 5] 🏅 Titulo de jugador  ")
         await ctx.send("Nivel [10] 🥷 Crear Skin (25)  ")
         await ctx.send("Nivel [15] 🧩 Crear clan  ")
-        await ctx.send("Nivel [20] 🤖 Tu propio comando  ")
-        await ctx.send("Nivel [30] 💎 VIP  ")
+        await ctx.send("Nivel [20] 🤖 Tu propio comando ")
+        await ctx.send("Nivel [25] 🐕 Adoptar mascota ")
+        await ctx.send("Nivel [50] 💎 VIP  ")
