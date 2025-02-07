@@ -1,3 +1,4 @@
+import aiohttp
 import requests
 import unicodedata
 import time 
@@ -20,6 +21,13 @@ steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
 #______________________________________________________________
 
+# Convierte los valores en enteros, asegurando que None, '' o valores inválidos sean 0
+def safe_int(value):
+    try:
+        return int(value) if value not in [None, ""] else 0
+    except ValueError:
+        return 0
+    
 # Función para verificar si el autor del mensaje está en la lista de usuarios permitidos
 def is_authorized(ctx):
     # Lista de usuarios autorizados
@@ -39,7 +47,7 @@ async def send_large_message(ctx, message):
             if end == -1:  # Si no hay espacio en el rango, corta directamente en el límite
                 end = start + max
         # Enviar el segmento del mensaje
-        await ctx.send(message[start:end].strip())
+        await ctx.send(f'{message[start:end].strip()}')
         start = end + 1  # Continuar desde el carácter siguiente
 
 
@@ -77,7 +85,8 @@ async def is_channel_online():
             );
         ''')
         result = cursor.fetchone()
-        conn.close()
+        
+        cerrar_conexion(conn, cursor)
 
         if result and result[0] > 0:
             logging.warning("Un stream está activo según la base de datos.")
@@ -133,3 +142,34 @@ def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
+
+async def get_viewers_count(self, channel_name):
+        # Obtener el stream del canal usando el client
+        streams = await self.client.get_streams(user_logins=[channel_name])
+        if streams:
+            # La cantidad de viewers estará en streams[0].viewer_count
+            return streams[0].viewer_count
+        else:
+            return 0  # Si el canal no está transmitiendo
+
+
+def cerrar_conexion(conn, cursor):
+    """Cierra una conexión y/o un cursor de base de datos si aún están abiertos."""
+    if cursor: # Si hay un cursor, cerrarlo
+        try:
+            if not cursor.connection:  # Verifica si el cursor ya no tiene conexión
+                return
+            cursor.close()
+        except sqlite3.ProgrammingError:  # Si ya estaba cerrado, no hacer nada
+            pass
+        except Exception as e:
+            logging.error(f"Error al cerrar el cursor: {e}")
+    
+    if conn: # Si hay una conexión, cerrarla
+        try:
+            conn.close()
+        except sqlite3.ProgrammingError:  # Si ya estaba cerrada, no hacer nada
+            pass
+        except Exception as e:
+            logging.error(f"Error al cerrar la conexión: {e}")
+

@@ -1,14 +1,19 @@
+import random
 import sqlite3
 import os
 from datetime import datetime
 import logging
 import emoji
+import json
 
 
-from Helpers.helpers import normalize_username, clean_text
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion
 from Helpers.helpers_stats import update_global_stats
+from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+token_data = load_token()
+OPENAI_API_KEY = token_data.get("openai_api_key")
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):
@@ -24,6 +29,7 @@ async def user_joined(username):
             # Confirmar los cambios y cerrar la conexión
             conn.commit()
             conn.close()
+            cerrar_conexion(conn, cursor)
             logging.info(f'\033[1;35m{username} se ha unido\033[0m')
 
         except sqlite3.Error as e:
@@ -32,6 +38,7 @@ async def user_joined(username):
             if conn:
                 conn.rollback()
                 conn.close()
+                cerrar_conexion(conn, cursor)
         
 
 async def read_save_chat(message):
@@ -90,7 +97,6 @@ async def read_save_chat(message):
 
             logging.info(f'\033[1;33m{username}\033[0m:\033[94m {message} \033[0m')
             
-            
         except sqlite3.Error as e:
             logging.error(f"Error al gestionar la tabla de chat: {e}")
         finally:
@@ -98,7 +104,8 @@ async def read_save_chat(message):
                 conn.close()
             await update_global_stats("xp_Habilidad",username,0.15)
             await update_global_stats("xp_Carisma",username,0.15)
-           
+  
+
 async def update_stream_data(stat_category, value):
 
     try:
@@ -149,11 +156,13 @@ async def update_stream_data(stat_category, value):
             # Confirmar los cambios y cerrar la conexión
             conn.commit()
             conn.close()
+            cerrar_conexion(conn, cursor)   
             return True
 
     except sqlite3.Error as e:
         logging.error(f"Error al registrar conteo de mensajes del stream en la base de datos: {e}")
         if conn:
+            cerrar_conexion(conn, cursor)   
             conn.rollback()
             conn.close()
         return None
@@ -201,6 +210,7 @@ async def count_user_joined(user):
             # Confirmar los cambios y cerrar la conexión
             conn.commit()
             conn.close()
+            cerrar_conexion(conn, cursor)
             return True
 
     except sqlite3.Error as e:
@@ -208,7 +218,10 @@ async def count_user_joined(user):
         if conn:
             conn.rollback()
             conn.close()
+            cerrar_conexion(conn, cursor)
         return None
     
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
+
+

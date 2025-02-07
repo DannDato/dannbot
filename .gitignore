@@ -1,6 +1,6 @@
 data.db
-/Credentials
 /logs
+/Logs
 /venv
+/Venv
 token.json
-token_main.json

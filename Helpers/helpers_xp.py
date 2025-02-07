@@ -5,7 +5,7 @@ from math import log, sqrt
 from datetime import datetime
 import logging
 
-from Helpers.helpers import normalize_username
+from Helpers.helpers import normalize_username, cerrar_conexion, safe_int
 from Helpers.helpers_stats import update_global_stats, count_user_messages, get_stats
 from Helpers.roles import role_rules, complemento_roles, role_emojis
 
@@ -238,8 +238,8 @@ async def calculate_xp(user):
             # Procesar cada categoría para calcular XP y formar el arreglo Player
             for category, value in result:
                 xp_total += float(value)
-            # XP final multiplicado por 100
-            xp_total *= 100
+            # XP final multiplicado por 10
+            xp_total *= 10
             xp_total = float(f"{xp_total:.2f}")
             return xp_total
         else:
@@ -266,8 +266,8 @@ async def calculate_level(user):
     xp = await calculate_xp(user)
     xp=int(xp)
     level = 1
-    xp_required = 2000  # XP necesario para el primer nivel
-    increment = 1500    # Incremento para el siguiente nivel
+    xp_required = 200  # XP necesario para el primer nivel
+    increment = 150   # Incremento para el siguiente nivel
 
     # Itera hasta que el XP sea suficiente para el nivel actual
     while xp >= xp_required:
@@ -287,34 +287,31 @@ async def get_top_players():
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute('''
-            SELECT s.username, 
-            (SELECT value FROM stats_channel WHERE username=s.username AND category='xp_Fuerza') AS fuerza,
-            (SELECT value FROM stats_channel WHERE username=s.username AND category='xp_Resistencia') AS resistencia,
-            (SELECT value FROM stats_channel WHERE username=s.username AND category='xp_Habilidad') AS habilidad
-            FROM stats_channel s
-            WHERE s.category LIKE '%xp_%'
+            SELECT username, SUM(value) AS total_xp
+            FROM stats_channel
+            WHERE (username!='channel' AND username!='danndato') AND category LIKE '%xp_%'
             GROUP BY username
+            ORDER BY total_xp DESC
+            LIMIT 3
         ''',)
         result = cursor.fetchall()
         top=""
         lntop=1
         if result and result[0][0] is not None:
             for row in result:
-                nFuerza=row[1]if not None else 0
-                nResistencia=row[1] if not None else 0
-                nHabilidad=row[1] if not None else 0
+                user = row[0]
+                nXp = await calculate_xp(user)
 
-                nXp = round(((nResistencia * 1.5) + (nHabilidad * 1.5) + (nFuerza * 1.5))*100)
-                Nivel  = round(((nResistencia * 1.5) + (nHabilidad * 1.5) + (nFuerza * 1.5)) /100) + 1
-
-                top=top+ f"{lntop} - @{row[0]} XP({nXp}) "
-                lntop=lntop+1
-                
+                lcEmoji = "🥇" if lntop == 1 else "🥈" if lntop == 2 else "🥉"
+                top += f"{lntop} - {lcEmoji} @{row[0]} XP({nXp})\n"
+                lntop += 1
 
             conn.rollback()
             conn.close()
+            cerrar_conexion(conn, cursor)
             return top
         else:
+            cerrar_conexion(conn, cursor)
             return False
         
     except sqlite3.Error as e:
@@ -322,6 +319,7 @@ async def get_top_players():
         if conn:
             conn.rollback()
             conn.close()
+            cerrar_conexion(conn, cursor)
         return False
     
 async def get_rol(h1, h2, h3):

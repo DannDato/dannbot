@@ -4,8 +4,9 @@ import time
 import locale
 from datetime import datetime, date
 
-from Helpers.helpers import send_large_message, is_authorized
-from Helpers.helpers import normalize_username
+
+from Helpers.helpers import send_large_message, is_authorized, normalize_username
+from Helpers.chatgpt import chatgpt
 from Helpers.helpers_dynamic import gen_response, get_steam_library, get_vips
 from Helpers.helpers_stats import update_global_stats
 
@@ -26,6 +27,7 @@ def dynamic_commands(bot):
         -ruleta
         -bola8
         -insultar
+        -halago
         -meporte
         -nalgada
         -abrazo
@@ -121,6 +123,17 @@ def dynamic_commands(bot):
             # Responder con la lista de comandos
             await ctx.send(f'[BOT] - 🤖 Comandos disponibles:')
             await send_large_message(ctx,command_string)
+    
+    @bot.command(name='bot')
+    async def botgpt(ctx):
+        texto = ctx.message.content.strip().split('!bot')[1].strip()
+        prompt = texto.replace('!bot', '').strip()
+        response = await chatgpt(prompt,ctx.author.name)
+        if response is not None:
+            await send_large_message(ctx,f'[BotGPT] - {response}')
+        else:
+            await ctx.send("[BotGPT] - Se acabó el money 🤑, no puedo responder más por hoy")
+
 
     @bot.command(name='so')
     async def so(ctx):
@@ -150,6 +163,7 @@ def dynamic_commands(bot):
             lcExtra ="OMG  🤯🥵😈 increible"
         await ctx.send(f'[BOT] - A  @{ctx.author.name} le mide {lnCm}cm {lcExtra}')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
     
     @bot.command(name='ruleta')
     async def ruleta(ctx):
@@ -183,6 +197,12 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("respuestas.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
         await update_global_stats("xp_Astucia",ctx.author.name,0.15)
+
+    @bot.command(name='trivia')
+    async def trivia(ctx):
+        lcRespuesta = gen_response("trivias.txt")
+        await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
+        await update_global_stats("xp_Astucia",ctx.author.name,0.15)
     
     @bot.command(name='insultar')
     async def insultar(ctx):
@@ -193,6 +213,16 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("insultos.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+
+    @bot.command(name='halago')
+    async def halago(ctx):
+        if not ctx.message.content.strip().startswith('!halago @'):
+            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !halago @usuario")
+            return
+        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        lcRespuesta = gen_response("halagos.txt")
+        await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
+        await update_global_stats("xp_Carisma",ctx.author.name,0.15)
 
     @bot.command(name='meporte')
     async def meporte(ctx):

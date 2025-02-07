@@ -32,16 +32,14 @@ def general_commands(bot):
     """
     @bot.command(name='hola')
     async def hola(ctx):
-        await ctx.send(f'Hola @{ctx.author.name}, ¿cómo estás?!')
-        await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        logging.info(f"{ctx.author.name} saludo")
     bot.commands["hola"].category = "Basicos"
 
     @bot.command(name='adios')
     async def adios(ctx):
-        await ctx.send(f'¡Adiós, @{ctx.author.name} ¡Nos vemos despues! :D ')
-        await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        logging.info(f"{ctx.author.name} se despidió")
     bot.commands["adios"].category = "Basicos"
-    
+
     @bot.command(name='lurk')
     async def lurk(ctx):
         await ctx.send(f'Hummm... parece que @{ctx.author.name} se fue con las cariñosas! 🕵️‍♂️ Disfrutará del stream en modo sigiloso.')

@@ -5,7 +5,7 @@ import colorlog
 
 def init_console():
     # Configuración de logging con colores en la consola
-    log_filename = "Logs/twitch_bot.log"
+    log_filename = "Logs/bot_log.log"  # Se agrega .log manualmente
 
     # Crear un formateador de colores para la consola
     console_formatter = colorlog.ColoredFormatter(
@@ -20,16 +20,22 @@ def init_console():
         }
     )
 
-    # Configuración de logging sin duplicación en consola
+    # Configuración del archivo de log con rotación diaria
+    log_handler = TimedRotatingFileHandler(
+        log_filename, when="midnight", encoding="utf-8", utc=True, backupCount=7
+    )
+
+    # Ajustar manualmente el formato de los archivos rotados
+    log_handler.suffix = "%Y-%m-%d"
+    log_handler.extMatch = r"^\d{4}-\d{2}-\d{2}$"
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(filename)s - %(message)s",
-        handlers=[
-            TimedRotatingFileHandler(log_filename, when="midnight", backupCount=7),  # Cambia diariamente y conserva 7 días de logs
-        ]
+        handlers=[log_handler]
     )
 
-    # Configurar el handler para consola con colores (lo añadimos explícitamente)
+    # Configurar el handler para consola con colores
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(console_formatter)
 

@@ -16,10 +16,6 @@ async def enviar_correo(destinatario, asunto, cuerpo_html):
     """
     Envía un correo electrónico utilizando SMTP de Gmail.
     """
-    # Configuración del remitente
-    # Mail = "dannprod.dato@gmail.com"  # Reemplaza con tu correo
-    # password = "twqn usud lsui wnbv"  # Usa una contraseña de aplicación
-
     # Configurar el mensaje
     msg = MIMEMultipart()
     msg["From"] = Mail

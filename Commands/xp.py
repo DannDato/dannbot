@@ -1,5 +1,5 @@
 from Helpers.helpers_xp import get_player, get_top_players, get_skin, calculate_xp, calculate_level
-from Helpers.helpers import is_authorized
+from Helpers.helpers import is_authorized, send_large_message
 
 def xp_commands(bot):
     """
@@ -46,7 +46,7 @@ def xp_commands(bot):
         oPlayer = await calculate_xp(user)
         if oPlayer != False or oPlayer!=None:
             response = f"[BOT] - @{user} 🪙 XP({oPlayer})"
-            await ctx.send(response)
+            await send_large_message(ctx, response)
         else:
             await ctx.send("[BOT] - Es un guerrero sin estadísticas...")
 
@@ -84,7 +84,8 @@ def xp_commands(bot):
         topPlayer = await get_top_players()
         
         if topPlayer != False:
-            await ctx.send(f"[BOT] - | 👑 Top 3 jugadores con mas XP  | >>> {topPlayer}")
+            await ctx.send(f"[BOT] - | 👑 Top 3 jugadores con mas XP  | >>> ")
+            await send_large_message(ctx,topPlayer)
         else:
             await ctx.send("[BOT] - No puedo recopilar aun estadísticas...")
 
@@ -104,5 +105,6 @@ def xp_commands(bot):
         await ctx.send("Nivel [ 5] 🏅 Titulo de jugador  ")
         await ctx.send("Nivel [10] 🥷 Crear Skin (25)  ")
         await ctx.send("Nivel [15] 🧩 Crear clan  ")
-        await ctx.send("Nivel [20] 🤖 Tu propio comando  ")
-        await ctx.send("Nivel [30] 💎 VIP  ")
+        await ctx.send("Nivel [20] 🤖 Tu propio comando ")
+        await ctx.send("Nivel [25] 🐕 Adoptar mascota ")
+        await ctx.send("Nivel [50] 💎 VIP  ")
