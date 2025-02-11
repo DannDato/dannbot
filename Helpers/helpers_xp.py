@@ -340,5 +340,59 @@ async def get_rol(h1, h2, h3):
     return lcTitulo
 
 async def get_skin(user):
-    
     return await get_stats("Skin",user,0)
+
+async def set_stats(stat_category, user, value):
+    """
+    Actualiza las estadísticas globales.
+    :param stat_category: Categoría de la estadística (ej. 'wordle_wins', 'top_chatter')
+    :param user: Nombre del usuario
+    :param value: Cantidad a incrementar
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Normalizar el nombre de usuario
+        user = normalize_username(user)
+
+        # Verificar si el usuario ya tiene un valor para esta categoría
+        cursor.execute('''
+            SELECT value, hvalue FROM stats_channel
+            WHERE category = ? AND username = ?
+        ''', (stat_category, user))
+
+        result = cursor.fetchone()
+
+        if result:
+            # Si el usuario ya tiene una estadística, actualizar el valor
+            new_value = value
+            hvalue = value
+
+            cursor.execute('''
+                UPDATE stats_channel
+                SET value = ?, hvalue = ?
+                WHERE category = ? AND username = ?
+            ''', (new_value, hvalue, stat_category, user))
+        else:
+            # Si no existe, insertar un nuevo registro
+            new_value=value
+            cursor.execute('''
+                INSERT INTO stats_channel (category, username, value, hvalue)
+                VALUES (?, ?, ?, ?)
+            ''', (stat_category, user, value, value))
+            
+
+        # Confirmar los cambios y cerrar la conexión
+        conn.commit()
+        conn.close()
+        cerrar_conexion(conn, cursor)
+        # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
+        return new_value
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al actualizar las estadísticas en la base de datos stats: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+            cerrar_conexion(conn, cursor)  
+        return None

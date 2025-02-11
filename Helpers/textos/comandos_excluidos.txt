@@ -1,0 +1,11 @@
+ini
+end
+cmsj
+nbug
+recompensas
+skin
+setskin
+xp
+player
+nivel
+top

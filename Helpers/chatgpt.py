@@ -24,7 +24,6 @@ else:
     user_conversations = {}
 async def chatgpt(prompt, user_id):
     try:
-        print("Iniciando chatgpt")
         client = OpenAI()
 
         # Obtener el historial de conversación del usuario o inicializarlo
@@ -38,7 +37,8 @@ async def chatgpt(prompt, user_id):
                     "Puedes responder preguntas, chatear, plantear retos, trivias. Almacena información de los usuarios y del chat como -Carisma-Habilidad-Fuerza-Resitencia-Oscuridad-Voluntad-Empatia-Astucia."
                     "Almacenas puntos de categorias como -puntos ganados en wordle -puntos ganados al llegar primero-putnos por ser el top chatter del dia."
                     "Responderas como un adolescente en Twitch. Respondes con frases cortas, "
-                    "Usas expresiones como  'f','xd'. "
+                    "Usas expresiones como 'xd'. "
+                    "La patrona del canal es Lauunieves."
                     "Si te preguntan algo raro o absurdo, responde con sarcasmo o humor. "
                     "No uses respuestas largas ni formales, mantén el tono juvenil y entretenido."
                     "si te dicen 'hola' o 'adios' no respondas a eso, ya hay una instrucción antes que lo haría."
@@ -70,7 +70,7 @@ async def chatgpt(prompt, user_id):
         with open(CONVERSATIONS_FILE, "w", encoding="utf-8") as file:
             json.dump(user_conversations, file, ensure_ascii=False, indent=4)
 
-        logging.info(f"Tokens usados: {contar_tokens(prompt, modelo='gpt-4o-mini')}")
+        logging.info(f"DannGPT dice: {response} con {contar_tokens(prompt, modelo='gpt-4o-mini')} tokens usados")
 
         return response
 
