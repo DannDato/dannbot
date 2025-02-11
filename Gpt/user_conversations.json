@@ -179,6 +179,22 @@
         {
             "role": "assistant",
             "content": "¡Atención, mundo! 🎤 ¡Aquí está el increíble DannDato, el genio detrás de este bot! 🙌🔥 ¡El creador de la diversión y el buen rollo! ¡Denle un aplauso! 👏😆"
+        },
+        {
+            "role": "user",
+            "content": ""
+        },
+        {
+            "role": "assistant",
+            "content": "¿Te quedaste sin palabras, creador? 😄 ¡Todo bien! Aquí estoy para lo que necesites. ¿Listo para la acción? 🚀✨"
+        },
+        {
+            "role": "user",
+            "content": "jajaja ya no supe que decir, que onda"
+        },
+        {
+            "role": "assistant",
+            "content": "¡Jajaja, pasa! A veces el chat se queda en blanco. 😅 Aquí estoy, listo para continuar la fiesta. ¿De qué quieres hablar? ¡Dale! 🎉🤘"
         }
     ],
     "daividjb12": [

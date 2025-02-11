@@ -300,14 +300,14 @@ def dynamic_commands(bot):
 
     @bot.command(name="juegos")
     async def juegos(ctx):
-        if not is_authorized(ctx.author.name):
-                return
+        # if not is_authorized(ctx.author.name):
+        #         return
             # Llama a la función y muestra los resultados
         if ctx.author.is_mod:
             library = get_steam_library()
             await ctx.send("[BOT] - Juegos en la biblioteca de danndato")
-            for game in library:
-                await ctx.send(f"[BOT] - {game}")
+            juegosList=", ⠀⠀ ".join(library)
+            await send_large_message(ctx,f"{juegosList}")
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
     

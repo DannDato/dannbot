@@ -225,5 +225,3 @@ async def count_user_joined(user):
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
     
-
-
