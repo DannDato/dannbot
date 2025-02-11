@@ -9,3 +9,7 @@ xp
 player
 nivel
 top
+clan
+liderclan
+clanes
+dejarclan

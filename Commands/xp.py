@@ -1,4 +1,4 @@
-from Helpers.helpers_xp import get_player, get_top_players, get_skin, set_stats, calculate_xp, calculate_level
+from Helpers.helpers_xp import get_player, get_top_players, get_skin, set_stats, calculate_xp, calculate_level, get_clanes, left_clan, join_to_clan, admin_clan, get_clan_user, get_clan_members
 from Helpers.helpers import is_authorized, send_large_message
 from Helpers.helpers_stats import update_global_stats
 
@@ -130,6 +130,101 @@ def xp_commands(bot):
         if skin is not None:
             await ctx.send(f"[BOT] - Se ha guardado tu skin @{ctx.author.name} correctamente")
 
+    #comando para leer los clanes de los usuarios
+    @bot.command(name='clan')
+    async def clan(ctx):
+        if not is_authorized(ctx): return
+        nClan=None
+         #Obtener el clan actual del usuario
+        if ctx.message.content.strip().startswith('!clan @'):
+            user = ctx.message.content.strip().split('@')[1].strip()
+        elif ctx.message.content.strip().startswith('!clan -'):
+            nClan = ctx.message.content.strip().split('-')[1].strip()
+        else:
+            user=ctx.author.name
+
+        if nClan is None:
+            uClan = await get_clan_user(user)
+            await ctx.send(f'[BOT] - @{user} {uClan}')
+        else:
+            uClan = await get_clan_members(nClan)
+            await ctx.send(f'[BOT] - {uClan}')
+
+
+    #Comando para administrar clanes
+    @bot.command(name='liderclan')
+    async def liderclan(ctx):
+        if not is_authorized(ctx): return
+        user = ctx.author.name
+        uNivel= await calculate_level(user)
+    
+        #variante del comando para crear un nuevo clan
+        if ctx.message.content.strip().startswith('!liderclan -c'):
+            if uNivel>=15:
+                nClan = ctx.message.content.strip().split('-c')[1].strip()  # Obtener el nombre del clan
+                #si el usuario no ha creado ningun clan devuelve TRUE, si no, FALSE
+                sClan = await admin_clan(user,nClan,1)
+                if sClan == True:
+                    await ctx.send(f"[BOT] - @{user} ha creado el clan {nClan}")
+                elif sClan == False:
+                    await ctx.send(f"[BOT] - @{user} Ya eres líder de un clan actualmente")
+                elif sClan is None: 
+                    await ctx.send("[BOT] - No se ha podido crear el clan")
+
+            else: await ctx.send(f"[BOT] - No tienes el nivel necesario para administrar un clan @{user}")
+
+        #variante del comando para borrar un clan
+        elif ctx.message.content.strip().startswith('!liderclan -b'):
+            if uNivel>=15:
+                nClan = ctx.message.content.strip().split('-b')[1].strip()  # Obtener el nombre del clan
+                #si encuentra el clan lo borra y devuelve TRUE, si no, FALSE
+                sClan = await admin_clan(user,nClan,2)
+                if sClan == True:
+                    await ctx.send(f"[BOT] - @{user} ha borrado el clan {nClan}")
+                elif sClan == False:
+                    await ctx.send(f"[BOT] - @{user} no se ha encontrado el clan o no eres líder")
+                elif sClan is None: 
+                    await ctx.send("[BOT] - No se ha podido borrar el clan")
+
+            else: await ctx.send(f"[BOT] - No tienes el nivel necesario para administrar un clan @{user}")
+        
+        # variante del comando para unir un usuario a un clan
+        elif ctx.message.content.strip().startswith('!liderclan -u @'):
+            if uNivel>=15:
+                nUser = ctx.message.content.strip().split('@')[1].strip()  # Obtener el usuario a unir
+                #si añade al jugador devuelve TRUE, si no, FALSE
+                sClan = await join_to_clan(user,nUser)
+                if sClan == True:
+                    await ctx.send(f"[BOT] - @{user} Ha añadido a @{nUser} a su clan!")
+                elif sClan == False:
+                    await ctx.send(f"[BOT] - @{user} no se ha encontrado el clan o no eres líder")
+                elif sClan is None: 
+                    await ctx.send("[BOT] - No se ha podido añadir al clan")
+
+            else: await ctx.send(f"[BOT] - No tienes el nivel necesario para administrar un clan @{user}")
+
+    #Comando para abandonar un clan
+    @bot.command(name='dejarclan')
+    async def dejarclan(ctx):
+        if not is_authorized(ctx): return
+        user = ctx.author.name
+        sClan = await left_clan(user)
+        if sClan == True:
+            await ctx.send(f"[BOT] - @{user} Ha abandonado a su clan!")
+        elif sClan == False:
+            await ctx.send(f"[BOT] - @{user} no se ha encontrado el clan")
+        elif sClan is None: 
+            await ctx.send("[BOT] - ocurrió un error al abandonar el clan")
+
+
+            
+        
+    @bot.command(name='clanes')
+    async def clanes(ctx):
+        if not is_authorized(ctx): return
+        lcClanes = await get_clanes()
+        await ctx.send(f"[BOT] - Clanes actuales: {lcClanes}")
+
     @bot.command(name='recompensas')
     async def recompensas(ctx):
         if not is_authorized(ctx): return
@@ -141,19 +236,3 @@ def xp_commands(bot):
         await ctx.send("Nivel [20] 🤖 Tu propio comando ")
         await ctx.send("Nivel [25] 🐕 Adoptar mascota ")
         await ctx.send("Nivel [50] 💎 VIP  ")
-
-    # @bot.command(name='clan')
-    # async def clan(ctx):
-    #     if not is_authorized(ctx): return
-    #     user = ctx.author.name
-    #     if ctx.message.content.strip().startswith('!clan '):
-    #         uClan = "await get_clan_user(user)"
-    #         await ctx.send(f'[BOT] - @{user} {uClan}')
-
-    #     elif ctx.message.content.strip().startswith('!comandos c-'):
-    #         nClan = ctx.message.content.strip().split('c-')[1].strip().lower()  # Obtener el filtro y convertirlo a minúsculas
-    #         sClan = "await crear_clan(user,nClan)"
-    #         if sClan is not None:
-    #             await ctx.send(f"[BOT] - @{user} ha creado el clan {nClan}")
-    #         else: await ctx.send("No se ha podido crear el clan")
-            
