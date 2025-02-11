@@ -79,7 +79,7 @@ def dynamic_commands(bot):
         prompt = texto.replace('!bot', '').strip()
         response = await chatgpt(prompt,ctx.author.name)
         if response is not None:
-            await send_large_message(ctx,f'[BotGPT] - {response}')
+            await send_large_message(ctx,f'[BotGPT] - {response} @{ctx.author.name}')
         else:
             await ctx.send("[BotGPT] - Se acabó el money 🤑, no puedo responder más por hoy")
 
@@ -300,9 +300,6 @@ def dynamic_commands(bot):
 
     @bot.command(name="juegos")
     async def juegos(ctx):
-        # if not is_authorized(ctx.author.name):
-        #         return
-            # Llama a la función y muestra los resultados
         if ctx.author.is_mod:
             library = get_steam_library()
             await ctx.send("[BOT] - Juegos en la biblioteca de danndato")
