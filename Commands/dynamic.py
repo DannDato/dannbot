@@ -69,7 +69,7 @@ def dynamic_commands(bot):
             # Filtrar los comandos para excluir los no deseados
             command_list = [command.name for command in bot.commands.values() if command.name not in excluded_commands]
             command_string = '[BOT] - 🤖 𝗧𝗼𝗱𝗼𝘀 𝗹𝗼𝘀 𝗰𝗼𝗺𝗮𝗻𝗱𝗼𝘀: ⠀⠀⠀'
-            command_string = command_string + "⠀⠀⠀!".join(command_list)+"!"
+            command_string = command_string + " ⠀⠀⠀!".join(command_list)
             # Responder con la lista de comandos
             await send_large_message(ctx,command_string)
     
