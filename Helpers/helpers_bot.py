@@ -17,7 +17,7 @@ OPENAI_API_KEY = token_data.get("openai_api_key")
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):
-    if username not in ('streamelements','nightbot','danndato'): #Exclusión de bots externos
+    if username not in ('streamelements','nightbot','danndato','dannprod'): #Exclusión de bots externos
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # Conectar a la base de datos (si no existe, se creará automáticamente)
         try:
@@ -30,7 +30,7 @@ async def user_joined(username):
             conn.commit()
             conn.close()
             cerrar_conexion(conn, cursor)
-            logging.info(f'\033[1;35m{username} se ha unido\033[0m')
+            logging.info(f'\033[38;5;154m{username} se ha unido\033[0m')
 
         except sqlite3.Error as e:
             logging.info(f'{username} se ha unido')
@@ -96,7 +96,7 @@ async def read_save_chat(message):
             await update_stream_data("total_messages",1)
             await update_global_stats("messages",username,1)
 
-            logging.info(f'\033[1;33m{username}\033[0m:\033[94m {message} \033[0m')
+            logging.info(f'\033[38;5;210m{username}\033[38;5;255m {message} \033[0m')
             
         except sqlite3.Error as e:
             logging.error(f"Error al gestionar la tabla de chat: {e}")

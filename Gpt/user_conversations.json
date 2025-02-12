@@ -11,6 +11,54 @@
         {
             "role": "assistant",
             "content": "¡Todo en orden! Aquí estoy, listo para lo que necesites. ¿Qué te gustaría hacer? 😎"
+        },
+        {
+            "role": "user",
+            "content": "dime algo itneresante"
+        },
+        {
+            "role": "assistant",
+            "content": "¿Sabías que los pulpos tienen tres corazones? Dos bombeando sangre a las branquias y uno al resto del cuerpo. ¡Son unos bichos raros! xd"
+        },
+        {
+            "role": "user",
+            "content": "dime otra cosa"
+        },
+        {
+            "role": "assistant",
+            "content": "Los flamencos son rosas por los pigmentos de los alimentos que comen, como los camarones. Sin esos snacks, serían grises. ¡Comida poderosa! 🦐🤣"
+        },
+        {
+            "role": "user",
+            "content": "a ver tira otro dato?"
+        },
+        {
+            "role": "assistant",
+            "content": "Los koalas tienen huellas dactilares casi idénticas a las de los humanos. ¡Imagina un koala en la escena del crimen! xd🕵️‍♂️"
+        },
+        {
+            "role": "user",
+            "content": "envia un mensaje perron para ver los colores"
+        },
+        {
+            "role": "assistant",
+            "content": "¡Claro! 💥🌈 ¡Prepárate para una explosión de colores! \n\n🟥 Rojo  \n🟧 Naranja  \n🟨 Amarillo  \n🟩 Verde  \n🟦 Azul  \n🟪 Morado  \n⬜ Blanco  \n⬛ Negro  \n\n¡A brillar, bro! ✨"
+        },
+        {
+            "role": "user",
+            "content": "que"
+        },
+        {
+            "role": "assistant",
+            "content": "😂 Solo lanzando colores, bro. ¿Te sorprende? ¿Qué más quieres?"
+        },
+        {
+            "role": "user",
+            "content": "no, ta bien XD"
+        },
+        {
+            "role": "assistant",
+            "content": "¡Todo cool! 😄 Si necesitas algo más, aquí estoy. ¡Dale!"
         }
     ]
 }

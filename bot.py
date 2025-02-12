@@ -20,12 +20,11 @@ from Helpers.helpers import is_channel_online, get_viewers_count
 
 #Importar configuraciónes
 from Helpers.token_loader import load_token
-from Helpers.console_log import init_console
+from Helpers.console_log import init_console, animated_message
 
 init_console() #Inicializar configuración de la consola (logging y colorlog)
 
 # Cargar credenciales desde el archivo token.json
-logging.info("Cargando token...\n ")
 token_data = load_token()
 access_token = token_data.get("access_token")
 client_id = token_data.get("client_id")
@@ -48,19 +47,18 @@ class TwitchBot(commands.Bot):
             nick="diosito",  # Nombre de usuario del bot
             initial_channels=initial_channels if isinstance(initial_channels, list) else [initial_channels],
         )
-        logging.info("-> Iniciando Twitch ")
+        animated_message("Inicializando","\033[38;5;221m")
         self.load_modules() #Cargar modulos en el objeto bot
+        print(f"\033[38;5;252m->    C o n e c t a n d o    c o n   \033[1;34m{initial_channels} \033[38;5;252m E n   T w i t c h ")
 
     # Validación de bot cargado
     async def event_ready(self):
         # Evento que se ejecuta cuando el bot se conecta correctamente.
-        logging.info(f"Bot conectado como {self.nick}")
-        logging.info(f"En el canal: \033[0m{self.user_id}")
-        print('\n')
+        animated_message("Bot en linea","\033[38;5;154m")
 
     # Registra comandos desde módulos separados.
     def load_modules(self):
-        logging.info("-> Cargando comandos por módulos")
+        animated_message("Cargando modulos","\033[38;5;207m")
         admin_commands(self)
         general_commands(self)
         stats_commands(self)

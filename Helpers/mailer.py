@@ -6,7 +6,6 @@ from premailer import transform
 
 from Helpers.token_loader import load_token
 
-print("Cargando mail...\n")
 
 token_data = load_token()
 Mail = token_data.get("mail_og")

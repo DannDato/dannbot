@@ -70,7 +70,7 @@ async def chatgpt(prompt, user_id):
         with open(CONVERSATIONS_FILE, "w", encoding="utf-8") as file:
             json.dump(user_conversations, file, ensure_ascii=False, indent=4)
 
-        logging.info(f"DannGPT dice: {response} con {contar_tokens(prompt, modelo='gpt-4o-mini')} tokens usados")
+        logging.info(f"\033[38;5;222m    DannGPT dice: \033[38;5;255m{response} \033[38;5;237m{contar_tokens(prompt, modelo='gpt-4o-mini')} tokens usados")
 
         return response
 
