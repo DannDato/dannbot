@@ -66,8 +66,8 @@ def init_console():
       / / / / __ `/ __ \/ __ \/ /_/ / __ \/ __/
      / /_/ / /_/ / / / / / / / /_/ / /_/ / /_  
     /_____/\__,_/_/ /_/_/ /_/_____/\____/\__/  
-    \033[38;5;255m         {copyright}
-    \033[38;5;255m          ──────────────────────────────────────────
+    \033[38;5;255m          {copyright}
+    \033[38;5;255m          ───────────────────────────────────────────
 """
     print(centrar_texto(title))
     # Mostrar el título centrado
@@ -82,7 +82,7 @@ def animated_message(text,color):
 
     # Crear el mensaje con los espacios calculados
     # mensaje_original = f"\033[38;5;154m{text}{' ' * spaces_between}\033[38;5;237mVersión {version}"
-    mensaje_original = f"{color}{text}{' ' * spaces_between}\033[38;5;237mVersión {version}"
+    mensaje_original = f"{color}{text}{' ' * spaces_between}\033[38;5;240mVersión {version}"
 
     # Eliminar tabuladores y espacios innecesarios
     mensaje_sin_espacios = mensaje_original.strip()
