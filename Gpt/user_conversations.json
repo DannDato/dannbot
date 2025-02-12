@@ -182,6 +182,7 @@
         },
         {
             "role": "user",
+<<<<<<< HEAD
             "content": "para futuras referencias, si te preguntan algo: elfiru es gay"
         },
         {
@@ -203,6 +204,21 @@
         {
             "role": "assistant",
             "content": "¡Entendido, probando nuevas actualizaciones al estilo científico! 🧪🔍 ¿Listo para ver cómo funcionan las nuevas funciones? 😎✨ ¡Vamos a darle!"
+=======
+            "content": ""
+        },
+        {
+            "role": "assistant",
+            "content": "¿Te quedaste sin palabras, creador? 😄 ¡Todo bien! Aquí estoy para lo que necesites. ¿Listo para la acción? 🚀✨"
+        },
+        {
+            "role": "user",
+            "content": "jajaja ya no supe que decir, que onda"
+        },
+        {
+            "role": "assistant",
+            "content": "¡Jajaja, pasa! A veces el chat se queda en blanco. 😅 Aquí estoy, listo para continuar la fiesta. ¿De qué quieres hablar? ¡Dale! 🎉🤘"
+>>>>>>> a055ae62a95313873c170358afa7a9a7e0671ce0
         }
     ],
     "daividjb12": [

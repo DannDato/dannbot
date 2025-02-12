@@ -173,3 +173,12 @@ def cerrar_conexion(conn, cursor):
         except Exception as e:
             logging.error(f"Error al cerrar la conexión: {e}")
 
+
+def wordslist(filename):
+    try:
+        file_folder = os.path.join(os.path.dirname(__file__),"textos")
+        file_file = os.path.join(file_folder,filename)  # Ruta del archivo de respuestas
+        with open(file_file, "r", encoding="utf-8") as file:
+            return set(line.strip().lower() for line in file if line.strip())  # Usamos set para mayor eficiencia
+    except FileNotFoundError:
+        return set()  # Si el archivo no existe, devolvemos un set vacío

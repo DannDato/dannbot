@@ -340,5 +340,288 @@ async def get_rol(h1, h2, h3):
     return lcTitulo
 
 async def get_skin(user):
-    
     return await get_stats("Skin",user,0)
+
+async def set_stats(stat_category, user, value):
+    """
+    Actualiza las estadísticas globales.
+    :param stat_category: Categoría de la estadística (ej. 'wordle_wins', 'top_chatter')
+    :param user: Nombre del usuario
+    :param value: Cantidad a incrementar
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Normalizar el nombre de usuario
+        user = normalize_username(user)
+
+        # Verificar si el usuario ya tiene un valor para esta categoría
+        cursor.execute('''
+            SELECT value, hvalue FROM stats_channel
+            WHERE category = ? AND username = ?
+        ''', (stat_category, user))
+
+        result = cursor.fetchone()
+
+        if result:
+            # Si el usuario ya tiene una estadística, actualizar el valor
+            new_value = value
+            hvalue = value
+
+            cursor.execute('''
+                UPDATE stats_channel
+                SET value = ?, hvalue = ?
+                WHERE category = ? AND username = ?
+            ''', (new_value, hvalue, stat_category, user))
+        else:
+            # Si no existe, insertar un nuevo registro
+            new_value=value
+            cursor.execute('''
+                INSERT INTO stats_channel (category, username, value, hvalue)
+                VALUES (?, ?, ?, ?)
+            ''', (stat_category, user, value, value))
+            
+
+        # Confirmar los cambios y cerrar la conexión
+        conn.commit()
+        conn.close()
+        cerrar_conexion(conn, cursor)
+        # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
+        return new_value
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al actualizar las estadísticas en la base de datos stats: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+            cerrar_conexion(conn, cursor)  
+        return None
+    
+async def get_clan_user(user):
+    """
+    Obtiene el clan actual del usuario.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        user = normalize_username(user)
+
+        # Consulta para obtener el clan del usuario
+        cursor.execute('''
+            SELECT clan,lider
+            FROM clanes
+            WHERE username = ?
+        ''', (user,))
+        result = cursor.fetchone()
+        cerrar_conexion(conn, cursor)
+        if result:
+            if result[1]=='1':
+                return f"es lider del clan '{result[0]}'"
+            else:
+                return f"pertenece al clan '{result[0]}'"
+        else:
+            return "No pertenece a ningún clan."
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener el clan del usuario: {e}")
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+            cerrar_conexion(conn, cursor)
+
+async def admin_clan(user,clan,accion):
+    """
+    Crea o elimina un clan.
+    :param user: Nombre del usuario.
+    :param clan: Nombre del clan.
+    :param accion: Acción a realizar.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        user = normalize_username(user)
+
+        # Consulta para verificar si el usuario ya es líder de un clan
+        cursor.execute('''
+            SELECT clan
+            FROM clanes
+            WHERE username = ? AND lider = 1
+        ''', (user,))
+        result = cursor.fetchone()
+
+        if accion == 1:
+            if result:
+                # Si el usuario ya es líder de un clan, no puede crear otro
+                return False
+            # Crear un nuevo clan
+            cursor.execute('''
+                INSERT INTO clanes (clan, username, lider)
+                VALUES (?, ?, 1)
+            ''', (clan, user))
+            conn.commit()
+            cerrar_conexion(conn, cursor)
+            return True
+
+        elif accion == 2:
+            # Eliminar un clan
+            if result: #verifica si es lider
+                cursor.execute('''
+                DELETE FROM clanes
+                WHERE clan = ? AND username = ? AND lider = 1
+                ''', (clan, user))
+                conn.commit()
+                cerrar_conexion(conn, cursor)
+                return True
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al administrar el clan: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+            cerrar_conexion(conn, cursor)
+        return None
+    
+async def join_to_clan(admin,user):
+    """
+    Añade un usuario a un clan.
+    :param admin: Nombre del usuario administrador.
+    :param user: Nombre del usuario a añadir.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        admin = normalize_username(admin)
+        user = normalize_username(user)
+
+        # Consulta para verificar si el usuario es líder de un clan
+        cursor.execute('''
+            SELECT clan
+            FROM clanes
+            WHERE username = ? AND lider = 1
+        ''', (admin,))
+        result = cursor.fetchone()
+
+        if result:
+            # Añadir al usuario al clan
+            cursor.execute('''
+                INSERT INTO clanes (clan, username, lider)
+                VALUES (?, ?, 0)
+            ''', (result[0], user))
+            conn.commit()
+            cerrar_conexion(conn, cursor)
+            return True
+        else:
+            cerrar_conexion(conn, cursor)
+            return False
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al añadir al usuario al clan: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+            cerrar_conexion(conn, cursor)
+        return None
+    
+async def left_clan(user):
+    """
+    Abandona un clan.
+    :param user: Nombre del usuario.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        user = normalize_username(user)
+        # Consulta para verificar si el usuario es líder de un clan
+        cursor.execute('''
+            SELECT clan
+            FROM clanes
+            WHERE username = ? AND lider = 1
+        ''', (user,))
+        result = cursor.fetchone()
+
+        if result:
+            # Abandonar el clan
+            cursor.execute('''
+                DELETE FROM clanes
+                WHERE clan = ?
+            ''', (result[0],))
+            
+        # Abandonar el clan
+        cursor.execute('''
+            DELETE FROM clanes
+            WHERE username = ?
+        ''', (user,))
+        conn.commit()
+        cerrar_conexion(conn, cursor)
+        return True
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al abandonar el clan: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+            cerrar_conexion(conn, cursor)
+        return None
+    
+async def get_clanes():
+    """
+    Obtiene la lista de clanes.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT clan, COUNT(username) AS miembros
+            FROM clanes
+            GROUP BY clan
+            ORDER BY miembros DESC
+        ''')
+        result = cursor.fetchall()
+        clanes = [row[0] for row in result]
+        cerrar_conexion(conn, cursor)
+        return clanes
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener la lista de clanes: {e}")
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+            cerrar_conexion(conn, cursor)
+
+async def get_clan_members(clan):
+    """
+    Obtiene la lista de miembros de un clan.
+    :param clan: Nombre del clan.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT username
+            FROM clanes
+            WHERE clan = ?
+        ''', (clan,))
+        result = cursor.fetchall()
+
+        members = [row[0] for row in result]
+        cerrar_conexion(conn, cursor)
+        
+        if members:
+            return members
+        else:
+            return "Sin miembros / Clan inexistente."
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener la lista de miembros del clan: {e}")
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+            cerrar_conexion(conn, cursor)

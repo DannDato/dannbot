@@ -53,7 +53,6 @@ async def update_global_stats(stat_category, user, value):
         # Confirmar los cambios y cerrar la conexión
         conn.commit()
         conn.close()
-        cerrar_conexion(conn, cursor)
         
         # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
         return new_value
@@ -266,3 +265,28 @@ async def count_user_messages(username, start_date=0, end_date=0):
             conn.close()
             cerrar_conexion(conn, cursor)
 
+async def cuadrar_messages():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        cursor.execute('''
+            SELECT username FROM history_users GROUP BY username
+        ''')
+        result = cursor.fetchall()
+        for user in result:
+            cursor.execute('''
+                SELECT value FROM stats_channel WHERE username = ? AND category = "messages"
+            ''',(user[0],))
+            stats = cursor.fetchone()
+            nMensaje = await count_user_messages(user[0])
+            if stats != nMensaje:
+                await update_global_stats("messages",user[0],nMensaje)
+    except sqlite3.Error as e:
+        logging.error(f"Error al acceder a la base de datos: {e}")
+        return False
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)

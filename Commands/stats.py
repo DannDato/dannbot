@@ -154,6 +154,62 @@ def stats_commands(bot):
         await ctx.send(f'{ranking}')
     bot.commands["wordletop"].category = "Wordle"
 
-    
+    # Comando para registrar el ganador de un reto random
+    @bot.command(name='retowin')
+    async def retowin(ctx):
+        # Validar si el mensaje contiene una mención de usuario
+        if ctx.author.is_mod:
+            if not ctx.message.content.strip().startswith('!retowin @'):
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !retowin @usuario")
+                return
+            # Obtener el nombre del usuario mencionado
+            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+            if mentioned_user == ctx.author.name:
+                await ctx.send("[BOT] - No puedes otorgarte el punto tu mísmo, pídele ayuda a otro moderador")
+                return
+            
+            # Actualizar las estadísticas 
+            actualiza = await update_global_stats("reto_wins",mentioned_user,1)
+            await update_global_stats("xp_Habilidad",mentioned_user,1)
+            if actualiza is not None:
+                await ctx.send(f'[BOT] - Felicidades! Has ganado el reto @{ctx.author.name} 🔥: 🏆')
+        else:
+            await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
+    bot.commands["retowin"].category = "Retos"
 
-    
+
+    @bot.command(name='retolose')
+    async def retolose(ctx):
+        # Validar si el mensaje contiene una mención de usuario
+        if ctx.author.is_mod:
+            if not ctx.message.content.strip().startswith('!retolose @'):
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !retolose @usuario")
+                return
+            # Obtener el nombre del usuario mencionado
+            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+            if mentioned_user == ctx.author.name:
+                await ctx.send("[BOT] - No puedes quitarte el punto tu mísmo, pídele ayuda a otro moderador")
+                return
+            
+            # Actualizar las estadísticas de Wordle
+            actualiza = await update_global_stats("reto_wins",mentioned_user,-1)
+            
+            await ctx.send(f'[BOT] - se ha descontado un punto a @{mentioned_user}, ahora tiene ({actualiza})')
+            
+        else:
+            await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
+    bot.commands["retolose"].category = "Retos"
+
+    @bot.command(name='retoscore')
+    async def retoscore(ctx):
+        # Obtener estadísticas de retos
+        if ctx.message.content.strip().startswith('!retoscore @'):
+            user = ctx.message.content.strip().split('@')[1].strip()
+        else:
+            user=ctx.author.name
+        ranking =await get_stats("reto_wins",user,0)
+        if ranking is not None:
+            await ctx.send(f'[BOT] - @{user} Ha ganado ({ranking}) reto{'s' if ranking>1 else ''}')
+        else:
+            await ctx.send(f'[BOT] - Creo que @{user} nunca ha ganado un reto')
+    bot.commands["retoscore"].category = "Retos"

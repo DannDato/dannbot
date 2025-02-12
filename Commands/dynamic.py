@@ -5,7 +5,7 @@ import locale
 from datetime import datetime, date
 
 
-from Helpers.helpers import send_large_message, is_authorized, normalize_username
+from Helpers.helpers import send_large_message, is_authorized, normalize_username, wordslist
 from Helpers.chatgpt import chatgpt
 from Helpers.helpers_dynamic import gen_response, get_steam_library, get_vips
 from Helpers.helpers_stats import update_global_stats
@@ -38,34 +38,6 @@ def dynamic_commands(bot):
         -juegos
 
     """
-    # @bot.command(name='comandos')
-    # async def comandos(ctx):
-    #     """Muestra los comandos organizados por categoría."""
-    #     categories = {}
-        
-    #     # Agrupar los comandos por categoría
-    #     for command in bot.commands.values():
-    #         category = getattr(command, 'category', "Sin Categoría")
-    #         if category not in categories:
-    #             categories[category] = []
-    #         categories[category].append(command.name)
-        
-    #     # Crear la respuesta organizada por categorías
-    #     response = "Comandos organizados por categoría:\n"
-    #     for category, commands in categories.items():
-    #         category_message = f"🔰[{category.upper()}]:"
-    #         for command in commands:
-    #             category_message += f"  !{command}  "
-            
-    #         # Verifica si el mensaje de la categoría es demasiado largo
-    #         if len(response + category_message) > 500:
-    #             await send_large_message(ctx, category_message)
-    #         else:
-    #             response += category_message
-        
-    #     # Si el mensaje total no excede los 500 caracteres, lo envía todo junto
-    #     if len(response) <= 500:
-    #         await ctx.send(response)
     @bot.command(name='comandos')
     async def comandos(ctx):
         """
@@ -89,39 +61,16 @@ def dynamic_commands(bot):
         elif ctx.message.content.strip().startswith('!comandos c-'):
 
             await ctx.send("buscar por categoria aun no funciona :c ")
-            return
-            categories = {}
-            # Agrupar los comandos por categoría
-            for command in bot.commands.values():
-                category = getattr(command, 'category', "Sin Categoría")
-                if category not in categories:
-                    categories[category] = []
-                categories[category].append(command.name)
-            filtro = ctx.message.content.strip().split('c-')[1].strip().lower()  # Aquí se corrigió el split
-            # Verificar si la categoría existe  
-            if filtro not in [category.lower() for category in categories]:  # Comparar en minúsculas
-                await ctx.send(f"[BOT] - No se encontró la categoría '{filtro}'. Usa !categorias para ver las categorías disponibles.")
-                return
-
-
-            # Crear el mensaje para la categoría solicitada
-            category_message = f"[{filtro}] >"
-            for command in categories[filtro.lower()].lower():
-                category_message += f"  !{command} "
-
-            # Verificar si el mensaje de la categoría es demasiado largo
-            if len(category_message) > 500:
-                await send_large_message(ctx, category_message)
-            else:
-                await ctx.send(category_message)
+            
         else:
             # Obtener los nombres de los comandos registrados
-            excluded_commands = ["ini", "end", "xp", "player", "nivel","top"]
+            # excluded_commands = ["ini", "end","cmsj", "nbug", "recompensas", "skin", "setskin",  "xp", "player", "nivel","top"]
+            excluded_commands = wordslist("comandos_excluidos.txt")
             # Filtrar los comandos para excluir los no deseados
             command_list = [command.name for command in bot.commands.values() if command.name not in excluded_commands]
-            command_string = ", ".join(command_list)+"!"
+            command_string = '[BOT] - 🤖 𝗧𝗼𝗱𝗼𝘀 𝗹𝗼𝘀 𝗰𝗼𝗺𝗮𝗻𝗱𝗼𝘀: ⠀⠀⠀'
+            command_string = command_string + " ⠀⠀⠀!".join(command_list)
             # Responder con la lista de comandos
-            await ctx.send(f'[BOT] - 🤖 Comandos disponibles:')
             await send_large_message(ctx,command_string)
     
     @bot.command(name='bot')
@@ -130,7 +79,7 @@ def dynamic_commands(bot):
         prompt = texto.replace('!bot', '').strip()
         response = await chatgpt(prompt,ctx.author.name)
         if response is not None:
-            await send_large_message(ctx,f'[BotGPT] - {response}')
+            await send_large_message(ctx,f'[BotGPT] - {response} @{ctx.author.name}')
         else:
             await ctx.send("[BotGPT] - Se acabó el money 🤑, no puedo responder más por hoy")
 
@@ -224,6 +173,14 @@ def dynamic_commands(bot):
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
 
+    @bot.command(name='caraocruz')
+    async def caraocruz(ctx):
+        lnResp = random.randint(0, 1)
+        if lnResp == 0: lcRespuesta = "Cara" 
+        else: lcRespuesta = "Cruz"
+        await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
+        await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+
     @bot.command(name='meporte')
     async def meporte(ctx):
         lcRespuesta = gen_response("meporte.txt")
@@ -243,6 +200,11 @@ def dynamic_commands(bot):
         mentioned_user = ctx.message.content.strip().split('@')[1].strip()
         lcRespuesta = gen_response("nalgadas.txt")
         await ctx.send(f'[BOT] - {ctx.author.name} Le ha dado una nalgada a @{mentioned_user}... y le dijo: {lcRespuesta}')
+        await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+    
+    @bot.command(name='pies')
+    async def pies(ctx):
+        await ctx.send(f'[BOT] - {ctx.author.name} cochino, no andes pidiendo patas por aquí 🦶🦶🦶')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
     
     @bot.command(name='abrazo')
@@ -338,14 +300,11 @@ def dynamic_commands(bot):
 
     @bot.command(name="juegos")
     async def juegos(ctx):
-        if not is_authorized(ctx.author.name):
-                return
-            # Llama a la función y muestra los resultados
         if ctx.author.is_mod:
             library = get_steam_library()
             await ctx.send("[BOT] - Juegos en la biblioteca de danndato")
-            for game in library:
-                await ctx.send(f"[BOT] - {game}")
+            juegosList=", ⠀⠀ ".join(library)
+            await send_large_message(ctx,f"{juegosList}")
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
     

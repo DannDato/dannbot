@@ -6,6 +6,8 @@ import random
 
 #Cargar el token para operaciones con las credenciales
 from Helpers.token_loader import load_token
+from Helpers.helpers import wordslist
+from Helpers.helpers_stats import update_global_stats
 #asignacion de credenciales
 token_data = load_token()
 access_token = token_data.get("access_token")
@@ -19,20 +21,33 @@ steamid = token_data.get("steamID")
 
 async def interactuar(ctx, message):
     mensaje = message.content.lower()
-    if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
-        await ctx.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
 
-    if any(word in mensaje for word in ["adios", "bye"]):
-        await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} @{message.author.name}')
+    #evaluar si el mensaje contiene palabras malas o buenas
+    if any(word in mensaje for word in wordslist("zPalabras_malas.txt")):
+        await update_global_stats("xp_Oscuridad",message.author.name,0.15)
+    if any(word in mensaje for word in wordslist("zPalabras_buenas.txt")):
+        await update_global_stats("xp_Carisma",message.author.name,0.15)
 
-    if any(word in mensaje for word in ["oye"]):
-        await ctx.send(f'[BOT] - Qué? @{message.author.name}')
+    #validar que el mensaje no sea dirigido a otra persona para generar respuestas
+    if any(word in mensaje for word in ["@"]):
+        return
+    else:
+        if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
+            await ctx.send(f'[BOT] - {gen_response("saludos.txt")} @{message.author.name}')
 
-    if any(word in mensaje for word in ["peruano"]):
-        await ctx.send(f'[BOT] - déja en paz a los peruanos @{message.author.name}')
+        if any(word in mensaje for word in ["adios", "bye"]):
+            await ctx.send(f'[BOT] - {gen_response("despedidas.txt")} @{message.author.name}')
 
-    if any(word in mensaje for word in ["pito", "pene", "verga"]):
-        await ctx.send(f'[BOT] -  @{message.author.name} {gen_response("regaños.txt")}')
+        if any(word in mensaje for word in ["oye"]):
+            await ctx.send(f'[BOT] - Qué? @{message.author.name}')
+
+        if any(word in mensaje for word in ["peruano"]):
+            await ctx.send(f'[BOT] - déja en paz a los peruanos @{message.author.name}')
+
+        if any(word in mensaje for word in ["pito", "pene", "verga"]):
+            await ctx.send(f'[BOT] -  @{message.author.name} {gen_response("regaños.txt")}')
+
+    
 
 
 async def desafiar(ctx, message):
@@ -44,7 +59,7 @@ def gen_response(document):
     try:
         # Lee todas las líneas del archivo
         respuestas_folder = os.path.join(os.path.dirname(__file__),"textos")
-        respuestas_file = os.path.join(respuestas_folder,document)  # Ruta del archivo basado en la fecha
+        respuestas_file = os.path.join(respuestas_folder,document)  # Ruta del archivo de respuestas
         with open(respuestas_file, "r", encoding="utf-8") as file:
             respuestas = file.readlines()
         # Remueve saltos de línea al final de cada respuesta

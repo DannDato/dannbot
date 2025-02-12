@@ -94,6 +94,7 @@ async def read_save_chat(message):
                 conn.close()
 
             await update_stream_data("total_messages",1)
+            await update_global_stats("messages",username,1)
 
             logging.info(f'\033[1;33m{username}\033[0m:\033[94m {message} \033[0m')
             
@@ -102,8 +103,8 @@ async def read_save_chat(message):
         finally:
             if conn:
                 conn.close()
-            await update_global_stats("xp_Habilidad",username,0.15)
-            await update_global_stats("xp_Carisma",username,0.15)
+                cerrar_conexion(conn, cursor)
+            await update_global_stats("xp_Voluntad",username,0.15)
   
 
 async def update_stream_data(stat_category, value):
@@ -223,5 +224,4 @@ async def count_user_joined(user):
     
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
-
-
+    
