@@ -47,18 +47,17 @@ class TwitchBot(commands.Bot):
             nick="diosito",  # Nombre de usuario del bot
             initial_channels=initial_channels if isinstance(initial_channels, list) else [initial_channels],
         )
-        animated_message("Inicializando","\033[38;5;221m")
+        animated_message("Inicializando...","\033[38;5;221m")
         self.load_modules() #Cargar modulos en el objeto bot
-        print(f"\033[38;5;252m->    C o n e c t a n d o    c o n   \033[1;34m{initial_channels} \033[38;5;252m E n   T w i t c h ")
 
     # Validación de bot cargado
     async def event_ready(self):
         # Evento que se ejecuta cuando el bot se conecta correctamente.
-        animated_message("Bot en linea","\033[38;5;154m")
+        animated_message(f"Bot en linea...","\033[38;5;154m")
 
     # Registra comandos desde módulos separados.
     def load_modules(self):
-        animated_message("Cargando modulos","\033[38;5;207m")
+        animated_message("Cargando modulos...","\033[38;5;207m")
         admin_commands(self)
         general_commands(self)
         stats_commands(self)
