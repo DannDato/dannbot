@@ -172,7 +172,7 @@ def stats_commands(bot):
             actualiza = await update_global_stats("reto_wins",mentioned_user,1)
             await update_global_stats("xp_Habilidad",mentioned_user,1)
             if actualiza is not None:
-                await ctx.send(f'[BOT] - Felicidades! Has ganado el reto @{ctx.author.name} 🔥: 🏆')
+                await ctx.send(f'[BOT] - Felicidades! Has ganado el reto @{mentioned_user} 🔥: 🏆')
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
     bot.commands["retowin"].category = "Retos"

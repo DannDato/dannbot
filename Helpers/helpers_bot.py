@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import logging
 import emoji
+import requests
 import json
 
 
@@ -221,7 +222,41 @@ async def count_user_joined(user):
             conn.close()
             cerrar_conexion(conn, cursor)
         return None
+
+async def save_current_data():
+    """
+        Obtiene los numeros actuales del stream como:
+        Viewers, Followers, subs 
+        y los registra en las tablas para las estadísticas
+    """
+    # # Datos de la API
+    # token_data = load_token()
     
+    # CLIENT_ID = token_data.get("client_id")
+    # ACCESS_TOKEN = token_data.get("access_token")
+    # USERNAME = "danndato"  
+
+    # # URL de la API
+    # url = f"https://api.twitch.tv/helix/streams?user_login={USERNAME}"
+
+    # # Cabeceras de autenticación
+    # headers = {
+    #     "Client-ID": CLIENT_ID,
+    #     "Authorization": f"Bearer {ACCESS_TOKEN}"
+    # }
+
+    # # Hacer la solicitud a la API
+    # response = requests.get(url, headers=headers)
+    # data = response.json()
+
+    # # Verificar si hay una transmisión activa
+    # if "data" in data and data["data"]:
+    #     print(data)
+    #     viewers = data["data"][0]["viewer_count"]
+    #     print(f"Viewers actuales: {viewers}")
+    # else:
+    #     print("No estás en vivo o la API no devolvió datos.")
+
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
     

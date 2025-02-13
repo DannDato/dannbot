@@ -16,3 +16,4 @@ emoji
 openai
 tiktoken
 shutil
+helix

@@ -14,7 +14,7 @@ from Commands.dynamic import dynamic_commands
 from Commands.xp import xp_commands
 
 # Importar Helpers basicos del bot
-from Helpers.helpers_bot import read_save_chat, user_joined
+from Helpers.helpers_bot import read_save_chat, user_joined, save_current_data
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar
 from Helpers.helpers import is_channel_online, get_viewers_count
 
@@ -90,6 +90,18 @@ class TwitchBot(commands.Bot):
                     await channel.send(f'[DESAFIO RANDOM] 🔮 {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
                     sleep_time = random.randint(1200, 1800)
             await asyncio.sleep(1200)  # Esperar 20 minutos antes del siguiente mensaje
+    
+    #  #Timers para mensajes aleatorios
+    # async def get_stream_data(self):
+    #     """Consulta cada minuto el numero de viewers, followers y """
+    #     await self.wait_until_ready()  # Espera a que el bot esté listo
+    #     channel = self.get_channel(self.nick)
+        
+    #     while True:
+    #         if channel:
+    #             if is_channel_online(): # Verificar si el canal está en vivo
+    #                 save_current_data()
+    #         await asyncio.sleep(60)  # Esperar
 
     
 
