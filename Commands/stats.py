@@ -1,6 +1,6 @@
 from datetime import datetime
 from twitchio.ext import commands
-from Helpers.helpers import  is_channel_online
+from Helpers.helpers import  is_channel_online, safe_int
 from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, count_user_messages
 
 def stats_commands(bot):
@@ -209,7 +209,7 @@ def stats_commands(bot):
             user=ctx.author.name
         ranking =await get_stats("reto_wins",user,0)
         if ranking is not None:
-            await ctx.send(f"[BOT] - @{user} Ha ganado ({ranking}) reto{'s' if ranking>1 else ''}")
+            await ctx.send(f"[BOT] - @{user} Ha ganado ({ranking}) reto{'s' if safe_int(ranking) >1 else ''}")
         else:
             await ctx.send(f'[BOT] - Creo que @{user} nunca ha ganado un reto')
     bot.commands["retoscore"].category = "Retos"

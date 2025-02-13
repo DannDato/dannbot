@@ -97,7 +97,7 @@ async def read_save_chat(message):
             await update_stream_data("total_messages",1)
             await update_global_stats("messages",username,1)
 
-            logging.info(f'\033[38;5;210m{username}\033[38;5;255m {message} \033[0m')
+            logging.info(f'\033[38;5;33m{username}\033[38;5;255m {message} \033[0m')
             
         except sqlite3.Error as e:
             logging.error(f"Error al gestionar la tabla de chat: {e}")
@@ -229,33 +229,33 @@ async def save_current_data():
         Viewers, Followers, subs 
         y los registra en las tablas para las estadísticas
     """
-    # # Datos de la API
-    # token_data = load_token()
+    # Datos de la API
+    token_data = load_token()
     
-    # CLIENT_ID = token_data.get("client_id")
-    # ACCESS_TOKEN = token_data.get("access_token")
-    # USERNAME = "danndato"  
+    CLIENT_ID = token_data.get("client_id")
+    ACCESS_TOKEN = token_data.get("access_token")
+    USERNAME = "danndato"  
 
-    # # URL de la API
-    # url = f"https://api.twitch.tv/helix/streams?user_login={USERNAME}"
+    # URL de la API
+    url = f"https://api.twitch.tv/helix/streams?user_login={USERNAME}"
 
-    # # Cabeceras de autenticación
-    # headers = {
-    #     "Client-ID": CLIENT_ID,
-    #     "Authorization": f"Bearer {ACCESS_TOKEN}"
-    # }
+    # Cabeceras de autenticación
+    headers = {
+        "Client-ID": CLIENT_ID,
+        "Authorization": f"Bearer {ACCESS_TOKEN}"
+    }
 
-    # # Hacer la solicitud a la API
-    # response = requests.get(url, headers=headers)
-    # data = response.json()
+    # Hacer la solicitud a la API
+    response = requests.get(url, headers=headers)
+    data = response.json()
 
-    # # Verificar si hay una transmisión activa
-    # if "data" in data and data["data"]:
-    #     print(data)
-    #     viewers = data["data"][0]["viewer_count"]
-    #     print(f"Viewers actuales: {viewers}")
-    # else:
-    #     print("No estás en vivo o la API no devolvió datos.")
+    # Verificar si hay una transmisión activa
+    if "data" in data and data["data"]:
+        print(data)
+        viewers = data["data"][0]["viewer_count"]
+        print(f"Viewers actuales: {viewers}")
+    else:
+        print("No estás en vivo o la API no devolvió datos.")
 
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))

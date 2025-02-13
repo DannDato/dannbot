@@ -91,7 +91,7 @@ class TwitchBot(commands.Bot):
                     sleep_time = random.randint(1200, 1800)
             await asyncio.sleep(1200)  # Esperar 20 minutos antes del siguiente mensaje
     
-    #  #Timers para mensajes aleatorios
+     #Timers para mensajes aleatorios
     # async def get_stream_data(self):
     #     """Consulta cada minuto el numero de viewers, followers y """
     #     await self.wait_until_ready()  # Espera a que el bot esté listo
@@ -101,7 +101,7 @@ class TwitchBot(commands.Bot):
     #         if channel:
     #             if is_channel_online(): # Verificar si el canal está en vivo
     #                 save_current_data()
-    #         await asyncio.sleep(60)  # Esperar
+    #         await asyncio.sleep(1)  # Esperar
 
     
 

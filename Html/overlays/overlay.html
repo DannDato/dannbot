@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overlay para OBS</title>
+    <style>
+        body { background: transparent; margin: 0; overflow: hidden; text-align: center; }
+        #imageContainer img { max-width: 100%; max-height: 100vh; position: absolute; top: 0; left: 0; }
+    </style>
+</head>
+<body>
+    <input type="file" id="imageUpload" accept="image/*">
+    <div id="imageContainer"></div>
+
+    <script>
+        const input = document.getElementById('imageUpload');
+        const container = document.getElementById('imageContainer');
+
+        input.addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    container.innerHTML = '';
+                    container.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+</body>
+</html>
