@@ -86,8 +86,7 @@ async def get_stats(stat_category,user,tipo):
             result = cursor.fetchone()
             
             if result:
-                formatted_users = f"@{result[0]} ({result[1]})" if tipo == 0 else f"@{result[0]} ({result[2]})"
-                retorno = formatted_users
+                retorno = result
             else:
                 retorno = None
         else:
