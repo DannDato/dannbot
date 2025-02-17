@@ -35,7 +35,7 @@ def stats_commands(bot):
             await update_global_stats("xp_Resistencia",ctx.author.name,3)
             if actualiza is not None:
                 ranking =await get_stats("first_user",ctx.author.name,0)
-                await ctx.send(f'[BOT] - Esoo! 🔥 Parece que si has llegado primero! tus puntos actualmente {ranking}: 🏆')
+                await ctx.send(f'[BOT] - Esoo! 🔥 Parece que si has llegado primero! tus puntos actualmente {ranking[1]}: 🏆')
         else:
             if ctx.author.name==handle:
                 await ctx.send(f'[BOT] -Que si @{handle}  ya sabemos que tu llegaste primero 😒')
@@ -51,7 +51,7 @@ def stats_commands(bot):
             user=ctx.author.name
         ranking =await get_stats("first_user",user,0)
         if ranking is not None:
-            await ctx.send(f'[BOT] - 🏎️ En Llegar primero: {ranking}')
+            await ctx.send(f'[BOT] - 🏎️@{ranking[0]} En Llegar primero: ({ranking[1]}) punto{'s' if ranking[1]!='1' else ''}')
         else:
             await ctx.send(f'[BOT] - Creo que nunca has llegado primero @{user}')
     bot.commands["primeroscore"].category = "Llegar primero"
@@ -87,7 +87,7 @@ def stats_commands(bot):
                 await ctx.send(f'[BOT] - 🏆 ¡@{mentioned_user} ha alcanzado 5 victorias y ha ganado una suscripción! 🎉')
             else:
                 ranking =await get_stats("wordle_wins",mentioned_user,0)
-                await ctx.send(f'[BOT] - Felicidades por ganar el Wordle del día! Y tus puntos hasta ahora en 🆆🅾🆁🅳🅻🅴 son {ranking}: 🏆')
+                await ctx.send(f'[BOT] - Felicidades por ganar el Wordle del día! @{ranking[0]} Y tus puntos hasta ahora en 🆆🅾🆁🅳🅻🅴 son ({ranking[1]}) 🏆')
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
     bot.commands["wordlewin"].category = "Wordle"
@@ -103,7 +103,7 @@ def stats_commands(bot):
             # Obtener el nombre del usuario mencionado
             mentioned_user = ctx.message.content.strip().split('@')[1].strip()
             if mentioned_user == ctx.author.name:
-                await ctx.send("[BOT] - No puedes otorgarte el punto tu mísmo, pídele ayuda a otro moderador")
+                await ctx.send("[BOT] - No puedes mover el punto tu mísmo, pídele ayuda a otro moderador")
                 return
             
             # Actualizar las estadísticas de Wordle
@@ -126,7 +126,7 @@ def stats_commands(bot):
             user=ctx.author.name
         ranking =await get_stats("wordle_wins",user,0)
         if ranking is not None:
-            await ctx.send(f'[BOT] - En 🆆🅾🆁🅳🅻🅴: {ranking}')
+            await ctx.send(f'[BOT] - En 🆆🅾🆁🅳🅻🅴: {ranking[1]}')
         else:
             await ctx.send(f'[BOT] - Creo que @{user} nunca ha ganado el wordle')
     bot.commands["wordlescore"].category = "Wordle"
@@ -167,12 +167,11 @@ def stats_commands(bot):
             if mentioned_user == ctx.author.name:
                 await ctx.send("[BOT] - No puedes otorgarte el punto tu mísmo, pídele ayuda a otro moderador")
                 return
-            
             # Actualizar las estadísticas 
             actualiza = await update_global_stats("reto_wins",mentioned_user,1)
             await update_global_stats("xp_Habilidad",mentioned_user,1)
             if actualiza is not None:
-                await ctx.send(f'[BOT] - Felicidades! Has ganado el reto @{mentioned_user} 🔥: 🏆')
+                await ctx.send(f'[BOT] - Felicidades! Has ganado el reto @{mentioned_user}🏆')
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
     bot.commands["retowin"].category = "Retos"
