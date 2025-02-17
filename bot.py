@@ -14,8 +14,9 @@ from Commands.dynamic import dynamic_commands
 from Commands.xp import xp_commands
 
 # Importar Helpers basicos del bot
-from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages, get_broadcaster_id
+from Helpers.helpers import get_broadcaster_id
 from Helpers.helpers_dynamic import interactuar, desafiar
+from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages, handle_redeem
 
 #Importar configuraciónes
 from Helpers.token_loader import load_token
@@ -61,7 +62,7 @@ class TwitchBot(commands.Bot):
         await self.pubsub.subscribe_topics(topics)
 
     async def event_pubsub_channel_points(self, event):
-        logging.info(f" {event.user.name} ha canjeado: {event.reward.title}")
+        await handle_redeem( event.reward.title, event.user.name)
         await self.get_channel(self.nick).send(f"{event.user.name} ha canjeado {event.reward.title}!")
 
 

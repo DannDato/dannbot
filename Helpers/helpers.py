@@ -19,6 +19,23 @@ initial_channels = token_data.get("initial_channels", [])
 channel_name = token_data.get("channel_name")
 steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
+
+
+def get_broadcaster_id():    
+    # Hacer la solicitud a la API de Twitch
+    url = f"https://api.twitch.tv/helix/users?login={channel_name}"
+    headers = {
+        "Client-ID": client_id,
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    # Extraer y mostrar el ID del usuario
+    if "data" in data and len(data["data"]) > 0:
+        broadcaster_id = data["data"][0]["id"]
+        return broadcaster_id
+    else:
+        return 0
 #______________________________________________________________
 
 # Convierte los valores en enteros, asegurando que None, '' o valores inválidos sean 0
