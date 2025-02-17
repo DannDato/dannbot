@@ -16,7 +16,7 @@ token_data = load_token()
 access_token = token_data.get("access_token")
 client_id = token_data.get("client_id")
 initial_channels = token_data.get("initial_channels", [])
-broadcaster_id = token_data.get("broadcaster_id")
+channel_name = token_data.get("channel_name")
 steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
 #______________________________________________________________
