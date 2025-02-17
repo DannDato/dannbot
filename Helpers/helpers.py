@@ -31,7 +31,7 @@ def safe_int(value):
 # Función para verificar si el autor del mensaje está en la lista de usuarios permitidos
 def is_authorized(ctx):
     # Lista de usuarios autorizados
-    AUTHORIZED_USERS = ['danndato', 'lauunieves']
+    AUTHORIZED_USERS = ['danndato', 'lauunieves','dannievt']
     return ctx.author.name.lower() in AUTHORIZED_USERS
 
 #Función que divide una cadena de texto grande en diferentes mensajes en base al límite definid
@@ -89,30 +89,27 @@ async def is_channel_online():
         cerrar_conexion(conn, cursor)
 
         if result and result[0] > 0:
-            logging.warning("Un stream está activo según la base de datos.")
+            # logging.info("Un stream está activo según la base de datos.")
             return True
 
-        logging.info("No hay stream activo en la base de datos, verificando en Twitch...")
+        # logging.warning("No hay stream activo en la base de datos, verificando en Twitch...")
 
         # Si no hay registro en la base de datos, realizar solicitud a Twitch
         for attempt in range(max_attempts):
-            logging.info(f"Intento {attempt + 1} de {max_attempts}...")
             try:
                 contents = requests.get('https://www.twitch.tv/' + broadcaster_id).content.decode('utf-8')
                 if 'isLiveBroadcast' in contents:
-                    logging.info(f"{broadcaster_id} está en línea según Twitch.")
+                    # logging.info(f"{broadcaster_id} está en línea según Twitch.")
                     return True
-                else:
-                    logging.info(f"{broadcaster_id} está offline según Twitch.")
+                    # if attempt == max_attempts: logging.info(f"{broadcaster_id} está offline según Twitch.")
             except requests.RequestException as e:
                 logging.error(f"Error en la solicitud a Twitch: {e}")
-
         # Si después de todos los intentos no se obtiene confirmación, retornar False
-        logging.info(f"{broadcaster_id} sigue offline después de {max_attempts} intentos.")
+        # logging.info(f"{broadcaster_id} sigue offline después de {max_attempts} intentos.")
         return False
 
     except sqlite3.Error as e:
-        logging.error(f"Error al acceder a la base de datos: {e}")
+        # logging.error(f"Error al acceder a la base de datos: {e}")
         return False
 
 

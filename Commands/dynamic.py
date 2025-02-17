@@ -38,7 +38,7 @@ def dynamic_commands(bot):
         -juegos
 
     """
-    @bot.command(name='comandos')
+    @bot.command(name='comandos',aliases=["help"])
     async def comandos(ctx):
         """
         Muestra una lista de todos los comandos disponibles en el @bot.

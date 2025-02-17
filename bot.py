@@ -1,10 +1,9 @@
 #Librerias de control de consola y conexión a twitch
-import asyncio
-import logging
-import random
-from logging.handlers import TimedRotatingFileHandler
-from twitchio.ext import commands
+from twitchio.ext import commands, pubsub
 
+import twitchio
+import logging
+# from logging.handlers import TimedRotatingFileHandler
 
 # Importar módulos (Comandos)
 from Commands.admin import admin_commands
@@ -14,9 +13,8 @@ from Commands.dynamic import dynamic_commands
 from Commands.xp import xp_commands
 
 # Importar Helpers basicos del bot
-from Helpers.helpers_bot import read_save_chat, user_joined, save_current_data
-from Helpers.helpers_dynamic import gen_response, interactuar, desafiar
-from Helpers.helpers import is_channel_online, get_viewers_count
+from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages
+from Helpers.helpers_dynamic import interactuar, desafiar
 
 #Importar configuraciónes
 from Helpers.token_loader import load_token
@@ -54,6 +52,8 @@ class TwitchBot(commands.Bot):
     async def event_ready(self):
         # Evento que se ejecuta cuando el bot se conecta correctamente.
         animated_message(f"Bot en linea...","\033[38;5;154m")
+        await send_timed_messages(self)
+        
 
     # Registra comandos desde módulos separados.
     def load_modules(self):
@@ -72,40 +72,21 @@ class TwitchBot(commands.Bot):
         await read_save_chat(message)
         await interactuar(channel,message)
         await desafiar(channel,message)
+        message.content=message.content.lower()
         await self.handle_commands(message)
     
     #Evento de unión de un usuario al canal
     async def event_join(self, channel, user):
         await user_joined(user.name)
 
-    #Timers para mensajes aleatorios
-    async def send_timed_messages(self):
-        """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
-        await self.wait_until_ready()  # Espera a que el bot esté listo
-        channel = self.get_channel(self.nick)
-        sleep_time = random.randint(1200, 1800)
-        while True:
-            if channel:
-                if is_channel_online(): # Verificar si el canal está en vivo
-                    await channel.send(f'[DESAFIO RANDOM] 🔮 {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
-                    sleep_time = random.randint(1200, 1800)
-            await asyncio.sleep(1200)  # Esperar 20 minutos antes del siguiente mensaje
-    
-     #Timers para mensajes aleatorios
-    # async def get_stream_data(self):
-    #     """Consulta cada minuto el numero de viewers, followers y """
-    #     await self.wait_until_ready()  # Espera a que el bot esté listo
-    #     channel = self.get_channel(self.nick)
-        
-    #     while True:
-    #         if channel:
-    #             if is_channel_online(): # Verificar si el canal está en vivo
-    #                 save_current_data()
-    #         await asyncio.sleep(1)  # Esperar
+    async def event_command_error(self, ctx, error):
+        """Maneja errores de comandos no encontrados"""
+        if isinstance(error, commands.CommandNotFound):
+            await ctx.send(f'❌ Comando desconocido. Usa !comandos o !help para ver la lista de comandos.')
 
-    
 
 # Iniciar el bot
 if __name__ == "__main__":
     bot = TwitchBot()
     bot.run()
+    

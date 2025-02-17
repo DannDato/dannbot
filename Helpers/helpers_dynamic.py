@@ -6,7 +6,7 @@ import random
 
 #Cargar el token para operaciones con las credenciales
 from Helpers.token_loader import load_token
-from Helpers.helpers import wordslist
+from Helpers.helpers import wordslist, is_channel_online
 from Helpers.helpers_stats import update_global_stats
 #asignacion de credenciales
 token_data = load_token()
@@ -49,10 +49,10 @@ async def interactuar(ctx, message):
 
     
 
-
 async def desafiar(ctx, message):
-    lnReto = random.randint(0, 300)
-    if lnReto == 49: await ctx.send(f'[BOT] - @{message.author.name} {gen_response("desafios.txt")}')
+    lnReto = random.randint(0, 500)
+    if await is_channel_online():
+        if lnReto == 49: await ctx.send(f'[RETO RANTOM] 🔮 @{message.author.name} {gen_response("desafios.txt")}')
 
 #___________________________________________________________________________________________
 def gen_response(document):

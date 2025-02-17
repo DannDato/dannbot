@@ -1,14 +1,13 @@
-import random
 import sqlite3
 import os
 from datetime import datetime
 import logging
 import emoji
-import requests
-import json
+import asyncio
+import random 
 
-
-from Helpers.helpers import normalize_username, clean_text, cerrar_conexion
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online
+from Helpers.helpers_dynamic import gen_response
 from Helpers.helpers_stats import update_global_stats
 from Helpers.token_loader import load_token
 
@@ -18,7 +17,7 @@ OPENAI_API_KEY = token_data.get("openai_api_key")
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):
-    if username not in ('streamelements','nightbot','danndato','dannprod'): #Exclusión de bots externos
+    if username not in ('streamelements','nightbot','danndato','dannprod', 'dannievt'): #Exclusión de bots externos
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         # Conectar a la base de datos (si no existe, se creará automáticamente)
         try:
@@ -31,7 +30,7 @@ async def user_joined(username):
             conn.commit()
             conn.close()
             cerrar_conexion(conn, cursor)
-            logging.info(f'\033[38;5;154m{username} se ha unido\033[0m')
+            logging.info(f'\033[38;5;154m {username} se ha unido \033[0m')
 
         except sqlite3.Error as e:
             logging.info(f'{username} se ha unido')
@@ -97,7 +96,7 @@ async def read_save_chat(message):
             await update_stream_data("total_messages",1)
             await update_global_stats("messages",username,1)
 
-            logging.info(f'\033[38;5;33m{username}\033[38;5;255m {message} \033[0m')
+            logging.info(f'\033[38;5;141m{username}\033[38;5;255m {message} \033[0m')
             
         except sqlite3.Error as e:
             logging.error(f"Error al gestionar la tabla de chat: {e}")
@@ -222,6 +221,24 @@ async def count_user_joined(user):
             conn.close()
             cerrar_conexion(conn, cursor)
         return None
+    
+#Timers para mensajes aleatorios
+async def send_timed_messages(self):
+    """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
+    starting_bot=False
+    await self.wait_for_ready()  # Espera a que el bot esté listo
+    channel = self.get_channel(self.nick)
+    sleep_time = random.randint(1800, 2400)
+    while True:
+        if starting_bot == False:
+            starting_bot=True
+        else:
+            if channel:
+                if await is_channel_online(): # Verificar si el canal está en vivo
+                    await channel.send(f'[BOT] {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
+                    sleep_time = random.randint(1200, 1800)
+        await asyncio.sleep(sleep_time)  # Esperar 20 minutos antes del siguiente mensaje
+
 
 async def save_current_data():
     """
@@ -231,31 +248,16 @@ async def save_current_data():
     """
     # Datos de la API
     token_data = load_token()
+    access_token = token_data.get("access_token")
+    client_id = token_data.get("client_id")
+    initial_channels = token_data.get("initial_channels", [])
+    broadcaster_id = token_data.get("broadcaster_id")
     
-    CLIENT_ID = token_data.get("client_id")
-    ACCESS_TOKEN = token_data.get("access_token")
-    USERNAME = "danndato"  
+    # while True: 
+    #     # Aqui se pondria el codigo de la obtención de estadísticas...
 
-    # URL de la API
-    url = f"https://api.twitch.tv/helix/streams?user_login={USERNAME}"
-
-    # Cabeceras de autenticación
-    headers = {
-        "Client-ID": CLIENT_ID,
-        "Authorization": f"Bearer {ACCESS_TOKEN}"
-    }
-
-    # Hacer la solicitud a la API
-    response = requests.get(url, headers=headers)
-    data = response.json()
-
-    # Verificar si hay una transmisión activa
-    if "data" in data and data["data"]:
-        print(data)
-        viewers = data["data"][0]["viewer_count"]
-        print(f"Viewers actuales: {viewers}")
-    else:
-        print("No estás en vivo o la API no devolvió datos.")
+    #     # SI TUVIERA UNO!!!!!
+    #     await asyncio.sleep(2)
 
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
