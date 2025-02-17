@@ -5,3 +5,4 @@ data.db
 /Venv
 token.json
 /Gpt
+user_conversations.json
