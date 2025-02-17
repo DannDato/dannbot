@@ -2,6 +2,7 @@
 from twitchio.ext import commands, pubsub
 
 import twitchio
+import requests
 import logging
 # from logging.handlers import TimedRotatingFileHandler
 
@@ -27,7 +28,27 @@ token_data = load_token()
 access_token = token_data.get("access_token")
 client_id = token_data.get("client_id")
 initial_channels = token_data.get("initial_channels", [])
+channel_name = token_data.get("channel_name")
 broadcaster_id = token_data.get("broadcaster_id")
+
+# Hacer la solicitud a la API de Twitch
+url = f"https://api.twitch.tv/helix/users?login={channel_name}"
+headers = {
+    "Client-ID": client_id,
+    "Authorization": f"Bearer {access_token}"
+}
+
+response = requests.get(url, headers=headers)
+data = response.json()
+
+# Extraer y mostrar el ID del usuario
+if "data" in data and len(data["data"]) > 0:
+    broadcaster_id = data["data"][0]["id"]
+    print(f"Tu User ID es: {broadcaster_id}")
+else:
+    print("Error: No se pudo obtener el User ID")
+
+
 
 # Verificar credenciales esenciales
 if not access_token or not client_id or not broadcaster_id:
@@ -53,7 +74,7 @@ class TwitchBot(commands.Bot):
 
     async def listen_to_pubsub(self):
         topics = [
-            pubsub.channel_points(token=access_token)[broadcaster_id]
+            pubsub.channel_points(token=access_token)[int(broadcaster_id)]
         ]
         await self.pubsub.subscribe_topics(topics)
 
