@@ -5,6 +5,7 @@ import logging
 import emoji
 import asyncio
 import random 
+import requests
 
 from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online
 from Helpers.helpers_dynamic import gen_response
@@ -14,6 +15,29 @@ from Helpers.token_loader import load_token
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 token_data = load_token()
 OPENAI_API_KEY = token_data.get("openai_api_key")
+token_data = load_token()
+access_token = token_data.get("access_token")
+client_id = token_data.get("client_id")
+channel_name = token_data.get("channel_name")
+
+
+
+def get_broadcaster_id():    
+    # Hacer la solicitud a la API de Twitch
+    url = f"https://api.twitch.tv/helix/users?login={channel_name}"
+    headers = {
+        "Client-ID": client_id,
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    # Extraer y mostrar el ID del usuario
+    if "data" in data and len(data["data"]) > 0:
+        broadcaster_id = data["data"][0]["id"]
+        return broadcaster_id
+    else:
+        return 0
+    
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):

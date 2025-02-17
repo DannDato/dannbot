@@ -14,7 +14,7 @@ from Commands.dynamic import dynamic_commands
 from Commands.xp import xp_commands
 
 # Importar Helpers basicos del bot
-from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages
+from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages, get_broadcaster_id
 from Helpers.helpers_dynamic import interactuar, desafiar
 
 #Importar configuraciónes
@@ -29,26 +29,8 @@ access_token = token_data.get("access_token")
 client_id = token_data.get("client_id")
 initial_channels = token_data.get("initial_channels", [])
 channel_name = token_data.get("channel_name")
-broadcaster_id = token_data.get("broadcaster_id")
 
-# Hacer la solicitud a la API de Twitch
-url = f"https://api.twitch.tv/helix/users?login={channel_name}"
-headers = {
-    "Client-ID": client_id,
-    "Authorization": f"Bearer {access_token}"
-}
-
-response = requests.get(url, headers=headers)
-data = response.json()
-
-# Extraer y mostrar el ID del usuario
-if "data" in data and len(data["data"]) > 0:
-    broadcaster_id = data["data"][0]["id"]
-    print(f"Tu User ID es: {broadcaster_id}")
-else:
-    print("Error: No se pudo obtener el User ID")
-
-
+broadcaster_id = get_broadcaster_id()
 
 # Verificar credenciales esenciales
 if not access_token or not client_id or not broadcaster_id:
