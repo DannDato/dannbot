@@ -37,6 +37,7 @@ def get_broadcaster_id():
     else:
         return 0
 #______________________________________________________________
+broadcaster_id = get_broadcaster_id()
 
 # Convierte los valores en enteros, asegurando que None, '' o valores inválidos sean 0
 def safe_int(value):
