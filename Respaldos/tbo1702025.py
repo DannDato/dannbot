@@ -64,17 +64,6 @@ class TwitchBot(commands.Bot):
         dynamic_commands(self)
         xp_commands(self)
 
-    async def listen_to_pubsub(self):
-        topics = [
-            pubsub.channel_points(token=access_token)[broadcaster_id]
-        ]
-        await self.pubsub.subscribe_topics(topics)
-
-    async def event_pubsub_channel_points(self, event):
-        logging.info(f" {event.user.name} ha canjeado: {event.reward.title}")
-        await self.get_channel(self.nick).send(f"{event.user.name} ha canjeado {event.reward.title}!")
-
-
     #Lectura del evento de nuevo mensaje en el chat del canal
     async def event_message(self, message): #Evento de nuevo mensaje en el chat
         channel = self.get_channel(self.nick) #Obtener el canal del bot para poder enviar mensajes, es como el ctx
