@@ -46,23 +46,10 @@ class TwitchBot(commands.Bot):
             initial_channels=initial_channels if isinstance(initial_channels, list) else [initial_channels],
         )
         animated_message("Inicializando...","\033[38;5;221m")
+        self.pubsub = pubsub.PubSubPool(self)
+        self.loop.create_task(self.listen_to_pubsub())
         self.load_modules() #Cargar modulos en el objeto bot
 
-    # Validación de bot cargado
-    async def event_ready(self):
-        # Evento que se ejecuta cuando el bot se conecta correctamente.
-        animated_message(f"Bot en linea...","\033[38;5;154m")
-        await send_timed_messages(self)
-        
-
-    # Registra comandos desde módulos separados.
-    def load_modules(self):
-        animated_message("Cargando modulos...","\033[38;5;207m")
-        admin_commands(self)
-        general_commands(self)
-        stats_commands(self)
-        dynamic_commands(self)
-        xp_commands(self)
 
     async def listen_to_pubsub(self):
         topics = [
@@ -95,6 +82,21 @@ class TwitchBot(commands.Bot):
         if isinstance(error, commands.CommandNotFound):
             await ctx.send(f'❌ Comando desconocido. Usa !comandos o !help para ver la lista de comandos.')
 
+    # Validación de bot cargado
+    async def event_ready(self):
+        # Evento que se ejecuta cuando el bot se conecta correctamente.
+        animated_message(f"Bot en linea...","\033[38;5;154m")
+        await send_timed_messages(self)
+        
+
+    # Registra comandos desde módulos separados.
+    def load_modules(self):
+        animated_message("Cargando modulos...","\033[38;5;207m")
+        admin_commands(self)
+        general_commands(self)
+        stats_commands(self)
+        dynamic_commands(self)
+        xp_commands(self)
 
 # Iniciar el bot
 if __name__ == "__main__":
