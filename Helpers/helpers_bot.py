@@ -15,29 +15,30 @@ from Helpers.token_loader import load_token
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 token_data = load_token()
 OPENAI_API_KEY = token_data.get("openai_api_key")
-token_data = load_token()
-access_token = token_data.get("access_token")
-client_id = token_data.get("client_id")
-channel_name = token_data.get("channel_name")
 
+async def handle_redeem(name, user):
+    """Guardar en la base de datos la recompensa canjeada
+        Para estadísticas
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Insertar el nuevo registro en la tabla
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute('''INSERT INTO redeems (redeem, username, date )VALUES (?, ?, ?)''', (name, user, timestamp))
+        # Confirmar los cambios y cerrar la conexión
+        conn.commit()
+        conn.close()
+        cerrar_conexion(conn, cursor)
+        logging.info(f"\033[38;5;154m {user} ha canjeado '{name}'")
+    except sqlite3.Error as e:
+        logging.error("Ocurrió un error al capturar la recompensa canjeada")
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)
+            await update_global_stats("xp_Fuerza",user,0.15)
 
-
-def get_broadcaster_id():    
-    # Hacer la solicitud a la API de Twitch
-    url = f"https://api.twitch.tv/helix/users?login={channel_name}"
-    headers = {
-        "Client-ID": client_id,
-        "Authorization": f"Bearer {access_token}"
-    }
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    # Extraer y mostrar el ID del usuario
-    if "data" in data and len(data["data"]) > 0:
-        broadcaster_id = data["data"][0]["id"]
-        return broadcaster_id
-    else:
-        return 0
-    
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):
