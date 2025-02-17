@@ -51,7 +51,7 @@ def stats_commands(bot):
             user=ctx.author.name
         ranking =await get_stats("first_user",user,0)
         if ranking is not None:
-            await ctx.send(f'[BOT] - 🏎️@{ranking[0]} En Llegar primero: ({ranking[1]}) punto{'s' if ranking[1]!='1' else ''}')
+            await ctx.send(f'[BOT] - 🏎️@{ranking[0]} En Llegar primero: ({ranking[1]}) punto{"s" if ranking[1]!="1" else ""}')
         else:
             await ctx.send(f'[BOT] - Creo que nunca has llegado primero @{user}')
     bot.commands["primeroscore"].category = "Llegar primero"
@@ -209,7 +209,7 @@ def stats_commands(bot):
         ranking =await get_stats("reto_wins",user,0)
         if ranking is not None:
             print(ranking)
-            await ctx.send(f"[BOT] - @{user} Ha ganado ({ranking[1]}) reto{'s' if safe_int(ranking[1]) >1 else ''}")
+            await ctx.send(f"[BOT] - @{user} Ha ganado ({ranking[1]}) reto{"s" if safe_int(ranking[1]) >1 else ""}")
         else:
             await ctx.send(f'[BOT] - Creo que @{user} nunca ha ganado un reto')
     bot.commands["retoscore"].category = "Retos"
