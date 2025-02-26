@@ -90,8 +90,8 @@ class TwitchBot(commands.Bot):
 
     async def event_command_error(self, ctx, error):
         """Maneja errores de comandos no encontrados"""
-        if isinstance(error, commands.CommandNotFound):
-            await ctx.send(f'❌ Comando desconocido. Usa !comandos o !help para ver la lista de comandos.')
+        #"#if isinstance(error, commands.CommandNotFound):
+            # await ctx.send(f'❌ Comando desconocido. Usa !comandos o !help para ver la lista de comandos.')
 
     # Validación de bot cargado
     async def event_ready(self):
