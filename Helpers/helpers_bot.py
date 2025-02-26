@@ -5,7 +5,6 @@ import logging
 import emoji
 import asyncio
 import random 
-import requests
 
 from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online
 from Helpers.helpers_dynamic import gen_response
@@ -16,58 +15,6 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 token_data = load_token()
 OPENAI_API_KEY = token_data.get("openai_api_key")
 
-
-#Función para manejar el canjeo de recompensas de canal 
-async def handle_redeem(name, user):
-    """Guardar en la base de datos la recompensa canjeada
-        Para estadísticas
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # Insertar el nuevo registro en la tabla
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute('''INSERT INTO redeems (redeem, username, date )VALUES (?, ?, ?)''', (name, user, timestamp))
-        # Confirmar los cambios y cerrar la conexión
-        conn.commit()
-        conn.close()
-        cerrar_conexion(conn, cursor)
-
-        logging.info(f"\033[1;34m{user} \033[38;5;255m ha canjeado \033[38;5;51m '{name}'")
-
-    except sqlite3.Error as e:
-        logging.error("Ocurrió un error al capturar la recompensa canjeada")
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
-            await update_global_stats("xp_Fuerza",user,0.15)
-
-#Función para manejar las donaciones de bits 
-async def handle_bits(amount, user):
-    """Guardar en la base de datos las donaciones realizadas
-        Para estadísticas
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # Insertar el nuevo registro en la tabla
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute('''INSERT INTO donated_bits (amount, username, date )VALUES (?, ?, ?)''', (amount, user, timestamp))
-        # Confirmar los cambios y cerrar la conexión
-        conn.commit()
-        conn.close()
-        cerrar_conexion(conn, cursor)
-
-        logging.info(f"\033[1;34m{user} \033[38;5;255m ha donado \033[38;5;51m '{amount}' bits!")
-
-    except sqlite3.Error as e:
-        logging.error("Ocurrió un error al capturar la recompensa canjeada")
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
-            await update_global_stats("xp_Fuerza",user,0.15)
 
 #Función anidada en el event listener JOIN
 async def user_joined(username):

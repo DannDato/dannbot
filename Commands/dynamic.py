@@ -237,6 +237,14 @@ def dynamic_commands(bot):
         await ctx.send(f'[BOT] - {lcText}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
 
+    @bot.command(name='ip')
+    async def ip(ctx):
+        parte1 = random.randint(1, 255)
+        parte2 = random.randint(1, 255)
+        parte3 = random.randint(1, 255)
+        parte4 = random.randint(1, 255)
+        await ctx.send(f"[BOT] - @{ctx.author.name} Te tengo ubicado, se que estás en la IP {parte1}.{parte2}.{parte3}.{parte4}")
+
     @bot.command(name='amor')
     async def amor(ctx):
         if not ctx.message.content.strip().startswith('!amor @'):
