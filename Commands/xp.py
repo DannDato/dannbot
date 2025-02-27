@@ -16,7 +16,7 @@ def xp_commands(bot):
     """
     @bot.command(name='player')
     async def player(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         
         if ctx.message.content.strip().startswith('!player @'):
             user = ctx.message.content.strip().split('@')[1].strip()
@@ -48,7 +48,7 @@ def xp_commands(bot):
 
     @bot.command(name='xp')
     async def player(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         if ctx.message.content.strip().startswith('!xp @'):
             user = ctx.message.content.strip().split('@')[1].strip()
         else:
@@ -63,7 +63,7 @@ def xp_commands(bot):
         await update_global_stats("xp_Astucia",ctx.author.name,0.25)
     @bot.command(name='nivel')
     async def player(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         if ctx.message.content.strip().startswith('!nivel @'):
             user = ctx.message.content.strip().split('@')[1].strip()
         else:
@@ -88,7 +88,7 @@ def xp_commands(bot):
 
     @bot.command(name='top')
     async def player(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         user=ctx.author.name
         topPlayer = await get_top_players()
         await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
@@ -100,7 +100,7 @@ def xp_commands(bot):
 
     @bot.command(name='skin')
     async def skin(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         user=ctx.author.name
         skin = await get_skin(user)
         
@@ -108,7 +108,7 @@ def xp_commands(bot):
 
     @bot.command(name='setskin')
     async def setskin(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         if len(ctx.message.content.strip().split('!setskin'))<2:
             await ctx.send(f"[BOT] - Necesitas especificar tu skin")
             return
@@ -141,7 +141,7 @@ def xp_commands(bot):
     #comando para leer los clanes de los usuarios
     @bot.command(name='clan')
     async def clan(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
          #Obtener el clan actual del usuario
         if ctx.message.content.strip().startswith('!clan @'):
             user = ctx.message.content.strip().split('@')[1].strip()
@@ -161,7 +161,7 @@ def xp_commands(bot):
     #Comando para administrar clanes
     @bot.command(name='liderclan')
     async def liderclan(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         user = ctx.author.name
         uNivel= await calculate_level(user)
 
@@ -213,7 +213,7 @@ def xp_commands(bot):
     #Comando para abandonar un clan
     @bot.command(name='dejarclan')
     async def dejarclan(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         user = ctx.author.name
         sClan = await left_clan(user)
         await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
@@ -229,14 +229,14 @@ def xp_commands(bot):
         
     @bot.command(name='clanes')
     async def clanes(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         lcClanes = await get_clanes()
         await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         await ctx.send(f"[BOT] - Clanes actuales: {lcClanes}")
 
     @bot.command(name='recompensas')
     async def recompensas(ctx):
-        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         await ctx.send("[BOT] - Las recompensas de nivel en el canal... 🔥")
         await ctx.send("Nivel [ 5] 🏅 Titulo de jugador  ")
