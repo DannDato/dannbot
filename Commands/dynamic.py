@@ -5,10 +5,10 @@ import locale
 from datetime import datetime, date
 
 
-from Helpers.helpers import send_large_message, is_authorized, normalize_username, wordslist
+from Helpers.helpers import send_large_message, validar_fecha, normalize_username, wordslist
 from Helpers.chatgpt import chatgpt
 from Helpers.helpers_dynamic import gen_response, get_steam_library, get_vips
-from Helpers.helpers_stats import update_global_stats
+from Helpers.helpers_stats import update_global_stats, save_user_bd, get_user_bd
 
 locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')  # Para sistemas basados en Unix
 
@@ -38,7 +38,8 @@ def dynamic_commands(bot):
         -juegos
 
     """
-    @bot.command(name='comandos',aliases=["help"])
+    @bot.command(name='comandos',aliases=["help","commands","ayuda"])
+
     async def comandos(ctx):
         """
         Muestra una lista de todos los comandos disponibles en el @bot.
@@ -78,6 +79,7 @@ def dynamic_commands(bot):
         texto = ctx.message.content.strip().split('!bot')[1].strip()
         prompt = texto.replace('!bot', '').strip()
         response = await chatgpt(prompt,ctx.author.name)
+        await update_global_stats("xp_Astucia",ctx.author.name,0.15)
         if response is not None:
             await send_large_message(ctx,f'[BotGPT] - {response} @{ctx.author.name}')
         else:
@@ -86,6 +88,7 @@ def dynamic_commands(bot):
 
     @bot.command(name='so')
     async def so(ctx):
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
         await update_global_stats("xp_Empatia",ctx.author.name,0.15)
         if ctx.author.is_mod:
             if not ctx.message.content.strip().startswith('!so @'):
@@ -113,6 +116,41 @@ def dynamic_commands(bot):
         await ctx.send(f'[BOT] - A  @{ctx.author.name} le mide {lnCm}cm {lcExtra}')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
+
+    @bot.command(name='bd')
+    async def bd(ctx):
+        bd = ctx.message.content.strip().split(' ')[1].strip()
+        bd = bd.strip()
+        pasa = validar_fecha(bd)
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.55)
+        if pasa[0] == True:
+            guardado = await save_user_bd(bd, ctx.author.name)
+            if guardado == True:
+                await ctx.send(f'[BOT] - Perfecto @{ctx.author.name} ahora recordaré tu cumpleaños!')
+        else:
+            await ctx.send(f'[BOT] - @{ctx.author.name} Debe ser Año, Mes, día. así: "!bd 2000-01-31" ;)')
+    
+    @bot.command(name='cumpleaños')
+    async def cumpleaños(ctx):
+        if ctx.message.content.strip().startswith('!cumpleaños @'):
+            user = ctx.message.content.strip().split('@')[1].strip()
+        else:
+            user=ctx.author.name
+        bd = await get_user_bd(user)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
+        if bd[0] == True:
+            if bd[2]<10:
+                complemento=f"Y falta{'n' if bd[2] > 1 else ''} {bd[2]} dia{'s' if bd[2] > 1 else ''} EEEEEEEH 🥳 Ya casi!"
+            elif bd[2]<30:
+                complemento=f"Y faltan {bd[2]} dias! En menos de un mes tenemos festejado!"
+            else:
+                complemento=f"Y faltan {bd[2]} dias!"
+
+            await ctx.send(f"[BOT] - El cumpleaños 🎉 de @{user} es el {bd[4]} de {bd[3]} {complemento}")
+        else:
+            await ctx.send(f"[BOT] - No se cuando es el cumpleaños de @{user} 😔 díganle que lo guarde con el comando !bd YYYY-MM-DD ")
+        
     
     @bot.command(name='ruleta')
     async def ruleta(ctx):
@@ -125,6 +163,7 @@ def dynamic_commands(bot):
             lcRespuesta  ="La bala le dió en el pie... se salva 😎"
         await ctx.send(f'[BOT] - {lcRespuesta}')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
+        await update_global_stats("xp_Habilidad",ctx.author.name,0.15)
     
     @bot.command(name='mecaben')
     async def mecaben(ctx):
@@ -140,18 +179,21 @@ def dynamic_commands(bot):
         elif lnHoyos==2:
             await ctx.send(f'[BOT] - A @{ctx.author.name} le cabe{lcPluralc} {lnCulo} en el qlo 🥵')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
 
     @bot.command(name='bola8')
     async def bola8(ctx):
         lcRespuesta = gen_response("respuestas.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
         await update_global_stats("xp_Astucia",ctx.author.name,0.15)
+        await update_global_stats("xp_Resistencia",ctx.author.name,0.15)
 
     @bot.command(name='trivia')
     async def trivia(ctx):
         lcRespuesta = gen_response("trivias.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
         await update_global_stats("xp_Astucia",ctx.author.name,0.15)
+        await update_global_stats("xp_Habilidad",ctx.author.name,0.15)
     
     @bot.command(name='insultar')
     async def insultar(ctx):
@@ -162,6 +204,15 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("insultos.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
+    
+    @bot.command(name='insultame')
+    async def insultame(ctx):
+        mentioned_user = ctx.author.name
+        lcRespuesta = gen_response("insultos.txt")
+        await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
+        await update_global_stats("xp_Oscuridad",ctx.author.name,0.25)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
 
     @bot.command(name='halago')
     async def halago(ctx):
@@ -172,6 +223,7 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("halagos.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
 
     @bot.command(name='caraocruz')
     async def caraocruz(ctx):
@@ -180,6 +232,8 @@ def dynamic_commands(bot):
         else: lcRespuesta = "Cruz"
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        await update_global_stats("xp_Habilidad",ctx.author.name,0.15)
+        await update_global_stats("xp_Resistencia",ctx.author.name,0.15)
 
     @bot.command(name='meporte')
     async def meporte(ctx):
@@ -191,6 +245,7 @@ def dynamic_commands(bot):
         else:
             await ctx.send(f'[BOT] - espérate un rato, estamos en {lcMonth}')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
+        await update_global_stats("xp_Carisma",ctx.author.name,0.15)
 
     @bot.command(name='nalgada')
     async def nalgada(ctx):
@@ -201,11 +256,13 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("nalgadas.txt")
         await ctx.send(f'[BOT] - {ctx.author.name} Le ha dado una nalgada a @{mentioned_user}... y le dijo: {lcRespuesta}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     
     @bot.command(name='pies')
     async def pies(ctx):
         await ctx.send(f'[BOT] - {ctx.author.name} cochino, no andes pidiendo patas por aquí 🦶🦶🦶')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     
     @bot.command(name='abrazo')
     async def abrazo(ctx):
@@ -216,6 +273,7 @@ def dynamic_commands(bot):
         lcRespuesta = gen_response("nalgadas.txt")
         await ctx.send(f'[BOT] - {ctx.author.name} le ha dado un abrazo a @{mentioned_user} ❤️❤️❤️')
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
 
     @bot.command(name='duelo')
     async def duelo(ctx):
@@ -236,6 +294,12 @@ def dynamic_commands(bot):
         time.sleep(1)
         await ctx.send(f'[BOT] - {lcText}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        await update_global_stats("xp_Fuerza",ctx.author.name,0.15)
+        await update_global_stats("xp_Resistencia",ctx.author.name,0.15)
+        await update_global_stats("xp_Habilidad",ctx.author.name,0.15)
+        await update_global_stats("xp_Fuerza",mentioned_user,0.15)
+        await update_global_stats("xp_Resistencia",mentioned_user,0.15)
+        await update_global_stats("xp_Habilidad",mentioned_user,0.15)
 
     @bot.command(name='ip')
     async def ip(ctx):
@@ -243,6 +307,8 @@ def dynamic_commands(bot):
         parte2 = random.randint(1, 255)
         parte3 = random.randint(1, 255)
         parte4 = random.randint(1, 255)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
+        await update_global_stats("xp_Resistencia",ctx.author.name,0.15)
         await ctx.send(f"[BOT] - @{ctx.author.name} Te tengo ubicado, se que estás en la IP {parte1}.{parte2}.{parte3}.{parte4}")
 
     @bot.command(name='amor')
@@ -290,6 +356,7 @@ def dynamic_commands(bot):
         time.sleep(1)
         await ctx.send(f'[BOT] - El odio entre @{primerUsuario} y @{segundoUsuario} es del {lnAmor}% {lcExtra}')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        
 
     @bot.command(name='midinero')
     async def midinero(ctx):
@@ -305,7 +372,7 @@ def dynamic_commands(bot):
             return
         mentioned_user = ctx.message.content.strip().split('@')[1].strip()
         await ctx.send(f'[BOT] - Yo creo que @{mentioned_user} deberia donar {lnBits} bits 👀')
-
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     @bot.command(name="juegos")
     async def juegos(ctx):
         if ctx.author.is_mod:
@@ -315,7 +382,7 @@ def dynamic_commands(bot):
             await send_large_message(ctx,f"{juegosList}")
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
-    
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     @bot.command(name='setso')
     async def setso(ctx):
         if not ctx.message.content.strip().startswith('!setso @'):
@@ -324,7 +391,7 @@ def dynamic_commands(bot):
         mentioned_user = ctx.message.content.strip().split('@')[1].strip()
         await ctx.send(f'[BOT] - 😈 @{ctx.author.name} quiere llevarse a @{mentioned_user} a hacer cositas...🥵 ¿será que acepta?')
         await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
-    
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     @bot.command(name='xeno')
     async def xeno(ctx):
         dt1 = date.fromisoformat('2024-12-19')
@@ -377,3 +444,4 @@ def dynamic_commands(bot):
         
         await ctx.send(f"[BOT] - Tu nivel de joteria @{ctx.author.name} es de {nivel}% {lcExtra}")
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)

@@ -1,5 +1,5 @@
 from Helpers.helpers_xp import get_player, get_top_players, get_skin, set_stats, calculate_xp, calculate_level, get_clanes, left_clan, join_to_clan, admin_clan, get_clan_user, get_clan_members
-from Helpers.helpers import is_authorized, send_large_message
+from Helpers.helpers import is_authorized, send_large_message, normalize_username
 from Helpers.helpers_stats import update_global_stats
 
 def xp_commands(bot):
@@ -16,30 +16,39 @@ def xp_commands(bot):
     """
     @bot.command(name='player')
     async def player(ctx):
-        if not is_authorized(ctx):
-            return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        
         if ctx.message.content.strip().startswith('!player @'):
             user = ctx.message.content.strip().split('@')[1].strip()
         else:
             user=ctx.author.name
 
+        await update_global_stats("xp_Astucia",ctx.author.name,0.25)
+
+        user = normalize_username(user)
         oPlayer = await get_player(user)
+        
         if oPlayer != False:
+            response=f"[BOT] -  🇯  🇺  🇬  🇦  🇩  🇴  🇷 ⠀⠀⠀⠀ @{user} ⠀ "
             if(int(oPlayer[1][1])>=5):
-                response = f"[BOT] - 🧙‍♂️ @{user} {oPlayer[2][1]} 💎Nivel({oPlayer[1][1]}) ->⠀⠀ "
+                response = response + f"{oPlayer[2][1]} Nivel({oPlayer[1][1]})⠀ "
             else:
-                response = f"[BOT] - 🧙‍♂️ @{user} Nivel({oPlayer[1][1]}) -> "
-            response = response + f" >>> {oPlayer[3][0]}({oPlayer[3][1]}) "
-            response = response + f" {oPlayer[4][0]}({oPlayer[4][1]}) "
-            response = response + f" {oPlayer[5][0]}({oPlayer[5][1]}) <<< ⠀⠀⠀ 🪙XP({oPlayer[0][1]})"
+                response = response + f"Nivel({oPlayer[1][1]})⠀ "
+            response = response + f" >>> ⠀|{oPlayer[3][0]}({oPlayer[3][1]})|⠀"
+            response = response + f" |{oPlayer[4][0]}({oPlayer[4][1]})|⠀"
+            response = response + f" |{oPlayer[5][0]}({oPlayer[5][1]})|⠀|💰XP({oPlayer[0][1]})|⠀"
+
+            skin = await get_skin(user)
+            if skin is not None:
+                response = response +f"👕Skin: [{skin[1]}]⠀"
+                
             await ctx.send(response)
         else:
             await ctx.send("[BOT] - Es un guerrero sin estadísticas...")
 
     @bot.command(name='xp')
     async def player(ctx):
-        if not is_authorized(ctx):
-            return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         if ctx.message.content.strip().startswith('!xp @'):
             user = ctx.message.content.strip().split('@')[1].strip()
         else:
@@ -51,10 +60,10 @@ def xp_commands(bot):
         else:
             await ctx.send("[BOT] - Es un guerrero sin estadísticas...")
 
+        await update_global_stats("xp_Astucia",ctx.author.name,0.25)
     @bot.command(name='nivel')
     async def player(ctx):
-        if not is_authorized(ctx):
-            return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         if ctx.message.content.strip().startswith('!nivel @'):
             user = ctx.message.content.strip().split('@')[1].strip()
         else:
@@ -79,33 +88,32 @@ def xp_commands(bot):
 
     @bot.command(name='top')
     async def player(ctx):
-        if not is_authorized(ctx):
-            return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         user=ctx.author.name
         topPlayer = await get_top_players()
-        
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
+        message = f"[BOT] -👑 Top 3 jugadores con mas XP >>> ⠀ {topPlayer}"
         if topPlayer != False:
-            await ctx.send(f"[BOT] - | 👑 Top 3 jugadores con mas XP  | >>> ")
-            await send_large_message(ctx,topPlayer)
+            await send_large_message(ctx,message)
         else:
             await ctx.send("[BOT] - No puedo recopilar aun estadísticas...")
 
     @bot.command(name='skin')
     async def skin(ctx):
-        if not is_authorized(ctx):
-            return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         user=ctx.author.name
         skin = await get_skin(user)
-        await ctx.send(f"[BOT] - Skin de {skin}")
+        
+        await ctx.send(f"[BOT] - Skin de {skin[1]}")
 
     @bot.command(name='setskin')
     async def setskin(ctx):
-        if not is_authorized(ctx):
-            return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         if len(ctx.message.content.strip().split('!setskin'))<2:
             await ctx.send(f"[BOT] - Necesitas especificar tu skin")
             return
         user=ctx.author.name
+        await update_global_stats("xp_Astucia",ctx.author.name,0.25)
         nivel = await calculate_level(user)
         if nivel<5:
             await ctx.send(f"[BOT] - Necesitas ser nivel 5 para tener guardar tu skin")
@@ -133,8 +141,7 @@ def xp_commands(bot):
     #comando para leer los clanes de los usuarios
     @bot.command(name='clan')
     async def clan(ctx):
-        if not is_authorized(ctx): return
-        nClan=None
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
          #Obtener el clan actual del usuario
         if ctx.message.content.strip().startswith('!clan @'):
             user = ctx.message.content.strip().split('@')[1].strip()
@@ -154,10 +161,11 @@ def xp_commands(bot):
     #Comando para administrar clanes
     @bot.command(name='liderclan')
     async def liderclan(ctx):
-        if not is_authorized(ctx): return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         user = ctx.author.name
         uNivel= await calculate_level(user)
-    
+
+        await update_global_stats("xp_Fuerza",ctx.author.name,0.25)
         #variante del comando para crear un nuevo clan
         if ctx.message.content.strip().startswith('!liderclan -c'):
             if uNivel>=15:
@@ -172,7 +180,6 @@ def xp_commands(bot):
                     await ctx.send("[BOT] - No se ha podido crear el clan")
 
             else: await ctx.send(f"[BOT] - No tienes el nivel necesario para administrar un clan @{user}")
-
         #variante del comando para borrar un clan
         elif ctx.message.content.strip().startswith('!liderclan -b'):
             if uNivel>=15:
@@ -206,9 +213,10 @@ def xp_commands(bot):
     #Comando para abandonar un clan
     @bot.command(name='dejarclan')
     async def dejarclan(ctx):
-        if not is_authorized(ctx): return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         user = ctx.author.name
         sClan = await left_clan(user)
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         if sClan == True:
             await ctx.send(f"[BOT] - @{user} Ha abandonado a su clan!")
         elif sClan == False:
@@ -221,14 +229,15 @@ def xp_commands(bot):
         
     @bot.command(name='clanes')
     async def clanes(ctx):
-        if not is_authorized(ctx): return
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
         lcClanes = await get_clanes()
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         await ctx.send(f"[BOT] - Clanes actuales: {lcClanes}")
 
     @bot.command(name='recompensas')
     async def recompensas(ctx):
-        if not is_authorized(ctx): return
-
+        if not is_authorized(ctx): return await ctx.send("[BOT] - Hey, ese comando estará disponible el 01 - Marzo - 2025 😑") 
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         await ctx.send("[BOT] - Las recompensas de nivel en el canal... 🔥")
         await ctx.send("Nivel [ 5] 🏅 Titulo de jugador  ")
         await ctx.send("Nivel [10] 🥷 Crear Skin (25)  ")

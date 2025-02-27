@@ -1,6 +1,10 @@
 #Librerias de control de consola y conexión a twitch
 from twitchio.ext import commands, pubsub
+
 import logging
+
+#Importar todos los listeners de eventos mediante pubsub y eventsub
+from Extensions.listeners import listen_to_pubsub
 
 # Importar módulos (Comandos)
 from Commands.admin import admin_commands
@@ -9,13 +13,9 @@ from Commands.general import general_commands
 from Commands.dynamic import dynamic_commands
 from Commands.xp import xp_commands
 
-#Importar todos los listeners de eventos mediante pubsub y eventsub
-from Extensions.listeners import listen_to_pubsub
-
 # Importar Helpers basicos del bot
 from Helpers.helpers import get_broadcaster_id
-from Helpers.helpers_dynamic import interactuar, desafiar
-from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages
+from Helpers.helpers_bot import read_save_chat, user_joined, send_timed_messages, happy_birthday
 
 #Importar handlers de eventos
 from Handlers.handlers_bits import handle_bits
@@ -96,12 +96,13 @@ class TwitchBot(commands.Bot):
 
     # Evento para manejar el uso de Bits
     async def event_pubsub_bits(self, event):
-        await handle_bits(event.bits_used, event.user.name, event.message.content)
+        await handle_bits(event.bits_used, event.user.name, event.message.content, self)
 
-
+    # Evento para manejar las suscripciones
     async def event_pubsub_channel_subscriptions(self, event):
         await handle_sub(event, self)
 
+    #Evento para manejar las subs regaladas
     async def event_pubsub_channel_subscription_gift(self, event):
         await handle_sub_gift(event, self)
 
@@ -111,15 +112,8 @@ class TwitchBot(commands.Bot):
     
     #Lectura del evento de nuevo mensaje en el chat del canal
     async def event_message(self, message): #Evento de nuevo mensaje en el chat
-        channel = self.get_channel(self.nick) #Obtener el canal del bot para poder enviar mensajes, es como el ctx
-        if message.author is None:
-            return  # Ignorar mensajes sin autor
-        await read_save_chat(message)
-        await interactuar(channel,message)
-        await desafiar(channel,message)
-        message.content=message.content.lower()
-        await self.handle_commands(message)
-
+        await read_save_chat(self, message)
+        
     async def event_command_error(self, ctx, error):
         """Maneja errores de comandos no encontrados"""
         if isinstance(error, commands.CommandNotFound):
@@ -129,7 +123,8 @@ class TwitchBot(commands.Bot):
     async def event_ready(self):
         # Evento que se ejecuta cuando el bot se conecta correctamente.
         animated_message(f"{self.nick} en linea...","\033[38;5;154m")
-        #await send_timed_messages(self)
+        await send_timed_messages(self)
+        await happy_birthday(self)
         
 
 # Iniciar el bot

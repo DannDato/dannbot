@@ -1,11 +1,10 @@
-import aiohttp
 import requests
 import unicodedata
-import time 
 import os
 import sqlite3
 import logging
 import re
+from datetime import datetime
 
 #Cargar el token para operaciones con las credenciales
 from Helpers.token_loader import load_token
@@ -49,7 +48,7 @@ def safe_int(value):
 # Función para verificar si el autor del mensaje está en la lista de usuarios permitidos
 def is_authorized(ctx):
     # Lista de usuarios autorizados
-    AUTHORIZED_USERS = ['danndato', 'lauunieves','dannievt']
+    AUTHORIZED_USERS = ['danndato', 'lauunieves',]
     return ctx.author.name.lower() in AUTHORIZED_USERS
 
 #Función que divide una cadena de texto grande en diferentes mensajes en base al límite definid
@@ -197,3 +196,37 @@ def wordslist(filename):
             return set(line.strip().lower() for line in file if line.strip())  # Usamos set para mayor eficiencia
     except FileNotFoundError:
         return set()  # Si el archivo no existe, devolvemos un set vacío
+    
+
+
+
+def validar_fecha(bd):
+    # Expresión regular para formato YYYY-MM-DD
+    pattern = r"^\d{4}-\d{2}-\d{2}$"
+    
+    # Verificar formato con regex
+    if not re.match(pattern, bd):
+        return False, "Formato incorrecto. Usa YYYY-MM-DD."
+
+    # Intentar convertir la cadena en fecha
+    try:
+        fecha = datetime.strptime(bd, "%Y-%m-%d")
+        
+        # Año razonable (ajusta el rango si lo necesitas)
+        if fecha.year < 1900 or fecha.year > 2100:
+            return False, "El año debe estar entre 1900 y 2100."
+        
+        return True, "Fecha válida."
+
+    except ValueError:
+        return False, "Fecha inválida. Revisa el día y el mes."
+
+def format_usernames(usernames):
+    if len(usernames) > 1:
+        # Si hay más de un nombre, lo unimos con " y "
+        return " y ".join([f"@{user}" for user in usernames])
+    elif len(usernames) == 1:
+        # Si solo hay un nombre, lo devolvemos directamente
+        return f"@{usernames[0]}"
+    else:
+        return ""

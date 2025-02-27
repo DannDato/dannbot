@@ -24,7 +24,6 @@ async def handle_redeem(name, user):
         conn.commit()
         conn.close()
         cerrar_conexion(conn, cursor)
-
         logging.info(f"\033[1;34m{user} \033[38;5;255m ha canjeado \033[38;5;51m '{name}'")
 
     except sqlite3.Error as e:

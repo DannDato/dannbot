@@ -15,8 +15,9 @@ async def handle_sub(event, self):
         Para estadísticas
     """
     logging.warning(f"Manejando sub")
-    print(event)
-    print(self)
+    ctx = self.get_channel(self.nick)
+    user=event.user.name
+    await ctx.send(f"Ehh! @{user} Gracias por eso!")
 
     # try:
     #     conn = sqlite3.connect(DB_PATH)
@@ -43,6 +44,7 @@ async def handle_sub_gift(event, self):
     """Guardar en la base de datos la recompensa canjeada
         Para estadísticas
     """
-    logging.warning(f"Manejando sub regaladas")
-    print(event)
-    print(self)
+    logging.warning(f"Manejando sub regalada")
+    ctx = self.get_channel(self.nick)
+    user=event.user.name
+    await ctx.send(f"Ehh! @{user} Gracias por ese regalo!")

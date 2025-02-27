@@ -43,12 +43,14 @@ def general_commands(bot):
     @bot.command(name='lurk')
     async def lurk(ctx):
         await ctx.send(f'Hummm... parece que @{ctx.author.name} se fue con las cariñosas! 🕵️‍♂️ Disfrutará del stream en modo sigiloso.')
-        await update_global_stats("xp_Oscuridad",ctx.author.name,0.15)
+        await update_global_stats("xp_Oscuridad",ctx.author.name,3)
     bot.commands["lurk"].category = "Basicos"
 
     @bot.command(name='onlyfans')
     async def onlyfans(ctx):
         await ctx.send(f'¡Señoraaaa! @{ctx.author.name} anda de cochin@!')
+        await update_global_stats("xp_Oscuridad",ctx.author.name,0.55)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     bot.commands["onlyfans"].category = "Basicos"
     
             # amigos
@@ -57,12 +59,14 @@ def general_commands(bot):
         await ctx.send(f'Cállense todos, ya llego @elkoalam 👀🙄')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
         await update_global_stats("xp_Empatia",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     bot.commands["koala"].category = "Amigos"
     
     @bot.command(name='llama')
     async def llama(ctx):
         await ctx.send(f'@loslordllama se la come doblada 🥵 dannda3Llamamo')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     bot.commands["llama"].category = "Amigos"
     
     @bot.command(name='daarlaaaaa')
@@ -70,6 +74,7 @@ def general_commands(bot):
         await ctx.send(f' Como @DAARLAAAAA 🤯')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
         await update_global_stats("xp_Empatia",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     bot.commands["daarlaaaaa"].category = "Amigos"
 
     @bot.command(name='maikol')
@@ -77,6 +82,7 @@ def general_commands(bot):
         await ctx.send(f' Abran paso al MOD + Anciano 👴 @maikolteve')
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
         await update_global_stats("xp_Empatia",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     bot.commands["maikol"].category = "Amigos"
 
             # informativo
@@ -176,7 +182,8 @@ def general_commands(bot):
         await update_global_stats("xp_Voluntad",ctx.author.name,0.15)
         await update_global_stats("xp_Empatia",ctx.author.name,0.15)
         await update_global_stats("xp_Carisma",ctx.author.name,0.15)
-
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
+        await update_global_stats("xp_Bromista",ctx.author.name,0.15)
     bot.commands["sr"].category = "Otro"
 
     @bot.command(name='followage')

@@ -289,3 +289,112 @@ async def cuadrar_messages():
             if conn:
                 conn.close()
                 cerrar_conexion(conn, cursor)
+
+
+async def save_user_bd(bd, user):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(f'''
+            SELECT * FROM birthdays WHERE user='{user}'
+        ''')
+        result = cursor.fetchone()
+        if result:
+
+            cursor.execute('''
+                UPDATE birthdays SET birthday=? WHERE user=?
+            ''',(bd, user))
+        else:
+            cursor.execute('''
+                INSERT INTO birthdays (user, birthday, date)
+                VALUES(?,?,?)
+            ''',(user, bd, current_date))
+
+        conn.commit()
+        conn.close()
+        cerrar_conexion(conn, cursor)
+        return True
+        
+    except sqlite3.Error as e:
+        logging.error(f"Error al acceder a guardar cumpleaños: {e}")
+        return False
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)
+
+
+async def get_user_bd(user):
+    try:
+        user = normalize_username(user)
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now()
+        current_year = current_date.year
+        cursor.execute(f'''
+            SELECT * FROM birthdays WHERE user='{user}'
+        ''')
+        result = cursor.fetchone()
+        conn.close()
+        cerrar_conexion(conn, cursor)
+        if result is not None:
+            bd = result[1]
+            
+            bd_date = datetime.strptime(bd, "%Y-%m-%d")  # Convertir a objeto datetime
+            lcMes = bd_date.strftime("%B").capitalize()
+            bd_month, bd_day = bd_date.month, bd_date.day  # Extraer mes y día
+            # Crear la fecha del cumpleaños en el año actual
+            next_birthday = datetime(current_year, bd_month, bd_day)
+            # Si el cumpleaños ya pasó este año, calcular para el siguiente
+            if next_birthday < current_date:
+                next_birthday = datetime(current_year + 1, bd_month, bd_day)
+            # Calcular cuántos días faltan
+            lDays = (next_birthday - current_date).days +1
+            return True, bd, lDays, lcMes, bd_day
+        else:
+            return False, '0', '0', '0', '0'
+        
+    except sqlite3.Error as e:
+        logging.error(f"Error al consultar cumpleaños: {e}")
+        return False, '0', '0', '0', '0'
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)
+
+
+async def today_birthdays():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now()
+         # Obtener la fecha actual
+        current_date = datetime.now()
+        current_month_day = current_date.strftime('%m-%d')  # Formato MM-DD para la comparación
+
+        # Buscar cumpleaños que coincidan con el mes y día actuales
+        cursor.execute(f'''
+            SELECT user, birthday FROM birthdays
+            WHERE strftime('%m-%d', birthday) = ?
+        ''', (current_month_day,))
+
+        result = cursor.fetchall()
+
+        conn.close()
+        cerrar_conexion(conn, cursor)
+
+        if result:  # Si hay resultados
+            # Extraer los nombres de los usuarios
+            users_with_birthday = [user for user, _ in result]
+            return True, users_with_birthday
+        else:
+            return False, []
+        
+    except sqlite3.Error as e:
+        logging.error(f"Error al consultar cumpleaños: {e}")
+        return False
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)

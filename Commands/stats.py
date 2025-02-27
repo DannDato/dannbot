@@ -15,12 +15,15 @@ def stats_commands(bot):
         else:
             user=ctx.author.name
         messages_hist =await count_user_messages(user,0,0)
+        await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         await ctx.send(f"[BOT] - @{user} ha enviado: ({messages_hist}) mensaje(s)")
             
     @bot.command(name='ladrillo')
     async def ladrillo(ctx):
         ladrillos = await update_global_stats("ladrillos","channel",1)
         await update_global_stats("xp_Resistencia",ctx.author.name,0.15)
+        await update_global_stats("xp_Astucia",ctx.author.name,0.15)
+        await update_global_stats("xp_voluntad",ctx.author.name,0.15)
         await ctx.send(f"[BOT] - @{ctx.author.name} ha agregado un ladrillo, hemos puesto ({ladrillos})🧱 en total ")
 
     @bot.command(name='primero')
@@ -33,6 +36,7 @@ def stats_commands(bot):
         if  handle is None:
             actualiza = await update_global_stats("first_user",ctx.author.name,1)
             await update_global_stats("xp_Resistencia",ctx.author.name,3)
+            await update_global_stats("xp_voluntad",ctx.author.name,0.15)
             if actualiza is not None:
                 ranking =await get_stats("first_user",ctx.author.name,0)
                 await ctx.send(f'[BOT] - Esoo! 🔥 Parece que si has llegado primero! tus puntos actualmente {ranking[1]}: 🏆')

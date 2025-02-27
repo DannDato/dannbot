@@ -6,9 +6,9 @@ import emoji
 import asyncio
 import random 
 
-from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online
-from Helpers.helpers_dynamic import gen_response
-from Helpers.helpers_stats import update_global_stats
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames
+from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
+from Helpers.helpers_stats import update_global_stats, today_birthdays
 from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
@@ -42,7 +42,7 @@ async def user_joined(username):
                 cerrar_conexion(conn, cursor)
         
 
-async def read_save_chat(message):
+async def read_save_chat(self, message):
     if message.author:
         """
         Gestiona la tabla de chat del mes actual en la base de datos.
@@ -52,6 +52,12 @@ async def read_save_chat(message):
         :param username: Nombre de usuario.
         :param message: Mensaje del usuario.
         """
+        channel = self.get_channel(self.nick) #Obtener el canal del bot para poder enviar mensajes, es como el ctx
+        message.content=message.content.lower().strip()
+        await self.handle_commands(message)
+        await interactuar(channel,message)
+        await analisis(channel,message)
+        await desafiar(channel,message)
         try:
             username = normalize_username(message.author.name)
             message = clean_text(message.content)
@@ -226,18 +232,33 @@ async def count_user_joined(user):
 #Timers para mensajes aleatorios
 async def send_timed_messages(self):
     """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
-    starting_bot=False
     await self.wait_for_ready()  # Espera a que el bot esté listo
     channel = self.get_channel(self.nick)
-    sleep_time = random.randint(1800, 2400)
+    minT=1800
+    maxT=2400
+    sleep_time = random.randint(minT, maxT)
     while True:
-        if starting_bot == False:
-            starting_bot=True
-        else:
-            if channel:
-                if await is_channel_online(): # Verificar si el canal está en vivo
-                    await channel.send(f'[BOT] {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
-                    sleep_time = random.randint(1200, 1800)
+        if channel:
+            if  await is_channel_online(): # Verificar si el canal está en vivo
+                await channel.send(f'[BOT] {gen_response("mensajes_twitch.txt")}')  # Enviar mensaje al chat
+                sleep_time = random.randint(minT, maxT)
+        await asyncio.sleep(sleep_time)  # Esperar 20 minutos antes del siguiente mensaje
+
+#Timers para mensajes aleatorios
+async def happy_birthday(self):
+    """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
+    await self.wait_for_ready()  # Espera a que el bot esté listo
+    channel = self.get_channel(self.nick)
+    minT=1800
+    maxT=2400
+    sleep_time = random.randint(minT, maxT)
+    while True:
+        birthdays = await today_birthdays()
+        users = format_usernames(birthdays[1])
+        if channel and birthdays[0]==True:
+            if  await is_channel_online(): # Verificar si el canal está en vivo
+                await channel.send(f'[BOT] - 🥳 HOY ESTAMOS DE FIESTA, es el cumpleaños de {users} 🎉')  # Enviar mensaje al chat
+                sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar 20 minutos antes del siguiente mensaje
 
 

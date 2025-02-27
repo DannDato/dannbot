@@ -19,15 +19,6 @@ def admin_commands(bot):
                 await ctx.send(f' [BOT] - 🟡 Ya existe un stream en proceso...')
     bot.commands["ini"].category = "Administrador"
 
-    @bot.command(name='cmsj')
-    async def cmsj(ctx):
-        if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
-            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
-            return
-        aaa = await cuadrar_messages()
-        await ctx.send(f' [BOT] - 🟢 Se han cuadrado los mensajes correctamente... {aaa}')
-    bot.commands["ini"].category = "Administrador"
-
     @bot.command(name='end')
     async def finalizar(ctx):
         if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
@@ -41,20 +32,7 @@ def admin_commands(bot):
                 await ctx.send(f' [BOT] - 🔴 No se puede finalizar un stream que no se ha iniciado...')
     bot.commands["end"].category = "Administrador"
 
-    @bot.command(name='nbug')
-    async def nbug(ctx):
-        if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
-            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
-            return
-        else:
-            if ctx.message.content.strip().startswith('!nbug -'):
-                bug = ctx.message.content.strip().split('-')[1].strip()
-                result = await save_bug(ctx.author.name,bug)
-                await ctx.send(f"[BOT] - @{ctx.author.name} se ha guardado el reporte de bug")
-            else:
-                await ctx.send(f"[BOT] - @{ctx.author.name} utiliza el comando en formato !nbug -<reporte>")
-
-    bot.commands["end"].category = "Administrador"
+    
 
     # @bot.command(name='mail')
     # async def mail(ctx):

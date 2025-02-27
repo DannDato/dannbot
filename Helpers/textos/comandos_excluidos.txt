@@ -1,6 +1,5 @@
 ini
 end
-cmsj
 nbug
 recompensas
 skin

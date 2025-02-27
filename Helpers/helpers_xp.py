@@ -266,8 +266,8 @@ async def calculate_level(user):
     xp = await calculate_xp(user)
     xp=int(xp)
     level = 1
-    xp_required = 200  # XP necesario para el primer nivel
-    increment = 150   # Incremento para el siguiente nivel
+    xp_required = 500  # XP necesario para el primer nivel
+    increment = 500   # Incremento para el siguiente nivel
 
     # Itera hasta que el XP sea suficiente para el nivel actual
     while xp >= xp_required:
@@ -303,7 +303,7 @@ async def get_top_players():
                 nXp = await calculate_xp(user)
 
                 lcEmoji = "🥇" if lntop == 1 else "🥈" if lntop == 2 else "🥉"
-                top += f"{lntop} - {lcEmoji} @{row[0]} XP({nXp})\n"
+                top += f" {lcEmoji}-@{row[0]} XP({nXp})\n "
                 lntop += 1
 
             conn.rollback()
@@ -336,7 +336,7 @@ async def get_rol(h1, h2, h3):
     lcRolComplemento = complemento_roles.get(h3, "Inicial")
 
     # Resultado final
-    lcTitulo = f"{lcRolComplemento} {lcRol.lower()}"
+    lcTitulo = f"{lcRol.lower()} {lcRolComplemento} "
     return lcTitulo
 
 async def get_skin(user):

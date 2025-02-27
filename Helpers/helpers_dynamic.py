@@ -18,15 +18,25 @@ steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
 
 
-
-async def interactuar(ctx, message):
+async def analisis(ctx, message):
     mensaje = message.content.lower()
 
     #evaluar si el mensaje contiene palabras malas o buenas
     if any(word in mensaje for word in wordslist("zPalabras_malas.txt")):
-        await update_global_stats("xp_Oscuridad",message.author.name,0.15)
+        await update_global_stats("xp_Oscuridad",message.author.name,0.55)
     if any(word in mensaje for word in wordslist("zPalabras_buenas.txt")):
-        await update_global_stats("xp_Carisma",message.author.name,0.15)
+        await update_global_stats("xp_Carisma",message.author.name,0.25)
+    if any(word in mensaje for word in wordslist("zPalabras_broma.txt")):
+        await update_global_stats("xp_Bromista",message.author.name,0.25)
+    if any(word in mensaje for word in wordslist("zPalabras_empatia.txt")):
+        await update_global_stats("xp_Empatia",message.author.name,0.25)
+    if any(word in mensaje for word in wordslist("zPalabras_astuto.txt")):
+        await update_global_stats("xp_Astucia",message.author.name,0.25)
+
+
+
+async def interactuar(ctx, message):
+    mensaje = message.content.lower()
 
     #validar que el mensaje no sea dirigido a otra persona para generar respuestas
     if any(word in mensaje for word in ["@"]):
@@ -44,11 +54,10 @@ async def interactuar(ctx, message):
         if any(word in mensaje for word in ["peruano"]):
             await ctx.send(f'[BOT] - déja en paz a los peruanos @{message.author.name}')
 
-        if any(word in mensaje for word in ["pito", "pene", "verga"]):
-            await ctx.send(f'[BOT] -  @{message.author.name} {gen_response("regaños.txt")}')
+        # if any(word in mensaje for word in ["pito", "pene", "verga"]):
+        #     await ctx.send(f'[BOT] -  @{message.author.name} {gen_response("regaños.txt")}')
 
     
-
 async def desafiar(ctx, message):
     lnReto = random.randint(0, 500)
     if await is_channel_online():
