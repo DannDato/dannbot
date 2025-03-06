@@ -52,7 +52,7 @@ class TwitchBot(commands.Bot):
         super().__init__( #Aplicación de credenciales para la conexión con la API
             token=access_token,
             prefix="!",
-            nick="diosito",  # Nombre de usuario del bot
+            nick="danndato",  # Nombre de usuario del bot
             initial_channels=initial_channels if isinstance(initial_channels, list) else [initial_channels],
         )
         animated_message("Inicializando...","\033[38;5;221m")

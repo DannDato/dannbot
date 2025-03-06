@@ -8,7 +8,7 @@ import random
 
 from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
-from Helpers.helpers_stats import update_global_stats, today_birthdays
+from Helpers.helpers_stats import update_global_stats, today_birthdays, week_birthdays
 from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
@@ -258,6 +258,13 @@ async def happy_birthday(self):
         if channel and birthdays[0]==True:
             if  await is_channel_online(): # Verificar si el canal está en vivo
                 await channel.send(f'[BOT] - 🥳 HOY ESTAMOS DE FIESTA, es el cumpleaños de {users} 🎉')  # Enviar mensaje al chat
+                sleep_time = random.randint(minT, maxT)
+        
+        nBirthdays = await week_birthdays()
+        nusers = format_usernames(nBirthdays[1])
+        if channel and nBirthdays[0]==True:
+            if  await is_channel_online(): # Verificar si el canal está en vivo
+                await channel.send(f'[BOT] - Recuerden que esta semana tenemos el cumpleaños de {nusers} 🎉')  # Enviar mensaje al chat
                 sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar 20 minutos antes del siguiente mensaje
 

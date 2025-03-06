@@ -398,3 +398,42 @@ async def today_birthdays():
             if conn:
                 conn.close()
                 cerrar_conexion(conn, cursor)
+
+
+async def week_birthdays():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        current_date = datetime.now()
+         # Obtener la fecha actual
+        current_date = datetime.now()
+        current_month_day = current_date.strftime('%m-%d')  # Formato MM-DD para la comparación
+
+        # Buscar cumpleaños que coincidan con el mes y día actuales
+        cursor.execute(f'''
+            SELECT user, birthday 
+            FROM birthdays
+            WHERE strftime('%m-%d', birthday) 
+            BETWEEN strftime('%m-%d', date('now')) 
+            AND strftime('%m-%d', date('now', '+7 days'))
+        ''', (current_month_day,))
+
+        result = cursor.fetchall()
+
+        conn.close()
+        cerrar_conexion(conn, cursor)
+
+        if result:  # Si hay resultados
+            # Extraer los nombres de los usuarios
+            users_with_birthday = [user for user, _ in result]
+            return True, users_with_birthday
+        else:
+            return False, []
+        
+    except sqlite3.Error as e:
+        logging.error(f"Error al consultar cumpleaños: {e}")
+        return False
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)
