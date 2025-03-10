@@ -65,7 +65,7 @@ async def update_global_stats(stat_category, user, value):
         return None
     
 #OBTENER ESTADISTICAS DE LA CATEGORIA PARAMETRIZADA
-async def get_stats(stat_category,user,tipo):
+async def get_stats(stat_category,user):
     """
     Obtener las estadísticas de la categoria.
     :param stat_category: Categoría de la estadística (ej. 'wordle_wins', 'top_chatter')
@@ -79,7 +79,7 @@ async def get_stats(stat_category,user,tipo):
             user = normalize_username(user)
             # Verificar si el usuario ya tiene un valor para esta categoría
             cursor.execute('''
-                SELECT user, value, hvalue FROM stats_channel
+                SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value, hvalue FROM stats_channel
                 WHERE category = ? AND user = ?
                 GROUP BY user
             ''', (stat_category, user))
@@ -91,7 +91,7 @@ async def get_stats(stat_category,user,tipo):
                 retorno = None
         else:
             cursor.execute('''
-                SELECT user, value
+                SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value
                 FROM stats_channel
                 WHERE category = ?
                 GROUP BY user
@@ -128,7 +128,7 @@ async def check_primero(user):
         cursor = conn.cursor()
         #Verificar si existe algun usuario previo del dia
         cursor.execute('''
-            SELECT value, DATE(date) as fecha
+            SELECT (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value), DATE(date) as fecha
             FROM stream_data
             WHERE accion = 'first_user' and DATE(date)=DATE('now','localtime')
             LIMIT 1;
