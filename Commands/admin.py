@@ -32,13 +32,14 @@ def admin_commands(bot):
                 await ctx.send(f' [BOT] - 🔴 No se puede finalizar un stream que no se ha iniciado...')
     bot.commands["end"].category = "Administrador"
 
-    
-
-    # @bot.command(name='mail')
-    # async def mail(ctx):
-    #     if not is_authorized(ctx): return
-    #     html = await end_mail()        # Ejemplo de uso
-    #     #await enviar_correo("danieltova97@gmail.com", "Prueba de correo", html)
+    @bot.command(name='vuser')
+    async def vuser(ctx):
+        if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+        else:
+            await ctx.send(f' [BOT] - 🤖 Usuario validado correctamente... 🟢')
+    bot.commands["vuser"].category = "Administrador"
 
     
 

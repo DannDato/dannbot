@@ -17,29 +17,36 @@ OPENAI_API_KEY = token_data.get("openai_api_key")
 
 
 #Función anidada en el event listener JOIN
-async def user_joined(username):
-    if username not in ('streamelements','nightbot','danndato','dannprod', 'dannievt'): #Exclusión de bots externos
+async def user_joined(self, user):
+    if user.name not in ('streamelements','nightbot','dannprod', 'dannievt'): #Exclusión de bots externos
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Conectar a la base de datos (si no existe, se creará automáticamente)
-        try:
-            await count_user_joined(username)
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            # Insertar el nuevo registro en la tabla
-            cursor.execute('''INSERT INTO history_users (username, date)VALUES (?, ?)''', (username, timestamp))
-            # Confirmar los cambios y cerrar la conexión
-            conn.commit()
-            conn.close()
-            cerrar_conexion(conn, cursor)
-            logging.info(f'\033[38;5;154m {username} se ha unido \033[0m')
+        username = normalize_username(user.name)
 
-        except sqlite3.Error as e:
-            logging.info(f'{username} se ha unido')
-            logging.error(f"Error al insertar el usuario en la base de datos: {e}")
-            if conn:
-                conn.rollback()
+        user_data = await self.fetch_users(names=[user.name])  # Obtiene información completa del usuario
+        if user_data:
+            user_info = user_data[0]  # La API devuelve una lista, tomamos el primer elemento
+            userid = user_info.id
+            await new_user(user_info)
+            # Conectar a la base de datos (si no existe, se creará automáticamente)
+            try:
+                await count_user_joined(username)
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                # Insertar el nuevo registro en la tabla
+                cursor.execute('''INSERT INTO history_users (user, date)VALUES (?, ?)''', (userid, timestamp))
+                # Confirmar los cambios y cerrar la conexión
+                conn.commit()
                 conn.close()
                 cerrar_conexion(conn, cursor)
+                logging.info(f'\033[38;5;154m {username} se ha unido \033[0m')
+
+            except sqlite3.Error as e:
+                logging.info(f'{username} se ha unido')
+                logging.error(f"Error al insertar el usuario en la base de datos: {e}")
+                if conn:
+                    conn.rollback()
+                    conn.close()
+                    cerrar_conexion(conn, cursor)
         
 
 async def read_save_chat(self, message):
@@ -50,6 +57,7 @@ async def read_save_chat(self, message):
 
         :param db_path: Ruta a la base de datos SQLite.
         :param username: Nombre de usuario.
+        :param userid: ID de usuario.
         :param message: Mensaje del usuario.
         """
         channel = self.get_channel(self.nick) #Obtener el canal del bot para poder enviar mensajes, es como el ctx
@@ -60,6 +68,14 @@ async def read_save_chat(self, message):
         await desafiar(channel,message)
         try:
             username = normalize_username(message.author.name)
+            
+
+            #QUITAR DESPUES
+            await new_user(message.author)
+            #QUITAR DESPUES
+
+
+            userid=message.author.id
             message = clean_text(message.content)
             # Obtener fecha actual
             now = datetime.now()
@@ -82,7 +98,7 @@ async def read_save_chat(self, message):
                 cursor.execute(f'''
                     CREATE TABLE {table_name} (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT,
+                        user TEXT,
                         message TEXT,
                         date TEXT,
                         timestamp TEXT
@@ -92,16 +108,16 @@ async def read_save_chat(self, message):
 
             # Insertar datos
             cursor.execute(f'''
-                INSERT INTO {table_name} (username, message, date, timestamp)
+                INSERT INTO {table_name} (user, message, date, timestamp)
                 VALUES (?, ?, ?, ?);
-            ''', (username, message, now.strftime('%Y-%m-%d'), now.strftime('%Y-%m-%d %H:%M:%S')))
+            ''', (userid, message, now.strftime('%Y-%m-%d'), now.strftime('%Y-%m-%d %H:%M:%S')))
             conn.commit()
 
             if conn:
                 conn.close()
 
             await update_stream_data("total_messages",1)
-            await update_global_stats("messages",username,1)
+            await update_global_stats("messages",userid,1)
 
             logging.info(f'\033[38;5;141m{username}\033[38;5;255m {message} \033[0m')
             
@@ -111,7 +127,7 @@ async def read_save_chat(self, message):
             if conn:
                 conn.close()
                 cerrar_conexion(conn, cursor)
-            await update_global_stats("xp_Voluntad",username,0.15)
+            await update_global_stats("xp_Voluntad",userid,0.15)
   
 
 async def update_stream_data(stat_category, value):
@@ -199,9 +215,9 @@ async def count_user_joined(user):
         if result:
             # Verificar si el usuario ya tiene un valor para esta categoría
             cursor.execute(f'''
-                SELECT username FROM history_users
+                SELECT user FROM history_users
                 WHERE DATETIME(date)>= DATETIME('{result[0]}')
-                AND username=?
+                AND user=?
             ''',(user,))
 
             result = cursor.fetchone()
@@ -267,6 +283,40 @@ async def happy_birthday(self):
                 await channel.send(f'[BOT] - Recuerden que esta semana tenemos el cumpleaños de {nusers} 🎉')  # Enviar mensaje al chat
                 sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar 20 minutos antes del siguiente mensaje
+
+async def new_user(user):
+    userid = str(user.id)  # Convertir a string por si la DB maneja `TEXT`
+    username = normalize_username(user.name)
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Verificar si el usuario ya existe en la tabla "users"
+        cursor.execute('SELECT username FROM users WHERE twitch_id = ?', (userid,))
+        result = cursor.fetchone()
+
+        if result:
+            # Si el usuario existe pero su nombre cambió, actualizarlo
+            if result[0] != username:
+                cursor.execute('UPDATE users SET username = ? WHERE twitch_id = ?', (username, userid))
+        else:
+            # Si el usuario no existe, agregarlo
+            cursor.execute('INSERT INTO users (twitch_id, username) VALUES (?, ?)', (userid, username))
+
+            # Renombrar su nombre por su ID en todas las demás tablas
+            tablas = ['stats_channel', 'redeems', 'history_users', 'donated_bits', 'clanes', 'birthdays']
+            for tabla in tablas:
+                cursor.execute(f'UPDATE {tabla} SET user = ? WHERE user = ?', (userid, username))
+            # Confirmar cambios
+            conn.commit()
+            logging.info(f'\033[38;5;154m {username} (ID: {userid}) registrado/actualizado \033[0m')
+
+    except sqlite3.Error as e:
+        logging.error(f"Error al registrar usuario {username} (ID: {userid}): {e}")
+        conn.rollback()  # Revertir cambios en caso de error
+    finally:
+        cerrar_conexion(conn, cursor)
 
 
 async def save_current_data():

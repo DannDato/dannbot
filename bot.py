@@ -92,11 +92,11 @@ class TwitchBot(commands.Bot):
 
     #evento para manejar el uso de recompensas de canal
     async def event_pubsub_channel_points(self, event):
-        await handle_redeem(event.reward.title, event.user.name)
+        await handle_redeem(event.reward.title, event.user)
 
     # Evento para manejar el uso de Bits
     async def event_pubsub_bits(self, event):
-        await handle_bits(event.bits_used, event.user.name, event.message.content, self)
+        await handle_bits(event.bits_used, event.user, event.message.content, self)
 
     # Evento para manejar las suscripciones
     async def event_pubsub_channel_subscriptions(self, event):
@@ -108,11 +108,13 @@ class TwitchBot(commands.Bot):
 
     #Evento de unión de un usuario al canal
     async def event_join(self, channel, user):
-        await user_joined(user.name)
+        await user_joined(self,user)
     
     #Lectura del evento de nuevo mensaje en el chat del canal
     async def event_message(self, message): #Evento de nuevo mensaje en el chat
+        message.content = message.content.encode('utf-8', 'ignore').decode()
         await read_save_chat(self, message)
+        # await self.handle_commands(message)
         
     async def event_command_error(self, ctx, error):
         """Maneja errores de comandos no encontrados"""

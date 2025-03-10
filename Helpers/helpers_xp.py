@@ -27,7 +27,7 @@ async def get_player(user):
         cursor.execute('''
             SELECT REPLACE(category,'xp_','') as category, value
             FROM stats_channel
-            WHERE username=? AND category LIKE '%xp_%'
+            WHERE user=? AND category LIKE '%xp_%'
             ORDER BY value DESC
         ''', (user,))
         result = cursor.fetchall()
@@ -130,7 +130,7 @@ async def update_xp():
 
         # Obtener los usuarios únicos en ese rango
         cursor.execute('''
-            SELECT DISTINCT username
+            SELECT DISTINCT user
             FROM history_users
             WHERE datetime(date) BETWEEN ? AND ?;
         ''', (start_date, end_date))
@@ -143,7 +143,7 @@ async def update_xp():
             cursor.execute('''
                 SELECT MIN(date)
                 FROM history_users
-                WHERE username = ? AND datetime(date) BETWEEN ? AND ?;
+                WHERE user = ? AND datetime(date) BETWEEN ? AND ?;
             ''', (username, start_date, end_date))
             result = cursor.fetchone()
             hEntrada = result[0] if result and result[0] else None
@@ -156,7 +156,7 @@ async def update_xp():
             cursor.execute(f'''
                 SELECT MAX(timestamp)
                 FROM {table_name}
-                WHERE username = ? AND datetime(timestamp) BETWEEN ? AND ?;
+                WHERE user = ? AND datetime(timestamp) BETWEEN ? AND ?;
             ''', (username, start_date, end_date))
             result = cursor.fetchone()
             LastMsg = result[0] if result and result[0] else None
@@ -165,7 +165,7 @@ async def update_xp():
             cursor.execute('''
                 SELECT COUNT(date)
                 FROM history_users
-                WHERE username = ? AND datetime(date) BETWEEN ? AND ?;
+                WHERE user = ? AND datetime(date) BETWEEN ? AND ?;
             ''', (username, start_date, end_date))
             result = cursor.fetchone()
             nEntradas = result[0] if result and result[0] else 0
@@ -177,7 +177,7 @@ async def update_xp():
             cursor.execute(f'''
                 SELECT SUM(LENGTH(message))
                 FROM {table_name}
-                WHERE username = ? AND datetime(timestamp) BETWEEN ? AND ?;
+                WHERE user = ? AND datetime(timestamp) BETWEEN ? AND ?;
             ''', (username, start_date, end_date))
             result = cursor.fetchone()
             nCaracteres = result[0] if result and result[0] else 0
@@ -227,7 +227,7 @@ async def calculate_xp(user):
         cursor.execute('''
             SELECT REPLACE(category,'xp_','') AS category, value
             FROM stats_channel
-            WHERE username=? AND category LIKE '%xp_%'
+            WHERE user=? AND category LIKE '%xp_%'
             ORDER BY value DESC
         ''', (user,))
         result = cursor.fetchall()
@@ -287,10 +287,10 @@ async def get_top_players():
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute('''
-            SELECT username, SUM(value) AS total_xp
+            SELECT user, SUM(value) AS total_xp
             FROM stats_channel
-            WHERE (username!='channel' AND username!='danndato') AND category LIKE '%xp_%'
-            GROUP BY username
+            WHERE (user!='channel' AND user!='danndato') AND category LIKE '%xp_%'
+            GROUP BY user
             ORDER BY total_xp DESC
             LIMIT 3
         ''',)
@@ -358,7 +358,7 @@ async def set_stats(stat_category, user, value):
         # Verificar si el usuario ya tiene un valor para esta categoría
         cursor.execute('''
             SELECT value, hvalue FROM stats_channel
-            WHERE category = ? AND username = ?
+            WHERE category = ? AND user = ?
         ''', (stat_category, user))
 
         result = cursor.fetchone()
@@ -371,13 +371,13 @@ async def set_stats(stat_category, user, value):
             cursor.execute('''
                 UPDATE stats_channel
                 SET value = ?, hvalue = ?
-                WHERE category = ? AND username = ?
+                WHERE category = ? AND user = ?
             ''', (new_value, hvalue, stat_category, user))
         else:
             # Si no existe, insertar un nuevo registro
             new_value=value
             cursor.execute('''
-                INSERT INTO stats_channel (category, username, value, hvalue)
+                INSERT INTO stats_channel (category, user, value, hvalue)
                 VALUES (?, ?, ?, ?)
             ''', (stat_category, user, value, value))
             
@@ -410,7 +410,7 @@ async def get_clan_user(user):
         cursor.execute('''
             SELECT clan,lider
             FROM clanes
-            WHERE username = ?
+            WHERE user = ?
         ''', (user,))
         result = cursor.fetchone()
         cerrar_conexion(conn, cursor)
@@ -447,7 +447,7 @@ async def admin_clan(user,clan,accion):
         cursor.execute('''
             SELECT clan
             FROM clanes
-            WHERE username = ? AND lider = 1
+            WHERE user = ? AND lider = 1
         ''', (user,))
         result = cursor.fetchone()
 
@@ -457,7 +457,7 @@ async def admin_clan(user,clan,accion):
                 return False
             # Crear un nuevo clan
             cursor.execute('''
-                INSERT INTO clanes (clan, username, lider)
+                INSERT INTO clanes (clan, user, lider)
                 VALUES (?, ?, 1)
             ''', (clan, user))
             conn.commit()
@@ -469,7 +469,7 @@ async def admin_clan(user,clan,accion):
             if result: #verifica si es lider
                 cursor.execute('''
                 DELETE FROM clanes
-                WHERE clan = ? AND username = ? AND lider = 1
+                WHERE clan = ? AND user = ? AND lider = 1
                 ''', (clan, user))
                 conn.commit()
                 cerrar_conexion(conn, cursor)
@@ -499,14 +499,14 @@ async def join_to_clan(admin,user):
         cursor.execute('''
             SELECT clan
             FROM clanes
-            WHERE username = ? AND lider = 1
+            WHERE user = ? AND lider = 1
         ''', (admin,))
         result = cursor.fetchone()
 
         if result:
             # Añadir al usuario al clan
             cursor.execute('''
-                INSERT INTO clanes (clan, username, lider)
+                INSERT INTO clanes (clan, user, lider)
                 VALUES (?, ?, 0)
             ''', (result[0], user))
             conn.commit()
@@ -537,7 +537,7 @@ async def left_clan(user):
         cursor.execute('''
             SELECT clan
             FROM clanes
-            WHERE username = ? AND lider = 1
+            WHERE user = ? AND lider = 1
         ''', (user,))
         result = cursor.fetchone()
 
@@ -551,7 +551,7 @@ async def left_clan(user):
         # Abandonar el clan
         cursor.execute('''
             DELETE FROM clanes
-            WHERE username = ?
+            WHERE user = ?
         ''', (user,))
         conn.commit()
         cerrar_conexion(conn, cursor)
@@ -574,7 +574,7 @@ async def get_clanes():
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT clan, COUNT(username) AS miembros
+            SELECT clan, COUNT(user) AS miembros
             FROM clanes
             GROUP BY clan
             ORDER BY miembros DESC
@@ -603,7 +603,7 @@ async def get_clan_members(clan):
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT username
+            SELECT user
             FROM clanes
             WHERE clan = ?
         ''', (clan,))

@@ -1,7 +1,7 @@
 from datetime import datetime
 from twitchio.ext import commands
 from Helpers.helpers import  is_channel_online, safe_int
-from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, count_user_messages
+from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, count_user_messages, get_twitch_id
 
 def stats_commands(bot):
     """
@@ -11,9 +11,14 @@ def stats_commands(bot):
     @bot.command(name='mensajes')
     async def mensajes(ctx):
         if ctx.message.content.strip().startswith('!mensajes @'):
-            user = ctx.message.content.strip().split('@')[1].strip()
+            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+            # Buscar el ID en la base de datos
+            user = await get_twitch_id(mentioned_user)
+            if user is None:
+                await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
+                return
         else:
-            user=ctx.author.name
+            user=ctx.author.id
         messages_hist =await count_user_messages(user,0,0)
         await update_global_stats("xp_Voluntad",ctx.author.name,0.25)
         await ctx.send(f"[BOT] - @{user} ha enviado: ({messages_hist}) mensaje(s)")
@@ -47,7 +52,7 @@ def stats_commands(bot):
                 await ctx.send(f'[BOT] -Sorry, pero @{handle} llegó primero')
     bot.commands["primero"].category = "Llegar primero"
     
-    @bot.command(name='primeroscore')
+    @bot.command(name='primeroscore',aliases=["ps","pscore"])
     async def primeroscore(ctx):
         if ctx.message.content.strip().startswith('!primeroscore @'):
             user = ctx.message.content.strip().split('@')[1].strip()
@@ -60,7 +65,7 @@ def stats_commands(bot):
             await ctx.send(f'[BOT] - Creo que nunca has llegado primero @{user}')
     bot.commands["primeroscore"].category = "Llegar primero"
 
-    @bot.command(name='primerotop')
+    @bot.command(name='primerotop',aliases=["pt","ptop"])
     async def primerotop(ctx):
         ranking = await get_stats("first_user",None,0)
         await ctx.send(f'[BOT] - Los mas camperos del canal [🔥TOP 5]:')
@@ -70,7 +75,7 @@ def stats_commands(bot):
 
 
     # Comando para registrar el ganador del Wordle
-    @bot.command(name='wordlewin')
+    @bot.command(name='wordlewin',aliases=["ww","wwin"])
     async def wordlewin(ctx):
         # Validar si el mensaje contiene una mención de usuario
         if ctx.author.is_mod:
@@ -97,7 +102,7 @@ def stats_commands(bot):
     bot.commands["wordlewin"].category = "Wordle"
 
 
-    @bot.command(name='wordlelose')
+    @bot.command(name='wordlelose',aliases=["wl","wlose"])
     async def wordlelose(ctx):
         # Validar si el mensaje contiene una mención de usuario
         if ctx.author.is_mod:
@@ -121,7 +126,7 @@ def stats_commands(bot):
 
 
     # Comando para mostrar estadísticas globales de Wordle
-    @bot.command(name='wordlescore')
+    @bot.command(name='wordlescore',aliases=["ws","wscore"])
     async def wordlescore(ctx):
         # Obtener estadísticas de Wordle
         if ctx.message.content.strip().startswith('!wordlescore @'):
@@ -136,7 +141,7 @@ def stats_commands(bot):
     bot.commands["wordlescore"].category = "Wordle"
 
 
-    @bot.command(name='wordlehist')
+    @bot.command(name='wordlehist',aliases=["wh","whist"])
     async def wordlehist(ctx):
         # Obtener estadísticas de Wordle
         if ctx.message.content.strip().startswith('!wordlehist @'):
@@ -151,7 +156,7 @@ def stats_commands(bot):
     bot.commands["wordlehist"].category = "Wordle"
 
 
-    @bot.command(name='wordletop')
+    @bot.command(name='wordletop',aliases=["wt","wtop"])
     async def wordletop(ctx):
         ranking = await get_stats("wordle_wins",None,0)
         await ctx.send(f'[BOT] - Las estadísticas de Wordle [🔥TOP 5]:')
@@ -159,7 +164,7 @@ def stats_commands(bot):
     bot.commands["wordletop"].category = "Wordle"
 
     # Comando para registrar el ganador de un reto random
-    @bot.command(name='retowin')
+    @bot.command(name='retowin',aliases=["rw","rwin"])
     async def retowin(ctx):
         # Validar si el mensaje contiene una mención de usuario
         if ctx.author.is_mod:
@@ -181,7 +186,7 @@ def stats_commands(bot):
     bot.commands["retowin"].category = "Retos"
 
 
-    @bot.command(name='retolose')
+    @bot.command(name='retolose',aliases=["rl","rlose"])
     async def retolose(ctx):
         # Validar si el mensaje contiene una mención de usuario
         if ctx.author.is_mod:
@@ -203,7 +208,7 @@ def stats_commands(bot):
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
     bot.commands["retolose"].category = "Retos"
 
-    @bot.command(name='retoscore')
+    @bot.command(name='retoscore',aliases=["rs","rscore"])
     async def retoscore(ctx):
         # Obtener estadísticas de retos
         if ctx.message.content.strip().startswith('!retoscore @'):

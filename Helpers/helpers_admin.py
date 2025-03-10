@@ -20,7 +20,7 @@ async def save_bug(user,bug):
         cursor = conn.cursor()
 
         # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''INSERT INTO bug_reports (username, bug, date)values(?, ?, ?)''',
+        cursor.execute('''INSERT INTO bug_reports (user, bug, date)values(?, ?, ?)''',
             (user, bug,datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         conn.commit()
         
@@ -323,12 +323,12 @@ async def end_mail():
         # OBTENER EL CONTEO DE LAS PERSONAS QUE CHATEARON EN DIRECTO AL MENOS UNA VEZ
         cursor.execute(f'''
             WITH allmessages AS (
-                SELECT DISTINCT username FROM {ptable_name}
+                SELECT DISTINCT user FROM {ptable_name}
                 WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
                 union
-                SELECT DISTINCT username FROM {table_name}
+                SELECT DISTINCT user FROM {table_name}
                 WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
-                GROUP BY username
+                GROUP BY user
                 )
             SELECT count(*) AS chatters FROM allmessages
         ''')
@@ -337,12 +337,12 @@ async def end_mail():
         # _________________________________________________________________
 
         cursor.execute(f'''
-            SELECT username FROM history_users 
+            SELECT user FROM history_users 
             WHERE date BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
             UNION
-            SELECT username FROM {table_name}
+            SELECT user FROM {table_name}
             WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
-            GROUP BY username
+            GROUP BY user
         ''')
         # Obtener los usuarios y extraer solo los nombres (evitar que queden como tuplas)
         users = [user[0] for user in cursor.fetchall()]  

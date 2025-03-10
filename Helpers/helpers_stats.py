@@ -25,7 +25,7 @@ async def update_global_stats(stat_category, user, value):
         # Verificar si el usuario ya tiene un valor para esta categoría
         cursor.execute('''
             SELECT value, hvalue FROM stats_channel
-            WHERE category = ? AND username = ?
+            WHERE category = ? AND user = ?
         ''', (stat_category, user))
 
         result = cursor.fetchone()
@@ -39,13 +39,13 @@ async def update_global_stats(stat_category, user, value):
             cursor.execute('''
                 UPDATE stats_channel
                 SET value = ?, hvalue = ?
-                WHERE category = ? AND username = ?
+                WHERE category = ? AND user = ?
             ''', (new_value, hvalue, stat_category, user))
         else:
             # Si no existe, insertar un nuevo registro
             new_value=value
             cursor.execute('''
-                INSERT INTO stats_channel (category, username, value, hvalue)
+                INSERT INTO stats_channel (category, user, value, hvalue)
                 VALUES (?, ?, ?, ?)
             ''', (stat_category, user, value, value))
             
@@ -79,9 +79,9 @@ async def get_stats(stat_category,user,tipo):
             user = normalize_username(user)
             # Verificar si el usuario ya tiene un valor para esta categoría
             cursor.execute('''
-                SELECT username, value, hvalue FROM stats_channel
-                WHERE category = ? AND username = ?
-                GROUP BY username
+                SELECT user, value, hvalue FROM stats_channel
+                WHERE category = ? AND user = ?
+                GROUP BY user
             ''', (stat_category, user))
             result = cursor.fetchone()
             
@@ -91,10 +91,10 @@ async def get_stats(stat_category,user,tipo):
                 retorno = None
         else:
             cursor.execute('''
-                SELECT username, value
+                SELECT user, value
                 FROM stats_channel
                 WHERE category = ?
-                GROUP BY username
+                GROUP BY user
                 ORDER BY value DESC
                 LIMIT 5
             ''', (stat_category,))
@@ -174,9 +174,9 @@ async def get_top_chatter_day():
         table_name = f"chat_{year}{month:02}"
         # Verificar si el usuario ya tiene un valor para esta categoría
         cursor.execute(f'''
-            SELECT username, count(username) AS nMsg from {table_name} 
+            SELECT user, count(user) AS nMsg from {table_name} 
             WHERE date like '%'''+current_date+'''%'
-            GROUP BY username
+            GROUP BY user
             order by 2 DESC
             LIMIT 1
         ''',)
@@ -239,14 +239,14 @@ async def count_user_messages(username, start_date=0, end_date=0):
                 cursor.execute(f'''
                     SELECT COUNT(*) 
                     FROM {table_name} 
-                    WHERE username = ?;
+                    WHERE user = ?;
                 ''', (username,))
             else:
                 # Contar los mensajes dentro del rango de fechas
                 cursor.execute(f'''
                     SELECT COUNT(*) 
                     FROM {table_name} 
-                    WHERE username = ? 
+                    WHERE user = ? 
                     AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?);
                 ''', (username, start_date, end_date))
 
@@ -271,12 +271,12 @@ async def cuadrar_messages():
         current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         cursor.execute('''
-            SELECT username FROM history_users GROUP BY username
+            SELECT user FROM history_users GROUP BY user
         ''')
         result = cursor.fetchall()
         for user in result:
             cursor.execute('''
-                SELECT value FROM stats_channel WHERE username = ? AND category = "messages"
+                SELECT value FROM stats_channel WHERE user = ? AND category = "messages"
             ''',(user[0],))
             stats = cursor.fetchone()
             nMensaje = await count_user_messages(user[0])
@@ -297,20 +297,17 @@ async def save_user_bd(bd, user):
         cursor = conn.cursor()
         current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute(f'''
-            SELECT * FROM birthdays WHERE user='{user}'
+            SELECT birthday FROM users WHERE twitch_id='{user}'
         ''')
         result = cursor.fetchone()
         if result:
-
             cursor.execute('''
-                UPDATE birthdays SET birthday=? WHERE user=?
+                UPDATE users SET birthday=? WHERE twitch_id=?
             ''',(bd, user))
         else:
-            cursor.execute('''
-                INSERT INTO birthdays (user, birthday, date)
-                VALUES(?,?,?)
-            ''',(user, bd, current_date))
-
+            logging.error("No se ha encontrado el usuario")
+            return False
+        
         conn.commit()
         conn.close()
         cerrar_conexion(conn, cursor)
@@ -327,20 +324,20 @@ async def save_user_bd(bd, user):
 
 async def get_user_bd(user):
     try:
-        user = normalize_username(user)
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         current_date = datetime.now()
         current_year = current_date.year
         cursor.execute(f'''
-            SELECT * FROM birthdays WHERE user='{user}'
+            SELECT birthday FROM users WHERE twitch_id='{user}'
         ''')
         result = cursor.fetchone()
         conn.close()
         cerrar_conexion(conn, cursor)
         if result is not None:
-            bd = result[1]
-            
+            bd = result[0]
+            if bd is None:
+                return False, '0', '0', '0', '0'
             bd_date = datetime.strptime(bd, "%Y-%m-%d")  # Convertir a objeto datetime
             lcMes = bd_date.strftime("%B").capitalize()
             bd_month, bd_day = bd_date.month, bd_date.day  # Extraer mes y día
@@ -359,9 +356,9 @@ async def get_user_bd(user):
         logging.error(f"Error al consultar cumpleaños: {e}")
         return False, '0', '0', '0', '0'
     finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
+        if conn:
+            conn.close()
+            cerrar_conexion(conn, cursor)
 
 
 async def today_birthdays():
@@ -375,7 +372,7 @@ async def today_birthdays():
 
         # Buscar cumpleaños que coincidan con el mes y día actuales
         cursor.execute(f'''
-            SELECT user, birthday FROM birthdays
+            SELECT username, birthday FROM users
             WHERE strftime('%m-%d', birthday) = ?
         ''', (current_month_day,))
 
@@ -411,8 +408,8 @@ async def week_birthdays():
 
         # Buscar cumpleaños que coincidan con el mes y día actuales
         cursor.execute(f'''
-            SELECT user, birthday 
-            FROM birthdays
+            SELECT username, birthday 
+            FROM users
             WHERE strftime('%m-%d', birthday) 
             BETWEEN strftime('%m-%d', date('now')) 
             AND strftime('%m-%d', date('now', '+7 days'))
@@ -433,6 +430,29 @@ async def week_birthdays():
     except sqlite3.Error as e:
         logging.error(f"Error al consultar cumpleaños: {e}")
         return False
+    finally:
+            if conn:
+                conn.close()
+                cerrar_conexion(conn, cursor)
+
+async def get_twitch_id(username):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        username = normalize_username(username)
+        cursor.execute('''
+            SELECT twitch_id FROM users WHERE username=?
+        ''',(username,))
+        result = cursor.fetchone()
+        conn.close()
+        cerrar_conexion(conn, cursor)
+        if result:
+            return result[0]
+        else:
+            return None
+    except sqlite3.Error as e:
+        logging.error(f"Error al obtener el id del usuario: {e}")
+        return None
     finally:
             if conn:
                 conn.close()
