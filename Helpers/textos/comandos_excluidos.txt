@@ -1,14 +1,6 @@
 ini
 end
 nbug
-recompensas
-skin
-setskin
-xp
-player
-nivel
-top
-clan
 liderclan
 clanes
 dejarclan
