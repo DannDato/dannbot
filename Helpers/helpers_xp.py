@@ -12,7 +12,6 @@ from Helpers.roles import role_rules, complemento_roles, role_emojis
 #Ruta de la base de datos
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
-
 # Regresa las estadisticas RPG del usuario
 async def get_player(user):
     """
@@ -21,8 +20,6 @@ async def get_player(user):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        user = normalize_username(user)
-
         # Consulta para obtener las categorías relacionadas con XP ordenadas por valor
         cursor.execute('''
             SELECT REPLACE(category,'xp_','') as category, value
@@ -31,12 +28,10 @@ async def get_player(user):
             ORDER BY value DESC
         ''', (user,))
         result = cursor.fetchall()
-
         if result:
             limiteC = 6
             xp_total = 0
             Player = []
-
             # Procesar cada categoría para calcular XP y formar el arreglo Player
             for category, value in result:
                 lcEmoji = role_emojis.get(category, '🔥')
@@ -45,10 +40,8 @@ async def get_player(user):
 
             # XP final multiplicado por 100
             xp_total *= 100
-
             # Calcular nivel usando una función externa
             nivel = await calculate_level(user)
-
             # Ordenar Player por las mejores categorías (ya ordenado por la consulta SQL)
             Player.sort(key=lambda x: float(x[1]), reverse=True)
             # Determinar el rol (pendiente de ajustar en get_rol)
@@ -66,13 +59,11 @@ async def get_player(user):
             Player.insert(0, ["Nivel", str(nivel)[:limiteC]])
             Player.insert(0, ["XP", f"{xp_total:.2f}"])
 
-
             """
                 Muestra el nivel de los jugadores segun sus estadísticas rpg
                 oPlayer[0][1] = XP
                 oPlayer[1][1] = Nivel
                 oPlayer[2][1] = Rol
-                    
                 oPlayer[3][1] = xp_categoria
                 oPlayer[4][1] = xp_categoria
                 ...
@@ -87,10 +78,10 @@ async def get_player(user):
     except sqlite3.Error as e:
         print(f"Error en la base de datos: {e}")
         return False
-
     finally:
         if conn:
             conn.close()
+            cerrar_conexion(conn, cursor)
     
 async def update_xp():
     """
@@ -221,7 +212,6 @@ async def calculate_xp(user):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        user = normalize_username(user)
 
         # Consulta para obtener las categorías relacionadas con XP ordenadas por valor
         cursor.execute('''
@@ -234,7 +224,6 @@ async def calculate_xp(user):
 
         if result:
             xp_total = 0
-
             # Procesar cada categoría para calcular XP y formar el arreglo Player
             for category, value in result:
                 xp_total += float(value)
@@ -266,9 +255,8 @@ async def calculate_level(user):
     xp = await calculate_xp(user)
     xp=int(xp)
     level = 1
-    xp_required = 500  # XP necesario para el primer nivel
-    increment = 500   # Incremento para el siguiente nivel
-
+    xp_required = 5000  # XP necesario para el primer nivel
+    increment = 1000   # Incremento para el siguiente nivel
     # Itera hasta que el XP sea suficiente para el nivel actual
     while xp >= xp_required:
         level += 1
@@ -287,9 +275,9 @@ async def get_top_players():
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute('''
-            SELECT user, SUM(value) AS total_xp
+            SELECT IFNULL((SELECT username FROM users WHERE twitch_id=user),'None') as username, SUM(value) AS total_xp
             FROM stats_channel
-            WHERE (user!='channel' AND user!='danndato') AND category LIKE '%xp_%'
+            WHERE (user!='channel' AND user!='439400816') AND category LIKE '%xp_%'
             GROUP BY user
             ORDER BY total_xp DESC
             LIMIT 3
@@ -338,9 +326,6 @@ async def get_rol(h1, h2, h3):
     # Resultado final
     lcTitulo = f"{lcRol.lower()} {lcRolComplemento} "
     return lcTitulo
-
-async def get_skin(user):
-    return await get_stats("Skin",user,0)
 
 async def set_stats(stat_category, user, value):
     """

@@ -1,8 +1,6 @@
 
-from Helpers.helpers import normalize_username, is_authorized
-from Helpers.helpers_admin import end_stream, start_stream, end_mail, save_bug
-from Helpers.mailer import enviar_correo
-from Helpers.helpers_stats import cuadrar_messages
+from Helpers.helpers import is_authorized
+from Helpers.helpers_admin import end_stream, start_stream, end_mail
 
 def admin_commands(bot):
 
@@ -31,15 +29,6 @@ def admin_commands(bot):
             else:
                 await ctx.send(f' [BOT] - 🔴 No se puede finalizar un stream que no se ha iniciado...')
     bot.commands["end"].category = "Administrador"
-
-    @bot.command(name='vuser')
-    async def vuser(ctx):
-        if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
-            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
-            return
-        else:
-            await ctx.send(f' [BOT] - 🤖 Usuario validado correctamente... 🟢')
-    bot.commands["vuser"].category = "Administrador"
 
     
 

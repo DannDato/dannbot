@@ -5,7 +5,20 @@ from Helpers.helpers_stats import update_global_stats, get_stats, check_primero,
 
 def stats_commands(bot):
     """
-    Registra comandos para leer las estadísticas del bot en el bot.
+                Registra comandos para leer las estadísticas del bot en el bot.
+        -mensajes
+        -ladrillo
+        -primero
+        -primeroscore
+        -primerotop
+        -wordlewin
+        -wordlelose
+        -wordlescore
+        -wordletop
+        -retowin
+        -retolose
+        -retoscore
+
     """ 
     @bot.command(name='mensajes')
     async def mensajes(ctx):
@@ -37,7 +50,7 @@ def stats_commands(bot):
         if check_online is False:
             await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
             return
-        handle=await check_primero(ctx.author.id)
+        handle=await check_primero(ctx.author)
         if  handle is None:
             actualiza = await update_global_stats("first_user",ctx.author.id,1)
             await update_global_stats("xp_Resistencia",ctx.author.id,3)
@@ -163,7 +176,7 @@ def stats_commands(bot):
             user=ctx.author.id
         ranking =await get_stats("wordle_wins",user)
         if ranking is not None:
-            await ctx.send(f'[BOT] - {mentioned_user} En 🆆🅾🆁🅳🅻🅴 tiene {ranking[1]} punto{'s' if ranking[1]>1 else ''}')
+            await ctx.send(f'[BOT] - @{mentioned_user} En 🆆🅾🆁🅳🅻🅴 tiene {ranking[1]} punto{'s' if ranking[1]>1 else ''}')
         else:
             await ctx.send(f'[BOT] - Creo que @{mentioned_user} nunca ha ganado el wordle')
     bot.commands["wordlescore"].category = "Wordle"
@@ -236,7 +249,7 @@ def stats_commands(bot):
 
     @bot.command(name='retoscore',aliases=["rs","rscore"])
     async def retoscore(ctx):
-         # Obtener estadísticas 
+        # Obtener estadísticas 
         if '@' in ctx.message.content:
             mentioned_user = ctx.message.content.strip().split('@')[1].strip()
             # Buscar el ID en la base de datos
@@ -248,7 +261,7 @@ def stats_commands(bot):
             mentioned_user = ctx.author.name
             user=ctx.author.id
         ranking =await get_stats("reto_wins",user)
-        if ranking is not None:
+        if ranking is not None and ranking[1]!=0:
             print(ranking)
             await ctx.send(f"[BOT] - @{mentioned_user} Ha ganado ({ranking[1]}) reto{'s' if safe_int(ranking[1]) >1 else ''}")
         else:

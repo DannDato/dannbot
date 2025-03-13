@@ -53,8 +53,8 @@ async def update_global_stats(stat_category, user, value):
         # Confirmar los cambios y cerrar la conexión
         conn.commit()
         conn.close()
-        
         # logging.info(f"Estadísticas actualizadas: {stat_category} | {user}: {value}")
+        cerrar_conexion(conn, cursor)
         return new_value
 
     except sqlite3.Error as e:
@@ -69,22 +69,21 @@ async def get_stats(stat_category,user):
     """
     Obtener las estadísticas de la categoria.
     :param stat_category: Categoría de la estadística (ej. 'wordle_wins', 'top_chatter')
-    :param user: Nombre del usuario
+    :param user: id del usuario
     """
+
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         # Normalizar el nombre de usuario
         if user is not None:
-            user = normalize_username(user)
             # Verificar si el usuario ya tiene un valor para esta categoría
             cursor.execute('''
                 SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value, hvalue FROM stats_channel
                 WHERE category = ? AND user = ?
-                GROUP BY user
+                GROUP BY username
             ''', (stat_category, user))
             result = cursor.fetchone()
-            
             if result:
                 retorno = result
             else:
@@ -123,12 +122,14 @@ async def check_primero(user):
         Verifica la aplicación del comando !primero para identificar si
         existe algun registro previo de un primer usuario del día
     """
+    user=user.id
+    username=user.name
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         #Verificar si existe algun usuario previo del dia
         cursor.execute('''
-            SELECT (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value), DATE(date) as fecha
+            SELECT (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username, DATE(date) as fecha
             FROM stream_data
             WHERE accion = 'first_user' and DATE(date)=DATE('now','localtime')
             LIMIT 1;
@@ -143,7 +144,7 @@ async def check_primero(user):
             cursor.execute('''
                 INSERT INTO stream_data (accion, value, date)
                 VALUES ('first_user', ?, ?)
-            ''', (user,current_date))
+            ''', (username,current_date))
             retorno = None
         # Confirmar los cambios y cerrar la conexión
 
@@ -172,9 +173,9 @@ async def get_top_chatter_day():
         year = now.year
         month = now.month
         table_name = f"chat_{year}{month:02}"
-        # Verificar si el usuario ya tiene un valor para esta categoría
+
         cursor.execute(f'''
-            SELECT user, count(user) AS nMsg from {table_name} 
+            SELECT (SELECT username FROM users WHERE twitch_id=user) as user, count(user) AS nMsg from {table_name} 
             WHERE date like '%'''+current_date+'''%'
             GROUP BY user
             order by 2 DESC
@@ -264,33 +265,6 @@ async def count_user_messages(username, start_date=0, end_date=0):
             conn.close()
             cerrar_conexion(conn, cursor)
 
-async def cuadrar_messages():
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        cursor.execute('''
-            SELECT user FROM history_users GROUP BY user
-        ''')
-        result = cursor.fetchall()
-        for user in result:
-            cursor.execute('''
-                SELECT value FROM stats_channel WHERE user = ? AND category = "messages"
-            ''',(user[0],))
-            stats = cursor.fetchone()
-            nMensaje = await count_user_messages(user[0])
-            if stats != nMensaje:
-                await update_global_stats("messages",user[0],nMensaje)
-    except sqlite3.Error as e:
-        logging.error(f"Error al acceder a la base de datos: {e}")
-        return False
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
-
-
 async def save_user_bd(bd, user):
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -320,7 +294,6 @@ async def save_user_bd(bd, user):
             if conn:
                 conn.close()
                 cerrar_conexion(conn, cursor)
-
 
 async def get_user_bd(user):
     try:

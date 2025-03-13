@@ -22,24 +22,37 @@ def dynamic_commands(bot):
 
                 INDICE
         -comandos
+        -bot
         -so
         -memide
+        -bd
+        -cumpleaños
         -ruleta
+        -mecaben
         -bola8
+        -trivia
         -insultar
+        -insultame
         -halago
+        -caraocruz
         -meporte
         -nalgada
+        -pies
         -abrazo
         -duelo
+        -ip
         -amor
+        -odio
         -midinero
         -donar
         -juegos
-
+        -setso
+        -xeno
+        -ban?
+        -vips
+        -joteria
     """
     @bot.command(name='comandos',aliases=["help","commands","ayuda"])
-
     async def comandos(ctx):
         """
         Muestra una lista de todos los comandos disponibles en el @bot.
@@ -85,7 +98,6 @@ def dynamic_commands(bot):
         else:
             await ctx.send("[BotGPT] - Se acabó el money 🤑, no puedo responder más por hoy")
 
-
     @bot.command(name='so')
     async def so(ctx):
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
@@ -102,16 +114,16 @@ def dynamic_commands(bot):
     
     @bot.command(name='memide')
     async def memide(ctx):
-        lnCm = random.randint(0, 50)
+        lnCm = random.randint(0, 35)
         if lnCm <= 5: 
             lcExtra  ="🥺"
-        elif lnCm > 5 and lnCm < 18:
+        elif lnCm > 5 and lnCm < 13:
             lcExtra ="👀"
-        elif lnCm > 18 and lnCm < 25:
+        elif lnCm > 13 and lnCm < 20:
             lcExtra ="🥵"
-        elif lnCm > 25 and lnCm  <35:
+        elif lnCm > 20 and lnCm  <30:
             lcExtra ="🤯"
-        elif lnCm >= 35:
+        elif lnCm >= 30:
             lcExtra ="OMG  🤯🥵😈 increible"
         await ctx.send(f'[BOT] - A  @{ctx.author.name} le mide {lnCm}cm {lcExtra}')
         await update_global_stats("xp_Carisma",ctx.author.id,0.15)
@@ -131,11 +143,11 @@ def dynamic_commands(bot):
         else:
             await ctx.send(f'[BOT] - @{ctx.author.name} Debe ser Año, Mes, día. así: "!bd 2000-01-31" ;)')
     
-    @bot.command(name='cumpleaños')
+    @bot.command(name='cumpleaños', aliases=["cumple","birthday"])
     async def cumpleaños(ctx):
-        if ctx.message.content.strip().startswith('!cumpleaños @'):
+        #______________Get mentioned user____________________
+        if '@' in ctx.message.content:
             mentioned_user = ctx.message.content.strip().split('@')[1].strip()
-            # Buscar el ID en la base de datos
             user = await get_twitch_id(mentioned_user)
             if user is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
@@ -143,6 +155,7 @@ def dynamic_commands(bot):
         else:
             mentioned_user = ctx.author.name
             user=ctx.author.id
+        #______________Get mentioned user____________________
 
         bd = await get_user_bd(user)
 
@@ -159,7 +172,6 @@ def dynamic_commands(bot):
         else:
             await ctx.send(f"[BOT] - No se cuando es el cumpleaños de @{mentioned_user} 😔 díganle que lo guarde con el comando !bd YYYY-MM-DD ")
         
-    
     @bot.command(name='ruleta')
     async def ruleta(ctx):
         await ctx.send(f'[BOT] - @{ctx.author.name} quiere jugar a la ruleta rusa... toma el arma, se prepara...')
@@ -173,7 +185,7 @@ def dynamic_commands(bot):
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
         await update_global_stats("xp_Habilidad",ctx.author.id,0.15)
     
-    @bot.command(name='mecaben')
+    @bot.command(name='mecaben', aliases=["mecabe"])
     async def mecaben(ctx):
         lnBoca = random.randint(1,3)
         lnCulo = random.randint(1,3)
@@ -189,7 +201,7 @@ def dynamic_commands(bot):
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
         await update_global_stats("xp_Bromista",ctx.author.id,0.15)
 
-    @bot.command(name='bola8')
+    @bot.command(name='bola8', aliases=["genio"])
     async def bola8(ctx):
         lcRespuesta = gen_response("respuestas.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.author.name}')
@@ -203,10 +215,10 @@ def dynamic_commands(bot):
         await update_global_stats("xp_Astucia",ctx.author.id,0.15)
         await update_global_stats("xp_Habilidad",ctx.author.id,0.15)
     
-    @bot.command(name='insultar')
+    @bot.command(name='insultar', aliases=["insulto", "insulta"])
     async def insultar(ctx):
-        if not ctx.message.content.strip().startswith('!insultar @'):
-            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !insultar @usuario")
+        if '@' not in ctx.message.content:
+            await ctx.send("[BOT] - Si andas de grocero minimo etiqueta a alquien qlo: !insultar @usuario o a ti solito con !insultame")
             return
         mentioned_user = ctx.message.content.strip().split('@')[1].strip()
         lcRespuesta = gen_response("insultos.txt")
@@ -258,7 +270,7 @@ def dynamic_commands(bot):
     @bot.command(name='nalgada')
     async def nalgada(ctx):
         if not ctx.message.content.strip().startswith('!nalgada @'):
-            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !nalgada @usuario")
+            await ctx.send("[BOT] - ¿A quien? al aire o que?: !nalgada @usuario")
             return
         mentioned_user = ctx.message.content.strip().split('@')[1].strip()
         lcRespuesta = gen_response("nalgadas.txt")
@@ -272,23 +284,28 @@ def dynamic_commands(bot):
         await update_global_stats("xp_Oscuridad",ctx.author.id,0.15)
         await update_global_stats("xp_Bromista",ctx.author.id,0.15)
     
-    @bot.command(name='abrazo')
+    @bot.command(name='abrazo', aliases=["abrazar","hug"])
     async def abrazo(ctx):
-        if not ctx.message.content.strip().startswith('!abrazo @'):
-            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !abrazo @usuario")
-            return
-        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        #______________Get mentioned user____________________
+        if '@' in ctx.message.content:
+            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        else:
+            mentioned_user = ctx.author.name
+            user=ctx.author.id
+        #______________Get mentioned user____________________
         lcRespuesta = gen_response("nalgadas.txt")
         await ctx.send(f'[BOT] - {ctx.author.name} le ha dado un abrazo a @{mentioned_user} ❤️❤️❤️')
         await update_global_stats("xp_Carisma",ctx.author.id,0.15)
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
 
-    @bot.command(name='duelo')
+    @bot.command(name='duelo', aliases=["duel","fight","pelea","retar"])
     async def duelo(ctx):
-        if not ctx.message.content.strip().startswith('!duelo @'):
-            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !duelo @usuario")
-            return
-        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        #______________Get mentioned user____________________
+        if '@' in ctx.message.content:
+            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        else:
+            mentioned_user = ctx.author.name
+        #______________Get mentioned user____________________
         await ctx.send(f'[BOT] - @{ctx.author.name} ha retado a @{mentioned_user} a un duelo de cuchillos...')
         lnResp = random.randint(1, 3)
         lnGanador = ctx.author.name if random.randint(0,1) else mentioned_user
@@ -364,24 +381,27 @@ def dynamic_commands(bot):
         time.sleep(1)
         await ctx.send(f'[BOT] - El odio entre @{primerUsuario} y @{segundoUsuario} es del {lnAmor}% {lcExtra}')
         await update_global_stats("xp_Oscuridad",ctx.author.id,0.15)
-        
-
-    @bot.command(name='midinero')
+        await update_global_stats("xp_Bromista",ctx.author.id,0.15)
+    
+    @bot.command(name='dinero', aliases=["midinero"])
     async def midinero(ctx):
         lnBanco = random.randint(1, 10000)
         lnCartera = random.randint(1, 1000)
         await ctx.send(f'[BOT] - @{ctx.author.name} tiene {lnBanco}$ en el banco  y {lnCartera}$ en la cartera 💵💲')
 
-    @bot.command(name='donar')
+    @bot.command(name='donar', aliases=["donacion","dona"])
     async def donar(ctx):
         lnBits = random.randint(1,100)
-        if not ctx.message.content.strip().startswith('!donar @'):
-            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !donar @usuario")
-            return
-        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        #______________Get mentioned user____________________
+        if '@' in ctx.message.content:
+            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        else:
+            mentioned_user = ctx.author.name
+        #______________Get mentioned user____________________
         await ctx.send(f'[BOT] - Yo creo que @{mentioned_user} deberia donar {lnBits} bits 👀')
         await update_global_stats("xp_Bromista",ctx.author.id,0.15)
-    @bot.command(name="juegos")
+   
+    @bot.command(name="juegos", aliases=["games"])
     async def juegos(ctx):
         if ctx.author.is_mod:
             library = get_steam_library()
@@ -391,6 +411,7 @@ def dynamic_commands(bot):
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.author.name}, este comando es solo para moderadores.')
         await update_global_stats("xp_Bromista",ctx.author.id,0.15)
+    
     @bot.command(name='setso')
     async def setso(ctx):
         if not ctx.message.content.strip().startswith('!setso @'):
@@ -400,6 +421,7 @@ def dynamic_commands(bot):
         await ctx.send(f'[BOT] - 😈 @{ctx.author.name} quiere llevarse a @{mentioned_user} a hacer cositas...🥵 ¿será que acepta?')
         await update_global_stats("xp_Oscuridad",ctx.author.id,0.15)
         await update_global_stats("xp_Bromista",ctx.author.id,0.15)
+    
     @bot.command(name='xeno')
     async def xeno(ctx):
         dt1 = date.fromisoformat('2024-12-19')

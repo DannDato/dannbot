@@ -68,14 +68,11 @@ async def read_save_chat(self, message):
         await desafiar(channel,message)
         try:
             username = normalize_username(message.author.name)
-            
-
-            #QUITAR DESPUES
-            await new_user(message.author)
-            #QUITAR DESPUES
-
-
             userid=message.author.id
+            
+            #Nuevo usuario del canal
+            await new_user(message.author)
+
             message = clean_text(message.content)
             # Obtener fecha actual
             now = datetime.now()
@@ -287,23 +284,24 @@ async def happy_birthday(self):
 async def new_user(user):
     userid = str(user.id)  # Convertir a string por si la DB maneja `TEXT`
     username = normalize_username(user.name)
-
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-
         # Verificar si el usuario ya existe en la tabla "users"
         cursor.execute('SELECT username FROM users WHERE twitch_id = ?', (userid,))
         result = cursor.fetchone()
-
+        update=False
         if result:
             # Si el usuario existe pero su nombre cambió, actualizarlo
             if result[0] != username:
                 cursor.execute('UPDATE users SET username = ? WHERE twitch_id = ?', (username, userid))
+                update = True
         else:
             # Si el usuario no existe, agregarlo
             cursor.execute('INSERT INTO users (twitch_id, username) VALUES (?, ?)', (userid, username))
+            update = True
 
+        if update:
             # Renombrar su nombre por su ID en todas las demás tablas
             tablas = ['stats_channel', 'redeems', 'history_users', 'donated_bits', 'clanes', 'birthdays']
             for tabla in tablas:
@@ -334,8 +332,8 @@ async def save_current_data():
     
     # while True: 
     #     # Aqui se pondria el codigo de la obtención de estadísticas...
+    #           # SI TUVIERA UNO!!!!!
 
-    #     # SI TUVIERA UNO!!!!!
     #     await asyncio.sleep(2)
 
 def deEmojify(text):

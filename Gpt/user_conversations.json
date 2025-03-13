@@ -51,6 +51,22 @@
         {
             "role": "assistant",
             "content": "No tengo ni idea, bro. ¡Dilo ya antes de que me dé curiosidad! xd"
+        },
+        {
+            "role": "user",
+            "content": ""
+        },
+        {
+            "role": "assistant",
+            "content": "Parece que se te cortó el mensaje. Si quieres, tira otra vez lo que querías decir. ¡Aquí estoy! 😄"
+        },
+        {
+            "role": "user",
+            "content": "que pedo pa"
+        },
+        {
+            "role": "assistant",
+            "content": "Todo tranquilo, ¿y tú? ¿Listo para desmadre? 😜"
         }
     ],
     "daividjb12": [
@@ -351,6 +367,14 @@
         {
             "role": "assistant",
             "content": "Todo tranquilo, aquí esperando la buena onda. ¿Y tú, qué tal? xd"
+        },
+        {
+            "role": "user",
+            "content": "hora de méxico"
+        },
+        {
+            "role": "assistant",
+            "content": "No tengo reloj, bro, pero puedes checarlo en tu compu o cel. ¡Aprovecha y disfruta! xd"
         }
     ],
     "borre_temach": [

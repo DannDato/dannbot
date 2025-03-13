@@ -14,10 +14,12 @@ def general_commands(bot):
     -hola
     -adios
     -lurk
+    -unlurk
     -onlyfans
     -koala
     -llama
     -daarlaaaaa
+    -maikol
     -horario
     -pc
     -camara
@@ -25,30 +27,35 @@ def general_commands(bot):
     -instagram
     -youtube
     -whatsapp
-    -wapp
     -discord
+    -spotify
     -redes
-
     """
     @bot.command(name='hola')
     async def hola(ctx):
-        logging.info(f"{ctx.author.id} saludo")
+        logging.info(f"{ctx.author.name} saludo")
     bot.commands["hola"].category = "Basicos"
 
     @bot.command(name='adios')
     async def adios(ctx):
-        logging.info(f"{ctx.author.id} se despidió")
+        logging.info(f"{ctx.author.name} se despidió")
     bot.commands["adios"].category = "Basicos"
 
     @bot.command(name='lurk')
     async def lurk(ctx):
-        await ctx.send(f'Hummm... parece que @{ctx.author.id} se fue con las cariñosas! 🕵️‍♂️ Disfrutará del stream en modo sigiloso.')
+        await ctx.send(f'Hummm... parece que @{ctx.author.name} se fue con las cariñosas! 🕵️‍♂️ Disfrutará del stream en modo sigiloso.')
+        await update_global_stats("xp_Oscuridad",ctx.author.id,3)
+    bot.commands["lurk"].category = "Basicos"
+
+    @bot.command(name='unlurk')
+    async def unlurk(ctx):
+        await ctx.send(f'🤣... parece que @{ctx.author.name} regresó muy feliz de con las cariñosas!')
         await update_global_stats("xp_Oscuridad",ctx.author.id,3)
     bot.commands["lurk"].category = "Basicos"
 
     @bot.command(name='onlyfans')
     async def onlyfans(ctx):
-        await ctx.send(f'¡Señoraaaa! @{ctx.author.id} anda de cochin@!')
+        await ctx.send(f'¡Señoraaaa! @{ctx.author.name} anda de cochin@!')
         await update_global_stats("xp_Oscuridad",ctx.author.id,0.55)
         await update_global_stats("xp_Bromista",ctx.author.id,0.15)
     bot.commands["onlyfans"].category = "Basicos"
@@ -88,7 +95,7 @@ def general_commands(bot):
             # informativo
     @bot.command(name='horario')
     async def horario(ctx):
-        await ctx.send(f'Hola! @{ctx.author.id} Tenemos Stream los Lunes, Miercoles y Viernes ')
+        await ctx.send(f'Hola! @{ctx.author.name} Tenemos Stream los Lunes, Miercoles y Viernes ')
         await ctx.send(f'🇲🇽:7:00pm,   🇨🇴:8:00pm,   🇻🇪:9:00pm,  ')
         await ctx.send(f'🇦🇷:10:00pm,   🇪🇨:8:00pm,   🇧🇴:9:00pm, ')
         await ctx.send(f'🇪🇸:3:00am,   🇵🇪:8:00pm,   🇺🇾: 10:00pm, ')
@@ -115,7 +122,7 @@ def general_commands(bot):
     
     @bot.command(name='camara')
     async def camara(ctx):
-        await ctx.send(f'Mi cámara es una: Canon Rebel T6icon un lente 18-135 f3.5')
+        await ctx.send(f'Mi cámara es una: Canon Rebel T6i con un lente 18-135 f3.5')
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
     bot.commands["camara"].category = "Equipo"
 
@@ -126,7 +133,7 @@ def general_commands(bot):
     bot.commands["microfono"].category = "Equipo"
 
             # Redes
-    @bot.command(name='instagram')
+    @bot.command(name='instagram', aliases=['insta','ig'])
     async def instagram(ctx):
         await ctx.send(f'📸Instagrm: https://www.instagram.com/datotovar ')
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
@@ -138,17 +145,11 @@ def general_commands(bot):
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
     bot.commands["youtube"].category = "Redes"
 
-    @bot.command(name='whatsapp')
+    @bot.command(name='whatsapp', aliases=['wapp'])
     async def whatsapp(ctx):
         await ctx.send(f'✉ Whatsapp: https://whatsapp.com/channel/0029VaDUL8V7j6fwym4usU14')
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
     bot.commands["whatsapp"].category = "Redes"
-
-    @bot.command(name='wapp')
-    async def wapp(ctx):
-        await ctx.send(f'✉ Whatsapp: https://whatsapp.com/channel/0029VaDUL8V7j6fwym4usU14')
-        await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
-    bot.commands["wapp"].category = "Redes"
 
     @bot.command(name='discord')
     async def discord(ctx):     
@@ -178,7 +179,7 @@ def general_commands(bot):
     #_______DEFINICION DE COMANDOS EXTERNOS PARA EVITAR MENSAJE DE ERROR DE COMANDO
     @bot.command(name='sr')
     async def dona(ctx):
-        logging.info(f"{ctx.author.id}Uso SR")
+        logging.info(f"{ctx.author.name}Uso SR")
         await update_global_stats("xp_Voluntad",ctx.author.id,0.15)
         await update_global_stats("xp_Empatia",ctx.author.id,0.15)
         await update_global_stats("xp_Carisma",ctx.author.id,0.15)
@@ -188,31 +189,31 @@ def general_commands(bot):
 
     @bot.command(name='followage')
     async def followage(ctx):
-        logging.info(f"{ctx.author.id}Uso followage")
+        logging.info(f"{ctx.author.name}Uso followage")
         await update_global_stats("xp_Empatia",ctx.author.id,0.15)
     bot.commands["followage"].category = "Otro"
 
     @bot.command(name='clip')
     async def clip(ctx):
-        logging.info(f"{ctx.author.id}Uso clip")
+        logging.info(f"{ctx.author.name}Uso clip")
     bot.commands["clip"].category = "Otro"
 
     @bot.command(name='followers')
     async def followers(ctx):
-        logging.info(f"{ctx.author.id}Uso followers")
+        logging.info(f"{ctx.author.name}Uso followers")
     bot.commands["followers"].category = "Otro"
 
     @bot.command(name='life')
     async def life(ctx):
-        logging.info(f"{ctx.author.id}Uso life")
+        logging.info(f"{ctx.author.name}Uso life")
     bot.commands["life"].category = "Otro"
 
     @bot.command(name='uptime')
     async def uptime(ctx):
-        logging.info(f"{ctx.author.id}Uso uptime")
+        logging.info(f"{ctx.author.name}Uso uptime")
     bot.commands["uptime"].category = "Otro"
 
     @bot.command(name='viewers')
     async def viewers(ctx):
-        logging.info(f"{ctx.author.id}Uso viewers")
+        logging.info(f"{ctx.author.name}Uso viewers")
     bot.commands["viewers"].category = "Otro"

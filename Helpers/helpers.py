@@ -85,7 +85,6 @@ async def is_channel_online():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-
         # Verificar en la base de datos si hay un stream activo
         cursor.execute('''
             SELECT COUNT(*)
@@ -102,15 +101,11 @@ async def is_channel_online():
             );
         ''')
         result = cursor.fetchone()
-        
         cerrar_conexion(conn, cursor)
-
         if result and result[0] > 0:
             # logging.info("Un stream está activo según la base de datos.")
             return True
-
         # logging.warning("No hay stream activo en la base de datos, verificando en Twitch...")
-
         # Si no hay registro en la base de datos, realizar solicitud a Twitch
         for attempt in range(max_attempts):
             try:
@@ -124,11 +119,9 @@ async def is_channel_online():
         # Si después de todos los intentos no se obtiene confirmación, retornar False
         # logging.info(f"{broadcaster_id} sigue offline después de {max_attempts} intentos.")
         return False
-
     except sqlite3.Error as e:
         # logging.error(f"Error al acceder a la base de datos: {e}")
         return False
-
 
 def clean_text(text):
     # Eliminar emojis (usando una expresión regular para rangos Unicode)
@@ -145,16 +138,12 @@ def clean_text(text):
         u"\U00002702-\U000027B0"  # Varias cosas
         u"\U000024C2-\U0001F251"
         "]+", flags=re.UNICODE)
-
     # Reemplazar saltos de línea y tabuladores con espacios
     text = text.replace("\n", " ").replace("\t", " ")
-
     # Eliminar emojis de la cadena
     text = emoji_pattern.sub("", text)
-
     # Eliminar espacios extra generados por los reemplazos
     text = re.sub(r"\s+", " ", text).strip()
-
     return text
 
 async def get_viewers_count(self, channel_name):
@@ -165,7 +154,6 @@ async def get_viewers_count(self, channel_name):
             return streams[0].viewer_count
         else:
             return 0  # Si el canal no está transmitiendo
-
 
 def cerrar_conexion(conn, cursor):
     """Cierra una conexión y/o un cursor de base de datos si aún están abiertos."""
@@ -178,7 +166,6 @@ def cerrar_conexion(conn, cursor):
             pass
         except Exception as e:
             logging.error(f"Error al cerrar el cursor: {e}")
-    
     if conn: # Si hay una conexión, cerrarla
         try:
             conn.close()
@@ -186,7 +173,6 @@ def cerrar_conexion(conn, cursor):
             pass
         except Exception as e:
             logging.error(f"Error al cerrar la conexión: {e}")
-
 
 def wordslist(filename):
     try:
@@ -196,28 +182,21 @@ def wordslist(filename):
             return set(line.strip().lower() for line in file if line.strip())  # Usamos set para mayor eficiencia
     except FileNotFoundError:
         return set()  # Si el archivo no existe, devolvemos un set vacío
-    
-
-
 
 def validar_fecha(bd):
     # Expresión regular para formato YYYY-MM-DD
     pattern = r"^\d{4}-\d{2}-\d{2}$"
-    
     # Verificar formato con regex
     if not re.match(pattern, bd):
         return False, "Formato incorrecto. Usa YYYY-MM-DD."
-
     # Intentar convertir la cadena en fecha
     try:
         fecha = datetime.strptime(bd, "%Y-%m-%d")
-        
         # Año razonable (ajusta el rango si lo necesitas)
         if fecha.year < 1900 or fecha.year > 2100:
-            return False, "El año debe estar entre 1900 y 2100."
-        
+            return False, "El año debe estar entre 1900 y 2100."    
         return True, "Fecha válida."
-
+    
     except ValueError:
         return False, "Fecha inválida. Revisa el día y el mes."
 

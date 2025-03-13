@@ -12,32 +12,6 @@ from Helpers.helpers import safe_int, cerrar_conexion
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
-
-# GUARDAR UN error REPORTADO POR UN USUARIO
-async def save_bug(user,bug):
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''INSERT INTO bug_reports (user, bug, date)values(?, ?, ?)''',
-            (user, bug,datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        conn.commit()
-        
-        logging.info(f"Se ha registrado un bug por parte de {user} correctamente a las {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.")
-        cerrar_conexion(conn, cursor)
-        return True
-        
-    except sqlite3.Error as e:
-        logging.error(f"Error en la base de datos: {e}")
-        return False
-
-    finally:
-        if conn:
-            conn.close()
-            cerrar_conexion(conn, cursor)
-
-
 # ACTUALIZAR ESTADISTICAS DE LA CATEGORIA PARAMETRIZADA
 async def end_stream():
     """
@@ -178,9 +152,7 @@ async def end_mail():
     HTML_PATH = os.path.join(os.path.dirname(__file__), '..', 'Html', 'mails', 'end_stream.html')
     with open(HTML_PATH, "r", encoding="utf-8") as archivo:
         contenido_html = archivo.read()
-
     try:
-        
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
@@ -218,11 +190,9 @@ async def end_mail():
         # Procesar los resultados
         for row in result:
             id, accion, value, date, stream_number = row
-            
             # Si el stream no está en el diccionario, inicializarlo
             if stream_number not in streams:
                 streams[stream_number] = {}
-
             # Si la acción no está en el stream, inicializarla
             if accion not in streams[stream_number]:
                 # Almacenar como lista si hay múltiples valores (ej: mensajes)
@@ -337,10 +307,10 @@ async def end_mail():
         # _________________________________________________________________
 
         cursor.execute(f'''
-            SELECT user FROM history_users 
+            SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM history_users 
             WHERE date BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
             UNION
-            SELECT user FROM {table_name}
+            SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM {table_name}
             WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
             GROUP BY user
         ''')
