@@ -2,7 +2,6 @@ from twitchio.ext import commands
 import logging
 import random
 import time 
-import locale
 from datetime import datetime, date
 
 
@@ -14,9 +13,6 @@ from Helpers.helpers_dynamic import (
 )
 from Helpers.helpers_stats import update_global_stats, save_user_bd, get_user_bd, get_twitch_id
 from Helpers.printlog import printlog
-
-locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')  # Para sistemas basados en Unix
-
 
 class dynamic_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
@@ -31,35 +27,35 @@ class dynamic_commands(commands.Component):
 
                 INDICE
         -comandos
-        -bot              x
-        -so              x
+        -bot 
+        -so 
         -memide
-        -bd              x
-        -cumpleaños               x
+        -bd 
+        -cumpleaños  
         -ruleta
         -mecaben
         -bola8
         -trivia
-        -insultar              x
+        -insultar 
         -insultame
-        -halago              x
+        -halago 
         -caraocruz
         -meporte
-        -nalgada              x
+        -nalgada 
         -pies
-        -abrazo              x
-        -duelo              x
+        -abrazo 
+        -duelo 
         -ip
-        -amor              x
-        -odio              x
+        -amor 
+        -odio 
         -midinero
-        -donar              x
-        -juegos              x
-        -setso              x
+        -donar 
+        -juegos 
+        -setso 
         -xeno
         -ban?
-        -vips              x
-        -joteria              x
+        -vips 
+        -joteria            
     """
     @commands.command(name='comandos', aliases=["help", "commands", "ayuda"])
     async def comandos(self, ctx):

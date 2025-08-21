@@ -7,3 +7,4 @@ token.json
 token_dev.json
 /Gpt
 user_conversations.json
+/bot
