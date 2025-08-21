@@ -1,0 +1,9 @@
+data.db
+/logs
+/Logs
+/venv
+/Venv
+token.json
+token_dev.json
+/Gpt
+user_conversations.json

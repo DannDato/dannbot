@@ -1,0 +1,26 @@
+# Comunicación y APIs
+requests>=2.31.0
+twitchio==3.*
+obsws-python>=1.7.0
+
+# Base de datos y utilidades
+flask>=3.0.0
+sqlite-utils>=3.36
+asqlite>=1.0.0
+
+# Automatización y scraping
+selenium>=4.18.0
+pyautogui>=0.9.54
+
+# Variables de entorno
+python-dotenv>=1.0.0
+
+# Colores y logs bonitos
+colorama>=0.4.6
+colorlog>=6.8.0
+
+# Otros
+premailer>=3.10.0
+emoji>=2.10.1
+openai>=1.35.0
+tiktoken>=0.7.0

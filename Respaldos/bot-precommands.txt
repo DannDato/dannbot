@@ -1,0 +1,115 @@
+# -*- coding: utf-8 -*-
+"""
+    DannBot - Bot de Twitch
+"""
+
+import asyncio
+import twitchio
+from twitchio import eventsub
+from twitchio.ext import commands
+
+# Importar configuraciones
+from Helpers.token_loader import load_token
+from Helpers.console_log import init_console, clear_console, animated_message
+from Helpers.printlog import printlog
+
+#Importar handlers/Manejadores de eventos
+from Handlers.handlers_message import handle_message
+from Handlers.handlers_follow import handle_follow
+from Handlers.handlers_cheer import handle_cheer
+from Handlers.handlers_subs import handle_sub, handle_sub_gift
+
+#Importar comandos segun su división
+from Commands.admin import admin_commands
+from Commands.dynamic import dynamic_commands
+from Commands.general import general_commands
+from Commands.stats import stats_commands
+from Commands.xp import xp_commands
+
+
+from Helpers.colors import (
+    azul, white, resetColor, 
+    channelColor, colorConvert, 
+    userColors, rosa, red, green
+)
+init_console()
+animated_message("Iniciando DannBot...", resetColor)
+
+token_data = load_token()
+CLIENT_ID = token_data.get("client_id")
+CLIENT_SECRET = token_data.get("client_secret")
+BOT_ID = token_data.get("bot_id")
+OWNER_ID = token_data.get("bot_id")  # canal objetivo del bot
+ACCESS_TOKEN = token_data.get("access_token")
+BOT_NAME = token_data.get("bot_name")
+CHANNEL_NAME = token_data.get("channel_name")
+INITIAL_CHANNELS = token_data.get("initial_channels", [])
+if CHANNEL_NAME not in INITIAL_CHANNELS:
+    INITIAL_CHANNELS.append(CHANNEL_NAME)
+animated_message("Token cargado correctamente", white)
+
+async def main():
+    subs = [
+        eventsub.ChatMessageSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
+        eventsub.ChannelCheerSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
+        eventsub.ChannelSubscribeSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
+        eventsub.ChannelFollowSubscription(broadcaster_user_id=OWNER_ID, moderator_user_id=OWNER_ID),
+        eventsub.ChannelSubscriptionGiftSubscription(broadcaster_user_id=OWNER_ID),
+    ]
+    bot = Bot(subs=subs)
+    await bot.start()
+
+
+class Bot(commands.AutoBot):
+    def __init__(self, *, subs: list[eventsub.SubscriptionPayload]) -> None:
+        super().__init__(
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            bot_id=BOT_ID,
+            owner_id=OWNER_ID,
+            prefix="!",
+            subscriptions=subs,
+            force_subscribe=True,
+        )
+        
+        animated_message("Credenciales aplicadas", rosa)
+
+    # Listener para mensajes
+    async def event_message(self, payload: twitchio.ChatMessage) -> None:
+        # Procesar comandos     
+        ctx = self.get_context(payload) # Obtener el contexto (`ctx`) y procesar comandos si existe alguno
+        if ctx.command:
+            print(ctx)
+            await self.invoke(ctx) #procesa comandos
+            return 
+        # Si no es un comando, manejar el mensaje a nivel bot
+        await handle_message(self, payload)
+        
+
+    
+    # Listener para seguidores
+    async def event_follow(self, payload: twitchio.ChannelFollow) -> None:
+        await handle_follow(self, payload)
+        
+    #listener para donaciones de bits
+    async def event_cheer(self, payload: twitchio.ChannelCheer) -> None:
+        await handle_cheer(self, payload)
+
+    # Listener para suscripciones
+    async def event_subscription(self, payload: twitchio.ChannelSubscribe) -> None:
+        await handle_sub(self, payload)
+
+    # Listener para regalos de suscripciones
+    async def event_subscription_gift(self, payload: twitchio.ChannelSubscribe) -> None:
+        await handle_sub_gift(self, payload)
+
+
+    # Evento cuando el bot está listo
+    async def event_ready(self) -> None:
+        clear_console()
+        animated_message("DannBot en linea...", green)
+
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

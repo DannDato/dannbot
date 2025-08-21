@@ -1,0 +1,3 @@
+curl -X POST "https://id.twitch.tv/oauth2/revoke" \ -H "Content-Type: application/x-www-form-urlencoded" \ -d "client_id=blgb37lj8h0qpu7c7tnmcrstpbs6vg" \ -d "token=tboai5zknqnph3gvfgbw9eju6nzwv5"
+
+curl -H "Authorization: OAuth tboai5zknqnph3gvfgbw9eju6nzwv5" https://id.twitch.tv/oauth2/validate
