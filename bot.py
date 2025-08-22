@@ -94,6 +94,7 @@ class Bot(commands.AutoBot):
                     if isinstance(attr, type) and issubclass(attr, commands.Component) and attr is not commands.Component:
                         await self.add_component(attr(self))
                         printlog(f"Lista de comandos cargados: {attr_name}")
+        await asyncio.sleep(1) 
     #______________________________________________________________________
 
     # Evento que se dispara cuando el bot está listo

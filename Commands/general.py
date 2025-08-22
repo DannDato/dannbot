@@ -1,5 +1,3 @@
-import logging
-from twitchio.ext import commands
 from twitchio.ext import commands
 from Helpers.helpers_stats import update_global_stats
 from Helpers.printlog import printlog
@@ -8,10 +6,6 @@ class general_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
         super().__init__()
         self.bot = bot
-
-    @commands.command(name='prueba')
-    async def prueba(self, ctx: commands.Context):
-        await ctx.send(f'Vale, parece que funciona @{ctx.chatter.name} ✅')
     """
                     COMANDOS GENERALES
 

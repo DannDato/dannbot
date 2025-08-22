@@ -1,11 +1,16 @@
-from Helpers.helpers_xp import get_player, get_top_players, set_stats, calculate_xp, calculate_level, get_clanes, left_clan, join_to_clan, admin_clan, get_clan_user, get_clan_members
-from Helpers.helpers import send_large_message, normalize_username
-from Helpers.helpers_stats import update_global_stats, get_twitch_id, get_stats
 from twitchio.ext import commands
+from Helpers.helpers_xp import (
+    get_player, get_top_players, set_stats, calculate_xp, 
+    calculate_level, get_clanes, 
+    left_clan, join_to_clan, admin_clan, 
+    get_clan_user, get_clan_members
+)
+from Helpers.helpers import send_large_message, safe_int
+from Helpers.helpers_stats import update_global_stats, get_twitch_id, get_stats
 from Helpers.printlog import printlog
 
 
-class xp_commands(commands.Component):
+class player_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
         super().__init__()
         self.bot = bot
@@ -22,9 +27,8 @@ class xp_commands(commands.Component):
         -dejarclan
         -clanes
         -recompensas
-
     """
-    @commands.command(name='player')
+    @commands.command(name='player', aliases=["jugador"])
     async def player(self, ctx):
         """
             Muestra el nivel de los jugadores segun sus estadísticas rpg
@@ -37,7 +41,6 @@ class xp_commands(commands.Component):
             ...
             oPlayer[X][1] = xp_categoria
         """
-        #______________Get mentioned user____________________
         if '@' in ctx.message.text:
             mentioned_user = ctx.message.text.strip().split('@')[1].strip()
             user = await get_twitch_id(mentioned_user)
@@ -48,32 +51,29 @@ class xp_commands(commands.Component):
             mentioned_user = ctx.chatter.name
             user=ctx.chatter.id
         #______________Get mentioned user____________________
-
-        await update_global_stats("xp_Astucia",user,0.25)
-
         oPlayer = await get_player(user)
+        oPlayer[3][1]=oPlayer[3][1].split(".")[0]
+        oPlayer[4][1]=oPlayer[4][1].split(".")[0]
+        oPlayer[5][1]=oPlayer[5][1].split(".")[0]
+        oPlayer[0][1]=oPlayer[0][1].split(".")[0]
         if oPlayer != False:
-
-
-            response=f"[BOT] -  🇯  🇺  🇬  🇦  🇩  🇴  🇷 ⠀⠀⠀⠀ @{mentioned_user} ⠀ "
+            response=f"⠀⠀🇯  🇺  🇬  🇦  🇩  🇴  🇷 ⠀⠀@{mentioned_user} ⠀ "
             if(int(oPlayer[1][1])>=5):
-                response = response + f"{oPlayer[2][1]} Nivel({oPlayer[1][1]})⠀ "
-            else:
-                response = response + f"Nivel({oPlayer[1][1]})⠀ "
-            response = response + f" >>> ⠀|{oPlayer[3][0]}({oPlayer[3][1]})|⠀"
-            response = response + f" |{oPlayer[4][0]}({oPlayer[4][1]})|⠀"
-            response = response + f" |{oPlayer[5][0]}({oPlayer[5][1]})|⠀|💰XP({oPlayer[0][1]})|⠀"
+                response = response + f"⠀ ''{oPlayer[2][1]}'' ⠀ "
+            
+            response = response + f"⠀ ɴ ɪ ᴠ ᴇ ʟ ({oPlayer[1][1]})⠀ "
+            response = response + f" >>> ⠀ {oPlayer[3][0]}({oPlayer[3][1]})⠀"
+            response = response + f" {oPlayer[4][0]}({oPlayer[4][1]})⠀"
+            response = response + f" {oPlayer[5][0]}({oPlayer[5][1]})⠀💰𝕏ℙ({oPlayer[0][1]}) ⠀"
             skin = await get_stats("Skin",user)
             if skin is not None:
-                response = response +f"👕Skin: [{skin[1]}]⠀"
-                
+                response = response +f"👕 ꜱ ᴋ ɪ ɴ : [{skin[1]}]⠀"
             await ctx.send(response)
         else:
             await ctx.send("[BOT] - Es un guerrero sin estadísticas...")
 
     @commands.command(name='xp')
-    async def player(self, ctx):
-        #______________Get mentioned user____________________
+    async def xp(self, ctx):
         if '@' in ctx.message.text:
             mentioned_user = ctx.message.text.strip().split('@')[1].strip()
             user = await get_twitch_id(mentioned_user)
@@ -95,7 +95,7 @@ class xp_commands(commands.Component):
 
 
     @commands.command(name='nivel')
-    async def player(self, ctx):        
+    async def nivel(self, ctx):        
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
             mentioned_user = ctx.message.text.strip().split('@')[1].strip()
@@ -106,8 +106,7 @@ class xp_commands(commands.Component):
         else:
             mentioned_user = ctx.chatter.name
             user=ctx.chatter.id
-        #______________Get mentioned user____________________
-            
+        #______________Get mentioned user____________________            
         oPlayer = await calculate_level(user)
         if oPlayer > 0 and oPlayer<=33:
             lcEmojis="🎖️"
@@ -126,7 +125,7 @@ class xp_commands(commands.Component):
     
 
     @commands.command(name='top')
-    async def player(self, ctx):
+    async def top(self, ctx):
         
         topPlayer = await get_top_players()
 
@@ -266,9 +265,6 @@ class xp_commands(commands.Component):
             await ctx.send(f"[BOT] - @{username} no se ha encontrado el clan")
         elif sClan is None: 
             await ctx.send("[BOT] - ocurrió un error al abandonar el clan")
-
-
-            
         
     @commands.command(name='clanes')
     async def clanes(self, ctx):
