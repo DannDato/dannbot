@@ -36,9 +36,7 @@ async def monitor_bot_health(bot):
                 printlog("[Monitor] - WebSocket desconectado. Reiniciando bot...")
                 await bot.close()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
-            else:
-                printlog("Chequeo de salud correcto, sin acciones realizadas")
-
+            
         except Exception as e:
             printlog(f"[Monitor] - Error en chequeo de salud: {e}. Reiniciando...")
             await bot.close()
