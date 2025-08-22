@@ -499,7 +499,7 @@ async def send_timed_messages(self, user):
         sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar antes del primer mensaje
         if  await is_channel_online(): # Verificar si el canal está en vivo
-            await user.send_message(sender=self.user, message=f"[BOT] {gen_response("mensajes_twitch.txt")}")
+            await user.send_message(sender=self.user, message=f'[BOT] {gen_response("mensajes_twitch.txt")}')
             sleep_time = random.randint(minT, maxT)
             
 #Timers para mensajes aleatorios

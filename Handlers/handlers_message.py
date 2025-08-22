@@ -10,8 +10,6 @@ from Helpers.helpers_bot import new_user, update_stream_data
 from Helpers.printlog import printlog
 from Helpers.helpers_dynamic import analisis, interactuar, desafiar
 
-from types import SimpleNamespace
-
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
 #Función para manejar las donaciones de bits 
