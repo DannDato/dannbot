@@ -1,6 +1,7 @@
 # Comunicación y APIs
 requests>=2.31.0
 twitchio==3.*
+twitchio[starlette]
 obsws-python>=1.7.0
 
 # Base de datos y utilidades

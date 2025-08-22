@@ -61,13 +61,13 @@ class player_commands(commands.Component):
             if(int(oPlayer[1][1])>=5):
                 response = response + f"⠀ ''{oPlayer[2][1]}'' ⠀ "
             
-            response = response + f"⠀ ɴ ɪ ᴠ ᴇ ʟ ({oPlayer[1][1]})⠀ "
+            response = response + f"⠀ n̲i̲v̲e̲l̲ ({oPlayer[1][1]})⠀ "
             response = response + f" >>> ⠀ {oPlayer[3][0]}({oPlayer[3][1]})⠀"
             response = response + f" {oPlayer[4][0]}({oPlayer[4][1]})⠀"
             response = response + f" {oPlayer[5][0]}({oPlayer[5][1]})⠀💰𝕏ℙ({oPlayer[0][1]}) ⠀"
             skin = await get_stats("Skin",user)
             if skin is not None:
-                response = response +f"👕 ꜱ ᴋ ɪ ɴ : [{skin[1]}]⠀"
+                response = response +f"👕 ꜱᴋɪɴ : [{skin[1]}]⠀"
             await ctx.send(response)
         else:
             await ctx.send("[BOT] - Es un guerrero sin estadísticas...")
