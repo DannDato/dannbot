@@ -15,12 +15,14 @@ pyautogui>=0.9.54
 # Variables de entorno
 python-dotenv>=1.0.0
 
-# Colores y logs bonitos
+# Logs y colores
 colorama>=0.4.6
 colorlog>=6.8.0
 
-# Otros
+# Correos y HTML
 premailer>=3.10.0
+
+# Otros
 emoji>=2.10.1
 openai>=1.35.0
 tiktoken>=0.7.0

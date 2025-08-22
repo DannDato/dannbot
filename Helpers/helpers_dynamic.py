@@ -43,7 +43,6 @@ async def analisis(message, userid):
 
 async def interactuar(self, message, username):
     user = self.create_partialuser(BOT_ID)
-    
     mensaje=clean_text(message).lower()
     #validar que el mensaje no sea dirigido a otra persona para generar respuestas
     if any(word in mensaje for word in ["@"]):
@@ -61,13 +60,11 @@ async def interactuar(self, message, username):
         if any(word in mensaje for word in ["peruano"]):
             await user.send_message(sender=self.user, message=f'[BOT] - déja en paz a los peruanos @{username}')
             
-        # if any(word in mensaje for word in ["pito", "pene", "verga"]):
-        #     await ctx.send(f'[BOT] -  @{message.author.name} {gen_response("regaños.txt")}')
 
     
 async def desafiar(self, username):
     user = self.create_partialuser(BOT_ID)
-    lnReto = random.randint(0, 1000)
+    lnReto = random.randint(0, 2500)
     if await is_channel_online():
         if lnReto == 500: await user.send_message(sender=self.user, message=f'[RETO RANDOM] 🔮 @{username} {gen_response("desafios.txt")}')
 

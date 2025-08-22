@@ -20,7 +20,7 @@ async def handle_follow(self, payload):
     chatter = payload.user
     CHATTER_NAME = normalize_username(chatter.name)
     CHATTER_ID = safe_int(chatter.id)
-    BROACASTER_ID = safe_int(payload.broadcaster.id)
+    BROADCASTER_ID = safe_int(payload.broadcaster.id)
     try:
         #Nuevo usuario del canal
         await new_user(CHATTER_ID,CHATTER_NAME)
@@ -74,7 +74,7 @@ async def handle_follow(self, payload):
         conn.commit()
         await update_stream_data("new_followers", 1)
         printlog(f"{morado} N U E V O    S E G U I D O R {white}  [ {channelColor}{CHATTER_NAME}{white} ({CHATTER_ID}) ]")
-        user = self.create_partialuser(BROACASTER_ID)
+        user = self.create_partialuser(BROADCASTER_ID)
         await user.send_message(sender=self.user, message=f"¡Gracias por seguirme, {payload.user.name}! 🎉")
         if conn:
             conn.close()

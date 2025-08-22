@@ -1,8 +1,11 @@
 import asyncio
 import os
 import sys
+import time
 from datetime import datetime
 from Helpers.printlog import printlog
+from Helpers.console_log import clear_console, animated_message
+from Helpers.colors import resetColor, white, red, green, dorado
 
 async def monitor_bot_health(bot):
     """
@@ -17,16 +20,26 @@ async def monitor_bot_health(bot):
         now = datetime.now()
         if now.hour == 5 and now.minute == 0:
             printlog("[Monitor] - Reinicio programado a las 5:00 AM")
-            await bot.shutdown()
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            animated_message("Cerrando bot...",red)
+            await bot.close()
+            animated_message("Bot cerrado...",red)
+            time.sleep(1)
+            animated_message("Reiniciando bot...",white)
+            time.sleep(1)
+            # Reemplaza el proceso actual con uno nuevo (reinicio real)
+            script = os.path.abspath(sys.argv[0])
+            os.execv(sys.executable, [sys.executable, script] + sys.argv[1:])
 
         # Chequeo de salud del bot
         try:
-            if bot._ws is None or not bot._ws._connection.open:
+            if not bot.connected:
                 printlog("[Monitor] - WebSocket desconectado. Reiniciando bot...")
-                await bot.shutdown()
+                await bot.close()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
+            else:
+                printlog("Chequeo de salud correcto, sin acciones realizadas")
+
         except Exception as e:
             printlog(f"[Monitor] - Error en chequeo de salud: {e}. Reiniciando...")
-            await bot.shutdown()
+            await bot.close()
             os.execv(sys.executable, [sys.executable] + sys.argv)

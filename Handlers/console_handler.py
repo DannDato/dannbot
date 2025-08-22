@@ -42,14 +42,14 @@ async def console_control(bot):
         #_____________________________________________________________________________________
         elif command.lower() == "exit" or command.lower() == "stop" or command.lower() == "quit" or command.lower() == "close" :
             clear_console()
-            animated_message("Cerrando bot...",dorado)
+            animated_message("Cerrando bot",dorado)
             await bot.close()
             animated_message("Bot cerrado...",red)
             break
 
         #_______________________________________________________________________________________
         elif command.lower() == "restart" or command.lower()=="reiniciar":
-            animated_message("Cerrando bot...",red)
+            animated_message("Cerrando bot",red)
             await bot.close()
             animated_message("Bot cerrado...",red)
             time.sleep(1)
@@ -71,7 +71,7 @@ async def console_control(bot):
                     await bot.close()
                     os.execv(sys.executable, [sys.executable] + sys.argv)
                 else:
-                    animated_message("Bot en linea...",green)
+                    animated_message("DannDato en linea","\033[38;5;51m")
                     time.sleep(3)
             except Exception as e:
                 animated_message("Algo ha ocurrido, reiniciando bot...",green)
@@ -84,7 +84,7 @@ async def console_control(bot):
         #______________________________________________________________________________________
         elif command.lower() == "clear" or command.lower()=="cls" :
             clear_console()
-            animated_message("DannDato en linea...","\033[38;5;51m")
+            animated_message("DannDato en linea","\033[38;5;51m")
         
 
         #_______________________________________________________________________________________

@@ -1,4 +1,5 @@
-
+import os
+import sys
 from Helpers.helpers import is_authorized
 from Helpers.helpers_admin import end_stream, start_stream
 from twitchio.ext import commands
@@ -36,6 +37,42 @@ class admin_commands(commands.Component):
                 await ctx.send(f' [BOT] - 🔴 No se puede finalizar un stream que no se ha iniciado...')
 
 
+    @commands.command(name='restart')
+    async def restart(self, ctx):
+        if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+        else:
+            printlog("[Monitor] - Reiniciando bot por comando autorizado...")
+            await ctx.send("[BOT] - OK... un momento que me estoy reiniciando 😰")
+            await self.bot.close()
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    @commands.command(name='botstatus', aliases=["estas", "estas?", "hey"])
+    async def botstatus(self, ctx):
+        if not is_authorized(ctx):  # Comprobamos si el usuario está autorizado
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+        else:
+            printlog("Chequeando estado del bot...")
+            try:
+                if not self.bot.connected:
+                    printlog("[Monitor] - WebSocket desconectado. Reiniciando bot...","ERROR")
+                    printlog("Reiniciando bot...")
+                    await ctx.send("[BOT] - Algo anda raro... me voy a reiniciar, pérate")
+                    await self.bot.close()
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                else:
+                    await ctx.send("[BOT] - Todo joya 😎")
+                    printlog("DannDato en linea","\033[38;5;51m")
+            except Exception as e:
+                printlog("Algo ha ocurrido, reiniciando bot...")
+                await ctx.send("[BOT] - Ni supe que hacer, imaginate...")
+                printlog(f"[Monitor] - Error en chequeo de salud: {e}. Reiniciando...","ERROR")
+                await self.bot.close()
+                script = os.path.abspath(sys.argv[0])
+                os.execv(sys.executable, [sys.executable, script] + sys.argv[1:])
+    
     
 
     

@@ -6,3 +6,5 @@ clanes
 clan
 dejarclan
 vuser
+restart
+botsatus

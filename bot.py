@@ -13,6 +13,7 @@ from twitchio.ext import commands
 from Helpers.token_loader import load_token
 from Helpers.console_log import init_console, clear_console, animated_message
 from Helpers.printlog import printlog
+from Helpers.helpers_bot import user_joined, send_timed_messages, happy_birthday
 
             #Importar handlers/Manejadores de eventos
 from Handlers.handlers_message import handle_message
@@ -28,7 +29,7 @@ from Helpers.colors import (
     userColors, rosa, red, green
 )
 init_console()
-animated_message("Iniciando DannBot...", resetColor)
+animated_message(" Iniciando DannBot", resetColor)
 
 token_data = load_token()
 CLIENT_ID = token_data.get("client_id")
@@ -41,7 +42,7 @@ CHANNEL_NAME = token_data.get("channel_name")
 INITIAL_CHANNELS = token_data.get("initial_channels", [])
 if CHANNEL_NAME not in INITIAL_CHANNELS:
     INITIAL_CHANNELS.append(CHANNEL_NAME)
-animated_message("Token cargado correctamente", azul)
+animated_message("Token cargado correctamente...", azul)
 
 async def main():
     subs = [
@@ -50,7 +51,6 @@ async def main():
         eventsub.ChannelSubscribeSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
         eventsub.ChannelFollowSubscription(broadcaster_user_id=OWNER_ID, moderator_user_id=OWNER_ID),
         eventsub.ChannelSubscriptionGiftSubscription(broadcaster_user_id=OWNER_ID),
-        eventsub.ChannelPointsAutoRedeemSubscription(broadcaster_user_id=OWNER_ID),
         eventsub.ChannelBanSubscription(broadcaster_user_id=OWNER_ID),
         eventsub.ChannelUnbanSubscription(broadcaster_user_id=OWNER_ID),
         eventsub.ChannelUpdateSubscription(broadcaster_user_id=OWNER_ID),
@@ -60,7 +60,6 @@ async def main():
     bot = Bot(subs=subs)
     bot_task = asyncio.create_task(bot.start())
     console_task = asyncio.create_task(console_control(bot))
-    # monitor_task = asyncio.create_task(monitor_bot_health(bot))
     await asyncio.wait([bot_task, console_task], return_when=asyncio.FIRST_COMPLETED)
 
 
@@ -101,9 +100,14 @@ class Bot(commands.AutoBot):
     # Evento que se dispara cuando el bot está listo
     async def event_ready(self) -> None:
         printlog(f"Bot en linea...")
+        self.connected = True  # Bandera de estado para analizis de status
         clear_console()
-        self.connected = True  # Bandera de estado
-        animated_message("DannBot en linea...", green)
+        user = self.create_partialuser(BOT_ID)
+        self.happy_birthday_task = asyncio.create_task(happy_birthday(self, user))
+        self.timed_messages_task = asyncio.create_task(send_timed_messages(self, user))
+        self.monitor_task = asyncio.create_task(monitor_bot_health(self))
+        await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
+        animated_message("DannBot en linea", green)
 
     # Listener para mensajes
     async def event_message(self, message: twitchio.ChatMessage) -> None:
@@ -152,10 +156,10 @@ class Bot(commands.AutoBot):
         
     #______________________________________________________________________
     #Eventos de error
-    async def event_command_error(payload: twitchio.ext.commands.CommandErrorPayload) -> None:
-        printlog(f"Se ha presentado un error de comando o comando desconocido", "WARNING")
+    async def event_command_error(self, payload: twitchio.ext.commands.CommandErrorPayload) -> None:
+        printlog(f"Se ha presentado un error de comando o comando desconocido {payload}", "WARNING")
     
-    async def event_error(payload: twitchio.EventErrorPayload) -> None:
+    async def event_error(self, payload: twitchio.EventErrorPayload) -> None:
         printlog(f"Se ha capturado un error de evento {payload}", "ERROR")
 
 

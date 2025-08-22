@@ -1,56 +1,87 @@
-                            ____                    ____        __ 
-                           / __ \____ _____  ____  / __ )____  / /_
-                          / / / / __ `/ __ \/ __ \/ __  / __ \/ __/
-                         / /_/ / /_/ / / / / / / / /_/ / /_/ / /_  
-                        /_____/\__,_/_/ /_/_/ /_/_____/\____/\__/  
+                ██████╗  █████╗ ███╗   ██╗███╗   ██╗██████╗  ██████╗ ████████╗
+                ██╔══██╗██╔══██╗████╗  ██║████╗  ██║██╔══██╗██╔═══██╗╚══██╔══╝
+                ██║  ██║███████║██╔██╗ ██║██╔██╗ ██║██████╔╝██║   ██║   ██║   
+                ██║  ██║██╔══██║██║╚██╗██║██║╚██╗██║██╔══██╗██║   ██║   ██║   
+                ██████╔╝██║  ██║██║ ╚████║██║ ╚████║██████╔╝╚██████╔╝   ██║   
+                ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚═════╝  ╚═════╝    ╚═╝   
                         ___________________________________________
 
 *                       Dev By: Alberto Daniel Tovar Mendoza
                                            
-DannBot es un bot desarrollado en Python que se conecta a Twitch mediante la API oficial y la librería twitchio. Su principal función es interactuar en el chat canal 'DannDato', generar retos, responder comandos y registrar estadísticas de usuarios y streams en una base de datos.
+DannBot es un bot desarrollado en Python que se conecta a Twitch mediante la API/librería twitchio. Su principal función es interactuar en el chat canal 'DannDato', generar retos, responder comandos y registrar estadísticas de usuarios y streams en una base de datos.
 
 El bot implementa un sistema de XP y niveles que mide la participación de los usuarios en el chat, otorgando puntos en distintas características como Carisma, Habilidad, Fuerza, entre otras. Además, puede generar reportes y utilizar la API de OpenAI para enriquecer la experiencia de la interacción del bot con lo participanrtes del stream.
 
 
+---
+
 ## ⚙️ Tecnologías y Librerías Usadas
-* Python (versión recomendada: 3.12.8)
-* TwitchIO - Interacción con la API y chat de Twitch
-* OBS WebSocket (obsws-python) - Control de OBS Studio
-* Requests - Peticiones HTTP
-* Flask - Microservidor web para endpoints o integraciones
-* SQLite-utils - Manejo de la base de datos SQLite
-* Selenium - Automatización de tareas web
-* Python-dotenv - Manejo de variables de entorno
-* Colorama & Colorlog - Logs a color en consola
-* Logging - Registro de eventos y errores
-* Premailer - Formateo de HTML para correos
-* Emoji - Soporte para emojis
-* OpenAI & Tiktoken - Integración con ChatGPT y procesamiento de tokens
-* SQLite - Base de datos local
+
+### Lenguaje
+* **Python** (versión recomendada: 3.12.8)
+
+### Twitch y Streaming
+* **TwitchIO v3** – Interacción con la API/Libreria Twitchio 
+* **OBS WebSocket (obsws-python)** – Control de OBS Studio (NO implementado aun)
+
+### Web y APIs
+* **Requests** – Peticiones HTTP  
+* **Flask** – Microservidor web para endpoints o integraciones
+
+### Base de datos y utilidades
+* **SQLite** – Base de datos local  
+* **SQLite-utils** – Manejo de SQLite de forma sencilla  
+* **Asqlite** – Operaciones asíncronas con SQLite
+
+### Automatización y scraping
+* **Selenium** – Automatización de tareas web  
+* **PyAutoGUI** – Control de mouse y teclado en automatizaciones
+
+### Variables de entorno
+* **Python-dotenv** – Gestión de variables de entorno
+
+### Logs y colores
+* **Colorama & Colorlog** – Logs a color en consola  
+* **Logging** – Registro de eventos y errores
+
+### Correos y HTML
+* **Premailer** – Formateo de HTML para correos
+
+### Otros
+* **Emoji** – Soporte para emojis  
+* **OpenAI & Tiktoken** – Integración con ChatGPT y procesamiento de tokens  
+
+---
 
 
 ## 🗂 Estructura de la Base de Datos
 El bot utiliza SQLite como sistema de almacenamiento para registrar y consultar la actividad del canal y las interacciones de los usuarios. La base de datos está diseñada para soportar la gestión de usuarios, estadísticas y funcionalidades adicionales como cumpleaños y clanes.
 
 ###### 📋 Tablas principales:
-
-   * users:	Registra a todos los usuarios que han interactuado en el chat. Se almacena su username, twitch_id, y cumpleaños, se contempla la opción de agregar mas cosas
-
+   * chat_AAAAMM:	Registro detallado de los mensajes enviados en el año/mes . (Estas son tablas dinamicas se van generando una por mes)
+   
+   * clanes:	Almacena los clanes existentes, quien es el lider y los usuarios que pertenecen a los clanes.
+   
+   * donated_bits:	Registra las donaciones de bits realizadas por los usuarios. Almacena el usuario, la cantidad de bits y la fecha del donativo.
+   
+   * followers: registra a los nuevos usuarios que le dan follow al canal, guarda (user, username, date y timestamp)
+   
    * history_users:	Historial de las veces que entra un usuario al canal, Guarda twitch_id y datetime
-
+   
+   * redeems:	Almacena las recompensas canjeadas por los usuarios usando puntos del canal o integraciones propias del bot. Incluye el usuario, la recompensa y la fecha.
+   
    * stats_channel:	Almacena estadísticas generales del canal y los usuarios en diferentes categorias como: Habilidad,
     carisma, resistencia, wordle_wins, mensajes etc.
 
    * stream_data:	Guarda información de cada transmisión, incluyendo fecha de inicio y fin, duración, top chatter,
     total de usuarios unidos y total de mensajes enviados en el stream
 
-   * chat_AAAAMM:	Registro detallado de los mensajes enviados en el año/mes . (Estas son tablas dinamicas se van generando una por mes)
+   * subscriptions: registra las subs de un usuario independientemente de si es propia o regalada
+   
+   * subscriptions_gift: guarda a los usuarios que regalan subs, cuantas, de que tier y la fecha
 
-   * clanes:	Almacena los clanes existentes, quien es el lider y los usuarios que pertenecen a los clanes.
+   * users:	Registra a todos los usuarios que han interactuado en el chat. Se almacena su username, twitch_id, y cumpleaños, se contempla la opción de agregar mas cosas
 
-   * redeems:	Almacena las recompensas canjeadas por los usuarios usando puntos del canal o integraciones propias del bot. Incluye el usuario, la recompensa y la fecha.
-
-   * donated_bits:	Registra las donaciones de bits realizadas por los usuarios. Almacena el usuario, la cantidad de bits y la fecha del donativo.
 
 ###### Esta estructura permite:
 * ✅ Generar estadísticas detalladas por transmisión
@@ -60,6 +91,8 @@ El bot utiliza SQLite como sistema de almacenamiento para registrar y consultar 
 * ✅ Felicitar a los usuarios el día de su cumpleaños
 * ✅ Integrar sistemas de recompensas y redenciones
 * ✅ Registrar las donaciones de bits como parte de la interacción del usuario
+* ✅ Registrar las donaciones de subs como parte de la interacción del usuario
+* ✅ Registrar las subs como parte de la interacción del usuario
 
 
 ## 🚀 Cómo ejecutar el bot

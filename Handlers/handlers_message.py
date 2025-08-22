@@ -37,9 +37,9 @@ async def handle_message(self, payload):
         f"- {white}{MESSAGE}"
     )
     #Dinamicas aplicadas a los mensajes
-    # await analisis(MESSAGE, CHATTER_ID)
-    # await interactuar(self, MESSAGE, CHATTER_NAME)
-    # await desafiar(self, CHATTER_NAME)
+    await analisis(MESSAGE, CHATTER_ID)
+    await interactuar(self, MESSAGE, CHATTER_NAME)
+    await desafiar(self, CHATTER_NAME)
     #_________________________________________________
 
 
