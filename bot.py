@@ -40,8 +40,7 @@ ACCESS_TOKEN = token_data.get("access_token")
 BOT_NAME = token_data.get("bot_name")
 CHANNEL_NAME = token_data.get("channel_name")
 INITIAL_CHANNELS = token_data.get("initial_channels", [])
-if CHANNEL_NAME not in INITIAL_CHANNELS:
-    INITIAL_CHANNELS.append(CHANNEL_NAME)
+
 animated_message("Token cargado correctamente...", azul)
 
 async def main():

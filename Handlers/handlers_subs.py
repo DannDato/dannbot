@@ -73,7 +73,7 @@ async def handle_sub(self, payload):
         conn.commit()
         await update_stream_data("new_subs", 1)
 
-        printlog(f"{dorado}{"Le han regalado una suscripción a " if GIFT else "Se ha suscrito "}{white}[{channelColor}{CHATTER_NAME}{white}]{dorado} Tier {TIER} ")
+        printlog(f"{dorado}{'Le han regalado una suscripción a ' if GIFT else 'Se ha suscrito '}{white}[{channelColor}{CHATTER_NAME}{white}]{dorado} Tier {TIER} ")
         user = self.create_partialuser(BROACASTER_ID)
         await user.send_message(sender=self.user, message=f"[BOT] - ¡Gracias por suscribirte @{CHATTER_NAME}! 🎉" if not GIFT else f"[BOT] - ¡Agradece por esa suscripción  @{CHATTER_NAME}! 🎉")
         
