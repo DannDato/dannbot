@@ -498,7 +498,7 @@ async def send_timed_messages(self, user):
         maxT=2400
         sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar antes del primer mensaje
-        if  await is_channel_online(): # Verificar si el canal está en vivo
+        if await is_channel_online(): # Verificar si el canal está en vivo
             await user.send_message(sender=self.user, message=f'[BOT] {gen_response("mensajes_twitch.txt")}')
             sleep_time = random.randint(minT, maxT)
             
@@ -511,12 +511,12 @@ async def happy_birthday(self, user):
         sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar antes del mensaje
         birthdays = await today_birthdays()
-        if not await is_channel_online() and birthdays[0]==True:
+        if await is_channel_online() and birthdays[0]==True:
             users = format_usernames(birthdays[1])
             await user.send_message(sender=self.user, message=f'[BOT] - 🥳 HOY ESTAMOS DE FIESTA, es el cumpleaños de {users} 🎉')
 
         nBirthdays = await week_birthdays()
-        if not await is_channel_online() and nBirthdays[0]==True:
+        if await is_channel_online() and nBirthdays[0]==True:
             nusers = format_usernames(nBirthdays[1])
             await user.send_message(sender=self.user, message=f'[BOT] - Recuerden que esta semana tenemos el cumpleaños de {nusers} 🎉')
                 
