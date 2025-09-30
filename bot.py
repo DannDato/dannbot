@@ -13,6 +13,7 @@ from twitchio.ext import commands
 from Helpers.token_loader import load_token
 from Helpers.console_log import init_console, clear_console, animated_message
 from Helpers.printlog import printlog
+from Helpers.helpers import safe_int
 from Helpers.helpers_bot import user_joined, send_timed_messages, happy_birthday
 
             #Importar handlers/Manejadores de eventos
@@ -160,7 +161,7 @@ class Bot(commands.AutoBot):
         printlog(f"Se ha presentado un error de comando o comando desconocido {payload}", "WARNING")
     
     async def event_error(self, payload: twitchio.EventErrorPayload) -> None:
-        printlog(f"Se ha capturado un error de evento {payload}", "ERROR")
+        printlog(f"Se ha capturado un error de evento {safe_int(payload.error)}", "ERROR")
 
 
     # Evento de desconexión

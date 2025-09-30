@@ -146,7 +146,7 @@ async def is_channel_online():
         # Si no hay registro en la base de datos, realizar solicitud a Twitch
         for attempt in range(max_attempts):
             try:
-                contents = requests.get('https://www.twitch.tv/' + broadcaster_id).content.decode('utf-8')
+                contents = requests.get(f'https://www.twitch.tv/{broadcaster_id}').content.decode('utf-8')
                 if 'isLiveBroadcast' in contents:
                     printlog(f"{broadcaster_id} está en línea según Twitch.","INFO")
                     return True

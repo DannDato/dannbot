@@ -57,7 +57,7 @@ class player_commands(commands.Component):
         oPlayer[5][1]=oPlayer[5][1].split(".")[0]
         oPlayer[0][1]=oPlayer[0][1].split(".")[0]
         if oPlayer != False:
-            response=f"⠀⠀🇯  🇺  🇬  🇦  🇩  🇴  🇷 ⠀⠀@{mentioned_user} ⠀ "
+            response=f"⠀⠀🇯🇺🇬🇦🇩🇴🇷 ⠀⠀@{mentioned_user} ⠀ "
             if(int(oPlayer[1][1])>=5):
                 response = response + f"⠀ {oPlayer[2][1]} ⠀ "
             
