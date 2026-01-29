@@ -36,7 +36,7 @@ class general_commands(commands.Component):
 
     @commands.command(name='tdt')
     async def tdt(self, ctx):
-        await ctx.send(f'[BOT] - Aquí está toda la información para entrar al servidor de miencraft TIERRA DE TODOS https://dato.dannprod.com/tdt/info.html Tienes que leer las reglas para entender como funciona...')
+        await ctx.send(f'[BOT] - En esta pagina está toda la información para entrar al servidor de miencraft TIERRA DE TODOS https://dato.dannprod.com/tdt/info.html Tienes que leer las reglas para entender como funciona...')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,3)
 
     @commands.command(name='iptdt')
