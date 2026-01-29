@@ -34,12 +34,12 @@ class general_commands(commands.Component):
     -redes
     """
 
-    @commands.command(name='tdt', aliases=["tdt"])
+    @commands.command(name='tdt')
     async def lurk(self, ctx):
         await ctx.send(f'[BOT] - Aquí está toda la información para entrar al servidor de miencraft https://dato.dannprod.com/tdt/info.html Tienes que leer las reglas para entender como funciona...')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,3)
 
-    @commands.command(name='iptdt',)
+    @commands.command(name='iptdt')
     async def lurk(self, ctx):
         await ctx.send(f'[BOT] - La ip de TDT es: tierradetodos.vultam.host ')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,3)
