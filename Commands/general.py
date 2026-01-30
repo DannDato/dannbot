@@ -34,6 +34,12 @@ class general_commands(commands.Component):
     -redes
     """
 
+    @commands.command(name='user', aliases=["usuario", "name", "id"])
+    async def hola(self, ctx):
+        await ctx.send(f'[BOT] - Mi usuario en todos los juegos es DannDato')
+        await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
+        await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
+    
     @commands.command(name='tdt')
     async def tdt(self, ctx):
         await ctx.send(f'[BOT] - En esta pagina está toda la información para entrar al servidor de miencraft TIERRA DE TODOS https://dato.dannprod.com/tdt/info.html?reglas Tienes que leer las reglas para entender como funciona...')

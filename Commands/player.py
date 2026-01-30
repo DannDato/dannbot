@@ -9,7 +9,6 @@ from Helpers.helpers import send_large_message, safe_int
 from Helpers.helpers_stats import update_global_stats, get_twitch_id, get_stats
 from Helpers.printlog import printlog
 
-
 class player_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
         super().__init__()

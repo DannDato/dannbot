@@ -68,7 +68,7 @@ class admin_commands(commands.Component):
             except Exception as e:
                 printlog("Algo ha ocurrido, reiniciando bot...")
                 await ctx.send("[BOT] - Ni supe que hacer, imaginate...")
-                printlog(f"[Monitor] - Error en chequeo de salud: {e}. Reiniciando...","ERROR")
+                printlog(f"[ Monitor ] - Error en chequeo de salud: {e}. Reiniciando...","ERROR")
                 await self.bot.close()
                 script = os.path.abspath(sys.argv[0])
                 os.execv(sys.executable, [sys.executable, script] + sys.argv[1:])
