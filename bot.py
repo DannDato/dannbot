@@ -44,6 +44,24 @@ INITIAL_CHANNELS = token_data.get("initial_channels", [])
 
 animated_message("Token cargado correctamente...", azul)
 
+# async def main():
+#     subs = [
+#         eventsub.ChatMessageSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
+#         eventsub.ChannelCheerSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
+#         eventsub.ChannelSubscribeSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
+#         eventsub.ChannelFollowSubscription(broadcaster_user_id=OWNER_ID, moderator_user_id=OWNER_ID),
+#         eventsub.ChannelSubscriptionGiftSubscription(broadcaster_user_id=OWNER_ID),
+#         eventsub.ChannelBanSubscription(broadcaster_user_id=OWNER_ID),
+#         eventsub.ChannelUnbanSubscription(broadcaster_user_id=OWNER_ID),
+#         eventsub.ChannelUpdateSubscription(broadcaster_user_id=OWNER_ID),
+#         eventsub.StreamOnlineSubscription(broadcaster_user_id=OWNER_ID),
+#         eventsub.StreamOfflineSubscription(broadcaster_user_id=OWNER_ID),
+#     ]
+#     bot = Bot(subs=subs)
+#     bot_task = asyncio.create_task(bot.start())
+#     console_task = asyncio.create_task(console_control(bot))
+#     await asyncio.wait([bot_task, console_task], return_when=asyncio.FIRST_COMPLETED)
+
 async def main():
     subs = [
         eventsub.ChatMessageSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
@@ -57,10 +75,14 @@ async def main():
         eventsub.StreamOnlineSubscription(broadcaster_user_id=OWNER_ID),
         eventsub.StreamOfflineSubscription(broadcaster_user_id=OWNER_ID),
     ]
+
     bot = Bot(subs=subs)
-    bot_task = asyncio.create_task(bot.start())
-    console_task = asyncio.create_task(console_control(bot))
-    await asyncio.wait([bot_task, console_task], return_when=asyncio.FIRST_COMPLETED)
+
+    # lanzar consola solo si existe terminal
+    if sys.stdin.isatty():
+        asyncio.create_task(console_control(bot))
+
+    await bot.start()
 
 
 class Bot(commands.AutoBot):
