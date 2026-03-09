@@ -13,6 +13,8 @@ from Helpers.printlog import printlog
 BOT_START_TIME = datetime.datetime.now()
 
 async def console_control(bot):
+    if not sys.stdin.isatty():
+        return
     while True:
         list_commands =[
             "commands",
@@ -23,6 +25,7 @@ async def console_control(bot):
             "stats",
             "uptime"
         ]
+        
         command = await asyncio.to_thread(input, ">> ")
         command = command.strip()
         if command.lower() == "commands" or command.lower()=="comandos" :
