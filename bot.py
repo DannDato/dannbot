@@ -3,6 +3,7 @@
     DannBot - Bot de Twitch
 """
 import os
+import sys
 import asyncio
 import twitchio
 import importlib
