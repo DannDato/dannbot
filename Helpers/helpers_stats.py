@@ -2,7 +2,7 @@ import sqlite3
 import os
 from datetime import datetime
 
-from Helpers.helpers import normalize_username, cerrar_conexion
+from Helpers.helpers import normalize_username, db_cursor
 from Helpers.printlog import printlog
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
@@ -17,49 +17,35 @@ async def update_global_stats(stat_category, user, value):
     :param value: Cantidad a incrementar
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # Verificar si el usuario ya tiene un valor para esta categoría
-        cursor.execute('''
-            SELECT value, hvalue FROM stats_channel
-            WHERE category = ? AND user = ?
-        ''', (stat_category, user))
-
-        result = cursor.fetchone()
-
-        if result:
-            # Si el usuario ya tiene una estadística, actualizar el valor
-            new_value = 0 if result[0] + value < 0 else result[0] + value
-            hvalue = result[1] + value
-            if stat_category=='wordle_wins' and new_value >= 5:
-                new_value=0
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
             cursor.execute('''
-                UPDATE stats_channel
-                SET value = ?, hvalue = ?
+                SELECT value, hvalue FROM stats_channel
                 WHERE category = ? AND user = ?
-            ''', (new_value, hvalue, stat_category, user))
-        else:
-            # Si no existe, insertar un nuevo registro
-            new_value=value
-            cursor.execute('''
-                INSERT INTO stats_channel (category, user, value, hvalue)
-                VALUES (?, ?, ?, ?)
-            ''', (stat_category, user, value, value))
-            
+            ''', (stat_category, user))
 
-        # Confirmar los cambios y cerrar la conexión
-        conn.commit()
-        conn.close()
-        
-        cerrar_conexion(conn, cursor)
+            result = cursor.fetchone()
+
+            if result:
+                new_value = 0 if result[0] + value < 0 else result[0] + value
+                hvalue = result[1] + value
+                if stat_category == 'wordle_wins' and new_value >= 5:
+                    new_value = 0
+                cursor.execute('''
+                    UPDATE stats_channel
+                    SET value = ?, hvalue = ?
+                    WHERE category = ? AND user = ?
+                ''', (new_value, hvalue, stat_category, user))
+            else:
+                new_value = value
+                cursor.execute('''
+                    INSERT INTO stats_channel (category, user, value, hvalue)
+                    VALUES (?, ?, ?, ?)
+                ''', (stat_category, user, value, value))
+
         return new_value
 
     except sqlite3.Error as e:
         printlog(f"Error al actualizar las estadísticas en la base de datos stats: {e}","ERROR")
-        if conn:
-            conn.rollback()
-            conn.close()
         return None
     
 #OBTENER ESTADISTICAS DE LA CATEGORIA PARAMETRIZADA
@@ -71,48 +57,31 @@ async def get_stats(stat_category,user):
     """
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        if user is not None:
-            # Verificar si el usuario ya tiene un valor para esta categoría
-            cursor.execute('''
-                SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value, hvalue FROM stats_channel
-                WHERE category = ? AND user = ?
-                GROUP BY username
-            ''', (stat_category, user))
-            result = cursor.fetchone()
-            if result:
-                retorno = result
+        with db_cursor(DB_PATH) as (_, cursor):
+            if user is not None:
+                cursor.execute('''
+                    SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value, hvalue FROM stats_channel
+                    WHERE category = ? AND user = ?
+                    GROUP BY username
+                ''', (stat_category, user))
+                result = cursor.fetchone()
+                retorno = result if result else None
             else:
-                retorno = None
-        else:
-            cursor.execute('''
-                SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value
-                FROM stats_channel
-                WHERE category = ?
-                GROUP BY user
-                ORDER BY value DESC
-                LIMIT 5
-            ''', (stat_category,))
-            result = cursor.fetchall()
-            
-            if result:
-                formatted_users = ", ".join([f"@{username} ({value})" for username, value in result])
-                retorno = formatted_users
-            else:
-                retorno = None
-        # Confirmar los cambios y cerrar la conexión
-        conn.commit()
-        conn.close()
-        cerrar_conexion(conn, cursor)
+                cursor.execute('''
+                    SELECT (SELECT username FROM users WHERE twitch_id=user) as username, value
+                    FROM stats_channel
+                    WHERE category = ?
+                    GROUP BY user
+                    ORDER BY value DESC
+                    LIMIT 5
+                ''', (stat_category,))
+                result = cursor.fetchall()
+                retorno = ", ".join([f"@{username} ({value})" for username, value in result]) if result else None
+
         return retorno
 
     except sqlite3.Error as e:
         printlog(f"Error al obtener las estadísticas de la base de datos: {e}","ERROR")
-        if conn:
-            conn.rollback()
-            conn.close()
         return None
 
 async def check_primero(user):
@@ -122,38 +91,25 @@ async def check_primero(user):
     """
     userid=user.id
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        #Verificar si existe algun usuario previo del dia
-        cursor.execute('''
-            SELECT (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username, DATE(date) as fecha
-            FROM stream_data
-            WHERE accion = 'first_user' and DATE(date)=DATE('now','localtime')
-            LIMIT 1;
-        ''',)
-        result = cursor.fetchone()
-        if result:
-            print("hay usuario")
-            #Regresar nombre de usuario anterior
-            retorno = result[0]
-        else:
-            #Inserta al usuario como primero en los datos del Stream
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                SELECT (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username, DATE(date) as fecha
+                FROM stream_data
+                WHERE accion = 'first_user' and DATE(date)=DATE('now','localtime')
+                LIMIT 1;
+            ''')
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+
             current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cursor.execute('''
                 INSERT INTO stream_data (accion, value, date)
                 VALUES ('first_user', ?, ?)
-            ''', (userid,current_date))
-            conn.commit()
-            retorno = None
-        # Confirmar los cambios y cerrar la conexión
-        conn.close()
-        cerrar_conexion(conn, cursor)
-        return retorno
+            ''', (userid, current_date))
+            return None
     except sqlite3.Error as e:
         printlog(f"Error al obtener las estadísticas de la base de datos: {e}","ERROR")
-        if conn:
-            conn.rollback()
-            conn.close()
         return None
         
 async def get_top_chatter_day():
@@ -163,47 +119,35 @@ async def get_top_chatter_day():
         ...
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         current_date = datetime.now().strftime("%Y-%m-%d")
         now = datetime.now()
         year = now.year
         month = now.month
         table_name = f"chat_{year}{month:02}"
 
-        cursor.execute(f'''
-            SELECT user, count(user) AS nMsg from {table_name} 
-            WHERE date like '%'''+current_date+'''%'
-            GROUP BY user
-            order by 2 DESC
-            LIMIT 1
-        ''',)
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute(f'''
+                SELECT user, count(user) AS nMsg from {table_name} 
+                WHERE date like ?
+                GROUP BY user
+                order by 2 DESC
+                LIMIT 1
+            ''', (f"%{current_date}%",))
 
-        current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        result = cursor.fetchone()
-        usuario = False
+            result = cursor.fetchone()
+            if not result:
+                printlog("Ha ocurrido un error al obtener al top_chatter_day","ERROR")
+                return None
 
-        if result:
-            #Inserta al usuario que haya enviado mas mensajes en el directo
             usuario = result[0]
             cursor.execute('''
-            INSERT INTO stream_data (accion,value,date)
+                INSERT INTO stream_data (accion,value,date)
                 VALUES("top_chatter",?,?)
-            ''',(usuario, current_date,))
-        else:
-            printlog("Ha ocurrido un error al obtener al top_chatter_day","ERROR")
-            usuario = None
-        conn.commit()
-        conn.close()
-        cerrar_conexion(conn, cursor)
-        # Confirmar los cambios y cerrar la conexión
-        return usuario
+            ''', (usuario, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            return usuario
 
     except sqlite3.Error as e:
         printlog(f"Error al obtener top_chatter: {e}","ERROR")
-        if conn:
-            conn.rollback()
-            conn.close()
         return None
     
 async def count_user_messages(username, start_date=0, end_date=0):
@@ -219,91 +163,68 @@ async def count_user_messages(username, start_date=0, end_date=0):
     total_messages = 0
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT name 
+                FROM sqlite_master 
+                WHERE type='table' AND name LIKE 'chat_%';
+            ''')
+            tables = cursor.fetchall()
 
-        # Obtener todas las tablas 'chat_'
-        cursor.execute('''
-            SELECT name 
-            FROM sqlite_master 
-            WHERE type='table' AND name LIKE 'chat_%';
-        ''')
-        tables = cursor.fetchall()
+            for table in tables:
+                table_name = table[0]
+                if start_date == 0 and end_date == 0:
+                    cursor.execute(f'''
+                        SELECT COUNT(*) 
+                        FROM {table_name} 
+                        WHERE user = ?;
+                    ''', (username,))
+                else:
+                    cursor.execute(f'''
+                        SELECT COUNT(*) 
+                        FROM {table_name} 
+                        WHERE user = ? 
+                        AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?);
+                    ''', (username, start_date, end_date))
 
-        for table in tables:
-            table_name = table[0]
-            if start_date == 0 and end_date == 0:
-                # Contar todos los mensajes del usuario sin filtrar por fecha
-                cursor.execute(f'''
-                    SELECT COUNT(*) 
-                    FROM {table_name} 
-                    WHERE user = ?;
-                ''', (username,))
-            else:
-                # Contar los mensajes dentro del rango de fechas
-                cursor.execute(f'''
-                    SELECT COUNT(*) 
-                    FROM {table_name} 
-                    WHERE user = ? 
-                    AND datetime(timestamp) BETWEEN datetime(?) AND datetime(?);
-                ''', (username, start_date, end_date))
+                total_messages += cursor.fetchone()[0]
 
-            count = cursor.fetchone()[0]
-            total_messages += count
-
-        cerrar_conexion(conn, cursor)
         return total_messages
 
     except sqlite3.Error as e:
         printlog(f"Error al contar mensajes: {e}","ERROR")
         return -1  # Indica un error
-    finally:
-        if conn:
-            conn.close()
-            cerrar_conexion(conn, cursor)
 
 async def save_user_bd(bd, user):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cursor.execute(f'''
-            SELECT birthday FROM users WHERE twitch_id='{user}'
-        ''')
-        result = cursor.fetchone()
-        if result:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                SELECT birthday FROM users WHERE twitch_id=?
+            ''', (user,))
+            result = cursor.fetchone()
+            if not result:
+                printlog("No se ha encontrado el usuario","ERROR")
+                return False
+
             cursor.execute('''
                 UPDATE users SET birthday=? WHERE twitch_id=?
-            ''',(bd, user))
-        else:
-            printlog("No se ha encontrado el usuario","ERROR")
-            return False
-        
-        conn.commit()
-        conn.close()
-        cerrar_conexion(conn, cursor)
-        return True
+            ''', (bd, user))
+            return True
         
     except sqlite3.Error as e:
         printlog(f"Error al acceder a guardar cumpleaños: {e}","ERROR")
         return False
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
 
 async def get_user_bd(user):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         current_date = datetime.now()
         current_year = current_date.year
-        cursor.execute(f'''
-            SELECT birthday FROM users WHERE twitch_id='{user}'
-        ''')
-        result = cursor.fetchone()
-        conn.close()
-        cerrar_conexion(conn, cursor)
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT birthday FROM users WHERE twitch_id=?
+            ''', (user,))
+            result = cursor.fetchone()
+
         if result is not None:
             bd = result[0]
             if bd is None:
@@ -325,34 +246,21 @@ async def get_user_bd(user):
     except sqlite3.Error as e:
         printlog(f"Error al consultar cumpleaños: {e}","ERROR")
         return False, '0', '0', '0', '0'
-    finally:
-        if conn:
-            conn.close()
-            cerrar_conexion(conn, cursor)
 
 
 async def today_birthdays():
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        current_date = datetime.now()
-         # Obtener la fecha actual
         current_date = datetime.now()
         current_month_day = current_date.strftime('%m-%d')  # Formato MM-DD para la comparación
 
-        # Buscar cumpleaños que coincidan con el mes y día actuales
-        cursor.execute(f'''
-            SELECT username, birthday FROM users
-            WHERE strftime('%m-%d', birthday) = ?
-        ''', (current_month_day,))
-
-        result = cursor.fetchall()
-
-        conn.close()
-        cerrar_conexion(conn, cursor)
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT username, birthday FROM users
+                WHERE strftime('%m-%d', birthday) = ?
+            ''', (current_month_day,))
+            result = cursor.fetchall()
 
         if result:  # Si hay resultados
-            # Extraer los nombres de los usuarios
             users_with_birthday = [user for user, _ in result]
             return True, users_with_birthday
         else:
@@ -361,37 +269,21 @@ async def today_birthdays():
     except sqlite3.Error as e:
         printlog(f"Error al consultar cumpleaños de hoy: {e}","ERROR")
         return False
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
 
 
 async def week_birthdays():
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        current_date = datetime.now()
-         # Obtener la fecha actual
-        current_date = datetime.now()
-        current_month_day = current_date.strftime('%m-%d')  # Formato MM-DD para la comparación
-
-        # Buscar cumpleaños que coincidan con el mes y día actuales
-        cursor.execute(f'''
-            SELECT username, birthday 
-            FROM users
-            WHERE strftime('%m-%d', birthday) 
-            BETWEEN strftime('%m-%d', date('now', '+1 day')) 
-            AND strftime('%m-%d', date('now', '+7 days'));
-        ''')
-
-        result = cursor.fetchall()
-
-        conn.close()
-        cerrar_conexion(conn, cursor)
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT username, birthday 
+                FROM users
+                WHERE strftime('%m-%d', birthday) 
+                BETWEEN strftime('%m-%d', date('now', '+1 day')) 
+                AND strftime('%m-%d', date('now', '+7 days'));
+            ''')
+            result = cursor.fetchall()
 
         if result:  # Si hay resultados
-            # Extraer los nombres de los usuarios
             users_with_birthday = [user for user, _ in result]
             return True, users_with_birthday
         else:
@@ -400,22 +292,15 @@ async def week_birthdays():
     except sqlite3.Error as e:
         printlog(f"Error al consultar cumpleaños de la semana: {e}","ERROR")
         return False
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
 
 async def get_twitch_id(username):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         username = normalize_username(username)
-        cursor.execute('''
-            SELECT twitch_id FROM users WHERE username=?
-        ''',(username,))
-        result = cursor.fetchone()
-        conn.close()
-        cerrar_conexion(conn, cursor)
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT twitch_id FROM users WHERE username=?
+            ''',(username,))
+            result = cursor.fetchone()
         if result:
             return result[0]
         else:
@@ -423,7 +308,3 @@ async def get_twitch_id(username):
     except sqlite3.Error as e:
         printlog(f"Error al obtener el id del usuario: {e}","ERROR")
         return None
-    finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)

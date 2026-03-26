@@ -12,16 +12,16 @@ import requests
 from urllib.parse import urlencode
 
 from Helpers.printlog import printlog
-from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token, db_cursor
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
 from Helpers.helpers_stats import update_global_stats, today_birthdays, week_birthdays
 
-from Helpers.token_loader import load_token
+from Helpers.token_loader import load_token as load_token_file
 from Helpers.required_scopes import required_scopes
 from Helpers.colors import white, resetColor, colorConvert
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
-token_data = load_token()
+token_data = load_token_file()
 OPENAI_API_KEY = token_data.get("openai_api_key")
 
 # Scopes recomendados para maximo acceso
@@ -82,11 +82,11 @@ def unload_bot_modules(prefixes):
         printlog(f"Eliminando caché del módulo: {module_name}", 'DEBUG')
         del sys.modules[module_name]
 
-def load_token():
+def load_token_data():
     with open(TOKEN_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def save_token(data):
+def save_token_data(data):
     with open(TOKEN_PATH, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
@@ -526,36 +526,26 @@ async def new_user(uid, uname):
     userid = uid  # Convertir a string por si la DB maneja `TEXT`
     username = uname
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # Verificar si el usuario ya existe en la tabla "users"
-        cursor.execute('SELECT username FROM users WHERE twitch_id = ?', (userid,))
-        result = cursor.fetchone()
-        update=False
-        if result:
-            # Si el usuario existe pero su nombre cambió, actualizarlo
-            if result[0] != username:
-                cursor.execute('UPDATE users SET username = ? WHERE twitch_id = ?', (username, userid))
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('SELECT username FROM users WHERE twitch_id = ?', (userid,))
+            result = cursor.fetchone()
+            update = False
+            if result:
+                if result[0] != username:
+                    cursor.execute('UPDATE users SET username = ? WHERE twitch_id = ?', (username, userid))
+                    update = True
+            else:
+                cursor.execute('INSERT INTO users (twitch_id, username) VALUES (?, ?)', (userid, username))
                 update = True
-        else:
-            # Si el usuario no existe, agregarlo
-            cursor.execute('INSERT INTO users (twitch_id, username) VALUES (?, ?)', (userid, username))
-            update = True
 
-        if update:
-            # Renombrar su nombre por su ID en todas las demás tablas
-            tablas = ['stats_channel', 'clanes']
-            for tabla in tablas:
-                cursor.execute(f'UPDATE {tabla} SET user = ? WHERE user = ?', (userid, username))
-            # Confirmar cambios
-            conn.commit()
-            printlog(f'\033[38;5;154m {username} (ID: {userid}) registrado/actualizado \033[0m')
+            if update:
+                tablas = ['stats_channel', 'clanes']
+                for tabla in tablas:
+                    cursor.execute(f'UPDATE {tabla} SET user = ? WHERE user = ?', (userid, username))
+                printlog(f'\033[38;5;154m {username} (ID: {userid}) registrado/actualizado \033[0m')
 
     except sqlite3.Error as e:
         printlog(f"Error al registrar usuario {username} (ID: {userid}): {e}")
-        conn.rollback()  # Revertir cambios en caso de error
-    finally:
-        cerrar_conexion(conn, cursor)
 
 
 async def save_current_data():
@@ -565,7 +555,7 @@ async def save_current_data():
         y los registra en las tablas para las estadísticas
     """
     # Datos de la API
-    token_data = load_token()
+    token_data = load_token_file()
     access_token = token_data.get("access_token")
     client_id = token_data.get("client_id")
     initial_channels = token_data.get("initial_channels", [])

@@ -5,6 +5,7 @@ import sqlite3
 import re
 import aiohttp
 import time
+from contextlib import contextmanager
 from datetime import datetime
 
 
@@ -20,6 +21,7 @@ initial_channels = token_data.get("initial_channels", [])
 channel_name = token_data.get("channel_name")
 steam_api = token_data.get("steam_api")
 steamid = token_data.get("steamID")
+_broadcaster_id_cache = None
 
 """
         I N D E X
@@ -38,22 +40,33 @@ steamid = token_data.get("steamID")
     format_username         :
 """
 
-def get_broadcaster_id():    
+def get_broadcaster_id(force_refresh=False):
+    global _broadcaster_id_cache
+    if _broadcaster_id_cache and not force_refresh:
+        return _broadcaster_id_cache
+
+    if not channel_name or not client_id or not access_token:
+        return 0
+
     # Hacer la solicitud a la API de Twitch
     url = f"https://api.twitch.tv/helix/users?login={channel_name}"
     headers = {
         "Client-ID": client_id,
         "Authorization": f"Bearer {access_token}"
     }
-    response = requests.get(url, headers=headers)
-    data = response.json()
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException:
+        return 0
+
     # Extraer y mostrar el ID del usuario
     if "data" in data and len(data["data"]) > 0:
-        broadcaster_id = data["data"][0]["id"]
-        return broadcaster_id
-    else:
-        return 0
-broadcaster_id = get_broadcaster_id()
+        _broadcaster_id_cache = data["data"][0]["id"]
+        return _broadcaster_id_cache
+
+    return 0
 #______________________________________________________________
 
 # Obtener access_token con client_credentials (ya lo tienes)
@@ -144,9 +157,13 @@ async def is_channel_online():
             return True
         # printlog("No hay stream activo en la base de datos, verificando en Twitch...","ERROR")
         # Si no hay registro en la base de datos, realizar solicitud a Twitch
+        broadcaster_id = get_broadcaster_id()
+        if not broadcaster_id:
+            return False
+
         for attempt in range(max_attempts):
             try:
-                contents = requests.get(f'https://www.twitch.tv/{broadcaster_id}').content.decode('utf-8')
+                contents = requests.get(f'https://www.twitch.tv/{broadcaster_id}', timeout=10).content.decode('utf-8')
                 if 'isLiveBroadcast' in contents:
                     printlog(f"{broadcaster_id} está en línea según Twitch.","INFO")
                     return True
@@ -205,8 +222,6 @@ def cerrar_conexion(conn, cursor):
     """Cierra una conexión y/o un cursor de base de datos si aún están abiertos."""
     if cursor: # Si hay un cursor, cerrarlo
         try:
-            if not cursor.connection:  # Verifica si el cursor ya no tiene conexión
-                return
             cursor.close()
         except sqlite3.ProgrammingError:  # Si ya estaba cerrado, no hacer nada
             pass
@@ -219,6 +234,28 @@ def cerrar_conexion(conn, cursor):
             pass
         except Exception as e:
             printlog(f"Error al cerrar la conexión: {e}","ERROR")
+
+
+def create_db_connection(db_path=DB_PATH):
+    return sqlite3.connect(db_path, timeout=30)
+
+
+@contextmanager
+def db_cursor(db_path=DB_PATH, *, commit=False):
+    conn = None
+    cursor = None
+    try:
+        conn = create_db_connection(db_path)
+        cursor = conn.cursor()
+        yield conn, cursor
+        if commit:
+            conn.commit()
+    except sqlite3.Error:
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        cerrar_conexion(conn, cursor)
 
 def wordslist(filename):
     try:

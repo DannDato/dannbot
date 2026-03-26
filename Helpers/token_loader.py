@@ -2,22 +2,21 @@ import json
 import os
 
 from Helpers.printlog import printlog
+from Helpers.oauth_flow import ensure_token_data, get_token_path
 
 def load_token():
     """
     Carga el token desde el archivo token.json ubicado en la carpeta Credentials.
     """
-    # Generar la ruta absoluta al archivo token.json
-    token_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Credentials', 'token.json'))
-    # Verificar si el archivo existe
-    if not os.path.exists(token_path):
-        printlog(f"Error: No se encontró el archivo en la ruta especificada: {token_path}", "ERROR")
-        exit()
+    token_path = get_token_path()
     try:
-        # Abrir y cargar el archivo JSON
-        with open(token_path, 'r', encoding='utf-8') as file:
-            token_data = json.load(file)
-            return token_data
+        if os.path.exists(token_path):
+            with open(token_path, 'r', encoding='utf-8') as file:
+                token_data = json.load(file)
+            if token_data.get('access_token') and token_data.get('client_id') and token_data.get('client_secret'):
+                return ensure_token_data()
+
+        return ensure_token_data()
     except json.JSONDecodeError as e:
         printlog(f"Error al decodificar el archivo JSON: {e}", "ERROR")
         exit()

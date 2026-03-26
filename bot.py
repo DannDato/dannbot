@@ -5,6 +5,7 @@
 import os
 import sys
 import asyncio
+import contextlib
 import twitchio
 import importlib
 from twitchio import eventsub
@@ -81,7 +82,7 @@ async def main():
 
     # lanzar consola solo si existe terminal
     if sys.stdin.isatty():
-        asyncio.create_task(console_control(bot))
+        bot.console_task = asyncio.create_task(console_control(bot))
 
     await bot.start()
 
@@ -101,7 +102,43 @@ class Bot(commands.AutoBot):
         self.connected = False  # Bandera de estado
         self.messages_processed = 0
         self.commands_executed = 0
+        self.console_task = None
+        self.happy_birthday_task = None
+        self.timed_messages_task = None
+        self.monitor_task = None
+        self._closing = False
         animated_message("Credenciales aplicadas", rosa)
+
+    async def _cancel_task(self, task: asyncio.Task | None) -> None:
+        if not task or task.done() or task is asyncio.current_task():
+            return
+
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def close(self, **options) -> None:
+        if self._closing:
+            return
+
+        self._closing = True
+        self.connected = False
+
+        for task in (
+            self.happy_birthday_task,
+            self.timed_messages_task,
+            self.monitor_task,
+            self.console_task,
+        ):
+            await self._cancel_task(task)
+
+        await super().close(**options)
+
+    async def restart_process(self, reason: str) -> None:
+        printlog(reason, "WARNING")
+        script = os.path.abspath(sys.argv[0])
+        await self.close()
+        os.execv(sys.executable, [sys.executable, script] + sys.argv[1:])
 
 
     #Setup inicial del bot, carga dinámica de archivos py para modulos de comandos
@@ -127,9 +164,12 @@ class Bot(commands.AutoBot):
         self.connected = True  # Bandera de estado para analizis de status
         clear_console()
         user = self.create_partialuser(BOT_ID)
-        self.happy_birthday_task = asyncio.create_task(happy_birthday(self, user))
-        self.timed_messages_task = asyncio.create_task(send_timed_messages(self, user))
-        self.monitor_task = asyncio.create_task(monitor_bot_health(self))
+        if self.happy_birthday_task is None or self.happy_birthday_task.done():
+            self.happy_birthday_task = asyncio.create_task(happy_birthday(self, user))
+        if self.timed_messages_task is None or self.timed_messages_task.done():
+            self.timed_messages_task = asyncio.create_task(send_timed_messages(self, user))
+        if self.monitor_task is None or self.monitor_task.done():
+            self.monitor_task = asyncio.create_task(monitor_bot_health(self))
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
         animated_message("DannBot en linea", green)
 

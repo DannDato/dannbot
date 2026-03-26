@@ -1,13 +1,13 @@
                 ██████╗  █████╗ ███╗   ██╗███╗   ██╗██████╗  ██████╗ ████████╗
                 ██╔══██╗██╔══██╗████╗  ██║████╗  ██║██╔══██╗██╔═══██╗╚══██╔══╝
-                ██║  ██║███████║██╔██╗ ██║██╔██╗ ██║██████╔╝██║   ██║   ██║   
-                ██║  ██║██╔══██║██║╚██╗██║██║╚██╗██║██╔══██╗██║   ██║   ██║   
-                ██████╔╝██║  ██║██║ ╚████║██║ ╚████║██████╔╝╚██████╔╝   ██║   
-                ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚═════╝  ╚═════╝    ╚═╝   
+                ██║  ██║███████║██╔██╗ ██║██╔██╗ ██║██████╔╝██║   ██║   ██║
+                ██║  ██║██╔══██║██║╚██╗██║██║╚██╗██║██╔══██╗██║   ██║   ██║
+                ██████╔╝██║  ██║██║ ╚████║██║ ╚████║██████╔╝╚██████╔╝   ██║
+                ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═══╝╚═════╝  ╚═════╝    ╚═╝
                         ___________________________________________
 
 *                       Dev By: Alberto Daniel Tovar Mendoza
-                                           
+
 DannBot es un bot desarrollado en Python que se conecta a Twitch mediante la API/librería twitchio. Su principal función es interactuar en el chat canal 'DannDato', generar retos, responder comandos y registrar estadísticas de usuarios y streams en una base de datos.
 
 El bot implementa un sistema de XP y niveles que mide la participación de los usuarios en el chat, otorgando puntos en distintas características como Carisma, Habilidad, Fuerza, entre otras. Además, puede generar reportes y utilizar la API de OpenAI para enriquecer la experiencia de la interacción del bot con lo participanrtes del stream.
@@ -21,35 +21,35 @@ El bot implementa un sistema de XP y niveles que mide la participación de los u
 * **Python** (versión recomendada: 3.12.8)
 
 ### Twitch y Streaming
-* **TwitchIO v3** – Interacción con la API/Libreria Twitchio 
+* **TwitchIO v3** – Interacción con la API/Libreria Twitchio
 * **OBS WebSocket (obsws-python)** – Control de OBS Studio (NO implementado aun)
 
 ### Web y APIs
-* **Requests** – Peticiones HTTP  
+* **Requests** – Peticiones HTTP
 * **Flask** – Microservidor web para endpoints o integraciones
 
 ### Base de datos y utilidades
-* **SQLite** – Base de datos local  
-* **SQLite-utils** – Manejo de SQLite de forma sencilla  
+* **SQLite** – Base de datos local
+* **SQLite-utils** – Manejo de SQLite de forma sencilla
 * **Asqlite** – Operaciones asíncronas con SQLite
 
 ### Automatización y scraping
-* **Selenium** – Automatización de tareas web  
+* **Selenium** – Automatización de tareas web
 * **PyAutoGUI** – Control de mouse y teclado en automatizaciones
 
 ### Variables de entorno
 * **Python-dotenv** – Gestión de variables de entorno
 
 ### Logs y colores
-* **Colorama & Colorlog** – Logs a color en consola  
+* **Colorama & Colorlog** – Logs a color en consola
 * **Logging** – Registro de eventos y errores
 
 ### Correos y HTML
 * **Premailer** – Formateo de HTML para correos
 
 ### Otros
-* **Emoji** – Soporte para emojis  
-* **OpenAI & Tiktoken** – Integración con ChatGPT y procesamiento de tokens  
+* **Emoji** – Soporte para emojis
+* **OpenAI & Tiktoken** – Integración con ChatGPT y procesamiento de tokens
 
 ---
 
@@ -59,17 +59,17 @@ El bot utiliza SQLite como sistema de almacenamiento para registrar y consultar 
 
 ###### 📋 Tablas principales:
    * chat_AAAAMM:	Registro detallado de los mensajes enviados en el año/mes . (Estas son tablas dinamicas se van generando una por mes)
-   
+
    * clanes:	Almacena los clanes existentes, quien es el lider y los usuarios que pertenecen a los clanes.
-   
+
    * donated_bits:	Registra las donaciones de bits realizadas por los usuarios. Almacena el usuario, la cantidad de bits y la fecha del donativo.
-   
+
    * followers: registra a los nuevos usuarios que le dan follow al canal, guarda (user, username, date y timestamp)
-   
+
    * history_users:	Historial de las veces que entra un usuario al canal, Guarda twitch_id y datetime
-   
+
    * redeems:	Almacena las recompensas canjeadas por los usuarios usando puntos del canal o integraciones propias del bot. Incluye el usuario, la recompensa y la fecha.
-   
+
    * stats_channel:	Almacena estadísticas generales del canal y los usuarios en diferentes categorias como: Habilidad,
     carisma, resistencia, wordle_wins, mensajes etc.
 
@@ -77,7 +77,7 @@ El bot utiliza SQLite como sistema de almacenamiento para registrar y consultar 
     total de usuarios unidos y total de mensajes enviados en el stream
 
    * subscriptions: registra las subs de un usuario independientemente de si es propia o regalada
-   
+
    * subscriptions_gift: guarda a los usuarios que regalan subs, cuantas, de que tier y la fecha
 
    * users:	Registra a todos los usuarios que han interactuado en el chat. Se almacena su username, twitch_id, y cumpleaños, se contempla la opción de agregar mas cosas
@@ -87,7 +87,7 @@ El bot utiliza SQLite como sistema de almacenamiento para registrar y consultar 
 * ✅ Generar estadísticas detalladas por transmisión
 * ✅ Calcular rankings y Datos de cada directo
 * ✅ Llevar un historial de actividad y crecimiento de cada usuario
-* ✅ Crear dinámicas como clanes, retos y minijuegos 
+* ✅ Crear dinámicas como clanes, retos y minijuegos
 * ✅ Felicitar a los usuarios el día de su cumpleaños
 * ✅ Integrar sistemas de recompensas y redenciones
 * ✅ Registrar las donaciones de bits como parte de la interacción del usuario
@@ -146,17 +146,22 @@ El bot inicia configurando la consola y cargando las credenciales necesarias des
 Al iniciar, el bot se encarga de verificar si existe el archivo token.json con las credenciales necesarias para conectarse a Twitch,
 Si existe, el bot carga el access_token desde ese archivo y continúa con la conexión.
 ❌ Si no existe token.json
-El bot solicita el client_id del desarrollador.
-Con ese client_id, genera un enlace de autenticación (OAuth) para el usuario.
+El bot solicita el client_id y client_secret del desarrollador si todavía no están guardados.
+Después levanta automáticamente un `server.py` temporal, espera a que esté listo en local, abre el navegador y lleva al usuario loggeado en Twitch al flujo OAuth para autorizar los scopes requeridos. Cuando termina de guardar las credenciales, ese servidor se detiene solo.
 
-> **IMPORTANTE:** Antes de dar clic en el enlace de autorización, asegúrate de tener corriendo el archivo server.py incluido en este proyecto.**server.py** es un pequeño servidor local que escucha en http://localhost:8080 y captura la redirección de Twitch con el token de acceso.
+> **IMPORTANTE:** El `redirect_uri` `http://127.0.0.1:8080/callback` debe estar registrado en tu aplicación de Twitch Developer Console. Si prefieres ejecutar el flujo manualmente, puedes correr `python server.py`.
 
-Una vez autorizado, el navegador redirigirá automáticamente a http://localhost:8080, donde server.py mostrará la URL completa con el token.
-es necesario copiar el token de la URL y pegarlo en el input que solicita el bot
-El bot toma ese token y lo guarda en credentials/token.json con el siguiente formato:
+Una vez autorizado, Twitch redirige automáticamente al callback local y el bot intercambia el código por el access token sin pedir que copies nada manualmente.
+Después guarda la información en `Credentials/token.json` con un formato parecido a este:
 
->{ 
->    "access_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+>{
+>    "access_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+>    "refresh_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+>    "client_id": "tu_client_id",
+>    "client_secret": "tu_client_secret",
+>    "bot_id": "123456789",
+>    "channel_name": "danndato",
+>    "initial_channels": ["danndato"]
 >}
 
 Finalmente, reinicia el bot para comenzar a funcionar con el nuevo token.
