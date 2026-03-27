@@ -1,5 +1,5 @@
 from Helpers.helpers import is_authorized
-from Helpers.helpers_admin import end_stream, start_stream
+from Helpers.helpers_admin import end_stream, start_stream, set_stream_title, set_stream_category
 from twitchio.ext import commands
 from Helpers.printlog import printlog
 
@@ -62,7 +62,41 @@ class admin_commands(commands.Component):
                 printlog("Algo ha ocurrido, reiniciando bot...")
                 await ctx.send("[BOT] - Ni supe que hacer, imaginate...")
                 await self.bot.restart_process(f"[ Monitor ] - Error en chequeo de salud: {e}. Reiniciando...")
-    
-    
 
-    
+    @commands.command(name='titulo')
+    async def titulo(self, ctx):
+        if not is_authorized(ctx):
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+
+        parts = ctx.message.text.strip().split(' ', 1)
+        if len(parts) < 2 or not parts[1].strip():
+            await ctx.send('[BOT] - Usa: !titulo <nuevo titulo>')
+            return
+
+        ok, result = await set_stream_title(parts[1].strip())
+        if ok:
+            await ctx.send(f'[BOT] - Titulo actualizado: {result}')
+        else:
+            await ctx.send(f'[BOT] - {result}')
+
+    @commands.command(name='categoria', aliases=['cat'])
+    async def categoria(self, ctx):
+        if not is_authorized(ctx):
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+
+        parts = ctx.message.text.strip().split(' ', 1)
+        if len(parts) < 2 or not parts[1].strip():
+            await ctx.send('[BOT] - Usa: !categoria <nombre aproximado de categoria>')
+            return
+
+        ok, result = await set_stream_category(parts[1].strip())
+        if ok:
+            await ctx.send(f'[BOT] - Categoria actualizada a: {result}')
+        else:
+            await ctx.send(f'[BOT] - {result}')
+
+
+
+

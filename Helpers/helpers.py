@@ -102,6 +102,10 @@ def is_authorized(ctx):
         return True
     else: return False
 
+
+def is_mod(ctx):
+    return bool(getattr(ctx.chatter, "moderator", False))
+
 #Función que divide una cadena de texto grande en diferentes mensajes en base al límite definid
 async def send_large_message(ctx, message):
     max = 450

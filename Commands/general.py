@@ -1,5 +1,6 @@
 from twitchio.ext import commands
 from Helpers.helpers_stats import update_global_stats
+from Helpers.helpers_admin import create_stream_clip
 from Helpers.printlog import printlog
 
 class general_commands(commands.Component):
@@ -11,7 +12,7 @@ class general_commands(commands.Component):
 
         Los comandos generales son comandos que ofrecen
         una respuesta rápida en el chat
-        
+
                 INDICE:
     -hola
     -adios
@@ -39,7 +40,7 @@ class general_commands(commands.Component):
         await ctx.send(f'[BOT] - Mi usuario en todos los juegos es DannDato')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='tdt')
     async def tdt(self, ctx):
         await ctx.send(f'[BOT] - En esta pagina está toda la información para entrar al servidor de miencraft TIERRA DE TODOS https://dato.dannprod.com/tdt/info.html?reglas Tienes que leer las reglas para entender como funciona...')
@@ -68,7 +69,7 @@ class general_commands(commands.Component):
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.55)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
 
-    
+
             # amigos
     @commands.command(name='koala', aliases=["elkoala","koalafc"])
     async def koala(self, ctx):
@@ -77,7 +78,7 @@ class general_commands(commands.Component):
         await update_global_stats("xp_Empatia",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
 
-    
+
     @commands.command(name='daarlaaaaa', aliases=["darla"])
     async def daarlaaaaa(self, ctx):
         await ctx.send(f'[BOT] -  Como @DAARLAAAAA 🤯')
@@ -105,7 +106,7 @@ class general_commands(commands.Component):
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
         await update_global_stats("xp_Empatia",ctx.chatter.id,0.15)
 
-         
+
             # Componentes
     @commands.command(name='pc', aliases=["componentes", "computadora", "computador"])
     async def pc(self, ctx):
@@ -121,7 +122,7 @@ class general_commands(commands.Component):
 
         await update_global_stats("xp_Resistencia",ctx.chatter.id,0.15)
 
-    
+
     @commands.command(name='camara', aliases=["cam", "webcam"])
     async def camara(self, ctx):
         await ctx.send(f'[BOT] -  Mi cámara es una: Canon Rebel T6i con un lente 18-135 f3.5')
@@ -141,7 +142,7 @@ class general_commands(commands.Component):
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
         await update_global_stats("xp_Fuerza",ctx.chatter.id,0.15)
 
-    
+
     @commands.command(name='youtube', aliases=["yt"])
     async def youtube(self, ctx):
         await ctx.send(f'[BOT] - 🔥 Suscríbete a mi canal de Youtube 📹Youtube: https://www.youtube.com/@DatoTovar ')
@@ -155,18 +156,18 @@ class general_commands(commands.Component):
 
 
     @commands.command(name='discord', aliases=["dc", "dis"])
-    async def discord(self, ctx):     
-        invite_link = "https://discord.gg/PaqYUz69Zx"   
+    async def discord(self, ctx):
+        invite_link = "https://discord.gg/PaqYUz69Zx"
         await ctx.send(f'[BOT] - 🎙Únete a mi canal de Discord y juega con nosotros! 🟢 {invite_link}')
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
 
 
     @commands.command(name='spotify', aliases=["spoty", "spoti"])
-    async def spotify(self, ctx):        
+    async def spotify(self, ctx):
         await ctx.send(f'[BOT] - 🟢 Gracias por escucharme en Spotify https://open.spotify.com/intl-es/artist/5TMlDvCbDsvQYkvU1uMCF9?si=EN097NInRl-ignGXRQAm1A')
         await update_global_stats("xp_Voluntad",ctx.chatter.id,0.15)
 
-    
+
     @commands.command(name='redes', aliases=["social", "socials"])
     async def redes(self, ctx):
         await ctx.send(f'[BOT] - Aquí están mis redes 😎! ')
@@ -190,7 +191,9 @@ class general_commands(commands.Component):
 
     @commands.command(name='clip')
     async def clip(self, ctx):
-        printlog(f"{ctx.chatter.name}Uso clip")
+        ok, result = await create_stream_clip(has_delay=True)
+        await ctx.send(f"[BOT] - {result}")
+        printlog(f"{ctx.chatter.name} uso clip -> {'ok' if ok else 'fail'}")
 
     @commands.command(name='speak', aliases=["spk", "voz"])
     async def speak(self, ctx):
@@ -203,5 +206,5 @@ class general_commands(commands.Component):
 
 
 
-    
+
 
