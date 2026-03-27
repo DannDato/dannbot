@@ -38,6 +38,7 @@ VALIDATE_URL = 'https://id.twitch.tv/oauth2/validate'
 USERS_URL = 'https://api.twitch.tv/helix/users'
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 SERVER_SCRIPT = os.path.join(REPO_ROOT, 'server.py')
+ENV_PATH = os.path.join(REPO_ROOT, '.env')
 TOKEN_FIELDS = (
     'access_token',
     'client_id',
@@ -70,6 +71,35 @@ def get_authorize_entrypoint_url():
 
 def _ensure_token_dir():
     os.makedirs(TOKEN_DIR, exist_ok=True)
+
+
+def _load_env_file(path=ENV_PATH):
+    """Carga variables desde .env sin sobrescribir variables ya presentes."""
+    if not os.path.exists(path):
+        return
+
+    try:
+        with open(path, 'r', encoding='utf-8') as file:
+            for raw_line in file:
+                line = raw_line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+
+                if not key:
+                    continue
+
+                if (value.startswith('"') and value.endswith('"')) or (
+                    value.startswith("'") and value.endswith("'")
+                ):
+                    value = value[1:-1]
+
+                os.environ.setdefault(key, value)
+    except Exception as exc:
+        printlog(f'No se pudo cargar .env ({path}): {exc}', 'WARNING')
 
 
 def _load_token_file():
@@ -548,10 +578,21 @@ def _reuse_existing_token(existing_data):
 def ensure_token_data(force_reauth=False):
     global _TOKEN_CACHE
 
+    _load_env_file()
+
     if _TOKEN_CACHE and not force_reauth:
         return dict(_TOKEN_CACHE)
 
-    existing_data = _prompt_for_client_credentials(_load_token_file())
+    existing_data = _load_token_file()
+    env_client_id = os.environ.get('DANNBOT_CLIENT_ID') or os.environ.get('TWITCH_CLIENT_ID')
+    env_client_secret = os.environ.get('DANNBOT_CLIENT_SECRET') or os.environ.get('TWITCH_CLIENT_SECRET')
+
+    if env_client_id:
+        existing_data['client_id'] = env_client_id
+    if env_client_secret:
+        existing_data['client_secret'] = env_client_secret
+
+    existing_data = _prompt_for_client_credentials(existing_data)
 
     token_data = None
     if not force_reauth and existing_data.get('access_token'):
@@ -569,9 +610,19 @@ def ensure_token_data(force_reauth=False):
 
 
 def run_oauth_server_from_env(auto_open_browser=True):
+    _load_env_file()
+
     existing_data = _load_token_file()
-    client_id = os.environ.get('DANNBOT_CLIENT_ID') or existing_data.get('client_id')
-    client_secret = os.environ.get('DANNBOT_CLIENT_SECRET') or existing_data.get('client_secret')
+    client_id = (
+        os.environ.get('DANNBOT_CLIENT_ID')
+        or os.environ.get('TWITCH_CLIENT_ID')
+        or existing_data.get('client_id')
+    )
+    client_secret = (
+        os.environ.get('DANNBOT_CLIENT_SECRET')
+        or os.environ.get('TWITCH_CLIENT_SECRET')
+        or existing_data.get('client_secret')
+    )
 
     if not client_id or not client_secret:
         existing_data = _prompt_for_client_credentials(existing_data)

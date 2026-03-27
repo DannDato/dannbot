@@ -149,6 +149,14 @@ Si existe, el bot carga el access_token desde ese archivo y continúa con la con
 El bot solicita el client_id y client_secret del desarrollador si todavía no están guardados.
 Después levanta automáticamente un `server.py` temporal, espera a que esté listo en local, abre el navegador y lleva al usuario loggeado en Twitch al flujo OAuth para autorizar los scopes requeridos. Cuando termina de guardar las credenciales, ese servidor se detiene solo.
 
+> **Recomendado:** guarda tus credenciales de app en un archivo `.env` (no versionado) para no tener que capturarlas cada vez.
+>
+> `DANNBOT_CLIENT_ID=tu_client_id`
+>
+> `DANNBOT_CLIENT_SECRET=tu_client_secret`
+>
+> Puedes copiar la plantilla incluida en `.env.example`.
+
 > **IMPORTANTE:** El `redirect_uri` `http://127.0.0.1:8080/callback` debe estar registrado en tu aplicación de Twitch Developer Console. Si prefieres ejecutar el flujo manualmente, puedes correr `python server.py`.
 
 Una vez autorizado, Twitch redirige automáticamente al callback local y el bot intercambia el código por el access token sin pedir que copies nada manualmente.

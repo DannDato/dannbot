@@ -1,10 +1,50 @@
-data.db
-/logs
-/Logs
-/venv
-/Venv
+# ---- Sensitive credentials and secrets ----
+.env
+.env.*
+!.env.example
+
+# Twitch/OAuth tokens and local auth artifacts
+.tio.tokens.json
 token.json
 token_dev.json
-/Gpt
+Credentials/*.json
+Credentials/*.token
+Credentials/*.secret
+Credentials/*.pem
+Credentials/*.key
+
+# ---- Databases and local data ----
+*.db
+*.sqlite
+*.sqlite3
+*.sqbpro
+
+# ---- Python cache/build ----
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Virtual environments ----
+venv/
+Venv/
+.venv/
+dannbot/
+bot/
+
+# ---- Logs and runtime outputs ----
+logs/
+Logs/
+*.log
+
+# ---- Generated content ----
+Gpt/
 user_conversations.json
-/bot
+Reportes/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/settings.json
