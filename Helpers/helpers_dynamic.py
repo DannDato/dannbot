@@ -4,12 +4,15 @@ import aiohttp
 import os
 from datetime import datetime, timezone
 import random
+import sqlite3
 
 #Cargar el token para operaciones con las credenciales
 from Helpers.token_loader import load_token
-from Helpers.helpers import wordslist, is_channel_online, clean_text
+from Helpers.helpers import wordslist, is_channel_online, clean_text, db_cursor
 from Helpers.helpers_stats import update_global_stats
 from Helpers.printlog import printlog
+
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
 #asignacion de credenciales
 token_data = load_token()
@@ -48,7 +51,7 @@ async def interactuar(self, message, username):
         return
     else:
         if any(word in mensaje for word in ["hola", "holaaa", "wolas"]):
-            await user.send_message(sender=self.user, message=f'[BOT] - {gen_response("saludos.txt")} @{username}')            
+            await user.send_message(sender=self.user, message=f'[BOT] - {gen_response("saludos.txt")} @{username}')
 
         if any(word in mensaje for word in ["adios", "bye"]):
             await user.send_message(sender=self.user, message=f'[BOT] - {gen_response("despedidas.txt")} @{username}')
@@ -58,9 +61,9 @@ async def interactuar(self, message, username):
 
         if any(word in mensaje for word in ["peruano"]):
             await user.send_message(sender=self.user, message=f'[BOT] - déja en paz a los peruanos @{username}')
-            
 
-    
+
+
 async def desafiar(self, username):
     user = self.create_partialuser(BOT_ID)
     lnReto = random.randint(0, 2500)
@@ -104,7 +107,7 @@ async def get_vips():
         vips_url = f'https://api.twitch.tv/helix/channels/vips?broadcaster_id={channel_id}'
         vips_response = requests.get(vips_url, headers=headers)
         vips_data = vips_response.json()
-        
+
         # Imprimir los nombres de los VIPs
         if 'data' in vips_data:
             vips = [vip['user_name'] for vip in vips_data['data']]
@@ -124,35 +127,141 @@ async def get_followers_count():
         async with session.get(url, headers=headers) as resp:
             data = await resp.json()
             return data.get("total", 0)
-        
-def get_follow_age(user_id):
+
+def _ensure_follow_cache_table() -> None:
+    try:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS followage_cache (
+                    user_id TEXT NOT NULL,
+                    broadcaster_id TEXT NOT NULL,
+                    followed_at TEXT,
+                    fetched_at TEXT NOT NULL,
+                    PRIMARY KEY (user_id, broadcaster_id)
+                )
+            ''')
+    except sqlite3.Error as e:
+        printlog(f"Error creando tabla followage_cache: {e}", "ERROR")
+
+
+def cache_follow_from_event(user_id, broadcaster_id, followed_at=None) -> None:
+    """Guarda followage desde EventSub follow sin sobrescribir datos existentes.
+
+    - Inserta solo si no existe (user_id, broadcaster_id).
+    - Si ya existe, no actualiza la fecha original.
     """
-    user_id: id del usuario que sigue
+    if not user_id or not broadcaster_id:
+        return
+
+    _ensure_follow_cache_table()
+
+    if isinstance(followed_at, datetime):
+        followed_at_value = followed_at.astimezone(timezone.utc).isoformat()
+    elif isinstance(followed_at, str):
+        followed_at_value = followed_at
+    else:
+        followed_at_value = datetime.now(timezone.utc).isoformat()
+
+    fetched_at_value = datetime.now(timezone.utc).isoformat()
+
+    try:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute(
+                '''
+                INSERT INTO followage_cache (user_id, broadcaster_id, followed_at, fetched_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, broadcaster_id) DO NOTHING
+                ''',
+                (str(user_id), str(broadcaster_id), followed_at_value, fetched_at_value)
+            )
+    except sqlite3.Error as e:
+        printlog(f"Error guardando followage desde evento: {e}", "WARNING")
+
+
+async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int = 12):
+    """Obtiene la antiguedad de follow usando Helix con cache local.
+
+    Retorna (delta, followed_at_datetime) o (None, None) si no sigue el canal.
     """
+    if not user_id:
+        return None, None
+
+    _ensure_follow_cache_table()
+    now = datetime.now(timezone.utc)
+
+    if not force_refresh:
+        try:
+            with db_cursor(DB_PATH) as (_, cursor):
+                cursor.execute(
+                    '''
+                    SELECT followed_at, fetched_at
+                    FROM followage_cache
+                    WHERE user_id = ? AND broadcaster_id = ?
+                    ''',
+                    (str(user_id), str(BOT_ID))
+                )
+                row = cursor.fetchone()
+
+            if row:
+                followed_at_cached, fetched_at_cached = row
+                fetched_dt = datetime.fromisoformat(fetched_at_cached.replace("Z", "+00:00"))
+                age_seconds = (now - fetched_dt).total_seconds()
+                if age_seconds <= cache_hours * 3600:
+                    if followed_at_cached:
+                        followed_dt = datetime.fromisoformat(followed_at_cached.replace("Z", "+00:00"))
+                        return now - followed_dt, followed_dt
+                    return None, None
+        except (sqlite3.Error, ValueError) as e:
+            printlog(f"Error leyendo cache followage: {e}", "WARNING")
+
     url = "https://api.twitch.tv/helix/channels/followers"
     headers = {
         "Client-ID": CLIENT_ID,
         "Authorization": f"Bearer {ACCESS_TOKEN}"
     }
     params = {
-        "from_id": user_id,   # el seguidor
-        "to_id": BOT_ID,   # el canal seguido (tú)
-        "broadcaster_id":BOT_ID
+        "broadcaster_id": BOT_ID,
+        "user_id": str(user_id),
+        "first": 1
     }
 
+    followed_at = None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as resp:
+                data = await resp.json()
+                if resp.status == 200 and data.get("data"):
+                    followed_at = data["data"][0].get("followed_at")
+                elif resp.status != 200:
+                    printlog(f"Error Helix followage ({resp.status}): {data}", "WARNING")
+    except Exception as e:
+        printlog(f"Error consultando Helix followage: {e}", "WARNING")
 
-    res = requests.get(url, headers=headers, params=params)
-    data = res.json()
-    print(res)
-    print(data)
-    if res.status_code == 200 and data.get("data"):
-        followed_at = data["data"][0]["followed_at"]
-        dt = datetime.fromisoformat(followed_at.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
-        return now - dt, dt
-    else:
-        return None, None
-    
+    try:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute(
+                '''
+                INSERT INTO followage_cache (user_id, broadcaster_id, followed_at, fetched_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, broadcaster_id)
+                DO UPDATE SET
+                    followed_at=COALESCE(followage_cache.followed_at, excluded.followed_at),
+                    fetched_at=excluded.fetched_at
+                ''',
+                (str(user_id), str(BOT_ID), followed_at, now.isoformat())
+            )
+    except sqlite3.Error as e:
+        printlog(f"Error guardando cache followage: {e}", "WARNING")
+
+    if followed_at:
+        try:
+            followed_dt = datetime.fromisoformat(followed_at.replace("Z", "+00:00"))
+            return now - followed_dt, followed_dt
+        except ValueError:
+            return None, None
+
+    return None, None
+
 def get_viewers():
     url = "https://api.twitch.tv/helix/streams"
     headers = {

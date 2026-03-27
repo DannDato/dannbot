@@ -7,6 +7,7 @@ from Helpers.helpers import db_cursor, clean_text, normalize_username, safe_int
 from Helpers.helpers_stats import update_global_stats
 from Helpers.colors import colorConvert, white, resetColor, userColors, channelColor, morado
 from Helpers.helpers_bot import new_user, update_stream_data
+from Helpers.helpers_dynamic import cache_follow_from_event
 from Helpers.printlog import printlog
 
 
@@ -60,6 +61,13 @@ async def handle_follow(self, payload):
                 INSERT INTO followers (user, username, date, timestamp)
                 VALUES (?, ?, ?, ?);
             ''', (CHATTER_ID, CHATTER_NAME, now.strftime('%Y-%m-%d'), now.strftime('%Y-%m-%d %H:%M:%S')))
+
+        # Cache followage solo una vez para preservar la fecha original.
+        cache_follow_from_event(
+            CHATTER_ID,
+            BROADCASTER_ID,
+            getattr(payload, "followed_at", None)
+        )
 
         await update_stream_data("new_followers", 1)
         printlog(f"{morado} N U E V O    S E G U I D O R {white}  [ {channelColor}{CHATTER_NAME}{white} ({CHATTER_ID}) ]")

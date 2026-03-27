@@ -16,6 +16,7 @@ async def console_control(bot):
     while True:
         list_commands =[
             "commands",
+            "close",
             "exit",
             "restart",
             "status",
@@ -23,19 +24,19 @@ async def console_control(bot):
             "stats",
             "uptime"
         ]
-        
+
         command = await asyncio.to_thread(input, ">> ")
         command = command.strip()
         if command.lower() == "commands" or command.lower()=="comandos" :
             printlog(f" Comandos de consola:{white} {list_commands}")
-            
+
         if command == "uptime":
             now = datetime.datetime.now()
             delta = now - BOT_START_TIME
             hours, remainder = divmod(delta.total_seconds(), 3600)
             minutes, seconds = divmod(remainder, 60)
             printlog(f"[Console] - Bot activo desde: {int(hours)}h {int(minutes)}m {int(seconds)}s", "INFO")
-        
+
         elif command == "stats":
             printlog(f"[Console] - Mensajes procesados: {bot.messages_processed}", "INFO")
             printlog(f"[Console] - Comandos ejecutados: {bot.commands_executed}", "INFO")
@@ -77,9 +78,8 @@ async def console_control(bot):
         elif command.lower() == "clear" or command.lower()=="cls" :
             clear_console()
             animated_message("DannDato en linea","\033[38;5;51m")
-        
+
 
         #_______________________________________________________________________________________
         else:
             printlog("<<Console>> - Comando no reconocido.","WARNING")
-        

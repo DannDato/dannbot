@@ -486,10 +486,45 @@ class dynamic_commands(commands.Component):
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
     
-    # @commands.command(name='followage', aliases=["siguiendo"])
-    # async def followage(self, ctx):
-    #     print("aaaaaaaaaaaaaaaaa")
-    #     await ctx.send(f'{ctx.chatter.name} lleva siguiendome {get_follow_age(ctx.chatter.id)} 😎! ')
+    @commands.command(name='followage', aliases=["siguiendo"])
+    async def followage(self, ctx):
+        if '@' in ctx.message.text:
+            mentioned_user = ctx.message.text.strip().split('@')[1].strip().split()[0]
+            user_id = await get_twitch_id(mentioned_user)
+            if user_id is None:
+                await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}.")
+                return
+            target_name = mentioned_user
+        else:
+            user_id = ctx.chatter.id
+            target_name = ctx.chatter.name
+
+        if str(user_id) == str(self.bot.owner_id):
+            await ctx.send(f"[BOT] - Como quieres saber eso si es tu propio canal... bro  @{target_name}")
+            return
+
+        delta, followed_dt = await get_follow_age(user_id)
+        if followed_dt is None:
+            await ctx.send(f"[BOT] - @{target_name} no sigue el canal o no pude consultar su followage.")
+            return
+
+        days = delta.days
+        years = days // 365
+        months = (days % 365) // 30
+        rem_days = (days % 365) % 30
+
+        partes = []
+        if years > 0:
+            partes.append(f"{years} ano{'s' if years != 1 else ''}")
+        if months > 0:
+            partes.append(f"{months} mes{'es' if months != 1 else ''}")
+        if rem_days > 0 or not partes:
+            partes.append(f"{rem_days} dia{'s' if rem_days != 1 else ''}")
+
+        follow_since = followed_dt.strftime('%Y-%m-%d')
+        await ctx.send(
+            f"[BOT] - @{target_name} lleva siguiendo el canal aproximadamente {' '.join(partes)} (desde {follow_since}) 😎"
+        )
 
     @commands.command(name='viewers')
     async def viewers(self, ctx):
