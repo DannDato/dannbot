@@ -306,21 +306,141 @@ def _run_oauth_server(existing_data, auto_open_browser=False, timeout=300):
                 token_data = _build_token_data(existing_data, token_payload, user_payload)
                 _save_token_file(token_data)
                 result['token_data'] = token_data
-                html = (
-                    '<html><body style="font-family: sans-serif; padding: 2rem;">'
-                    '<h1>DannBot</h1>'
-                    '<p>La autorización fue recibida. Ya puedes volver a la consola.</p>'
-                    '</body></html>'
-                )
+                html = f"""
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body {{
+                                background-color: #0e0e10;
+                                color: #efeff1;
+                                font-family: 'Inter', 'Roobert', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                padding: 2rem;
+                            }}
+                            .card {{
+                                background-color: #18181b;
+                                padding: 3rem;
+                                border-radius: 12px;
+                                text-align: center;
+                                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                                border-top: 4px solid #9147ff;
+                                max-width: 400px;
+                                animation: fadeIn 0.5s ease-out;
+                            }}
+                            h1 {{
+                                color: #9147ff;
+                                margin-top: 0;
+                                font-size: 2.5rem;
+                                letter-spacing: -1px;
+                            }}
+                            p {{
+                                font-size: 1.1rem;
+                                line-height: 1.6;
+                                color: #adadb8;
+                            }}
+                            .status-icon {{
+                                background: #9147ff;
+                                width: 60px;
+                                height: 60px;
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                margin: 0 auto 1.5rem;
+                                font-size: 1.5rem;
+                                color: white;
+                            }}
+                            @keyframes fadeIn {{
+                                from {{ opacity: 0; transform: translateY(20px); }}
+                                to {{ opacity: 1; transform: translateY(0); }}
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="card">
+                            <div class="status-icon">✓</div>
+                            <h1>DannBot</h1>
+                            <p>Autorización recibida.<br><strong>Ya puedes cerrar esta ventana y volver a la consola.</strong></p>
+                        </div>
+                    </body>
+                    </html>
+                """
                 self._write_response(200, html)
             except Exception as exc:
                 result['error'] = str(exc)
-                html = (
-                    '<html><body style="font-family: sans-serif; padding: 2rem;">'
-                    '<h1>DannBot</h1>'
-                    f'<p>Error recibiendo OAuth: {exc}</p>'
-                    '</body></html>'
-                )
+                html = f"""
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body {{
+                                background-color: #0e0e10;
+                                color: #efeff1;
+                                font-family: 'Inter', 'Roobert', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                padding: 2rem;
+                            }}
+                            .card {{
+                                background-color: #18181b;
+                                padding: 3rem;
+                                border-radius: 12px;
+                                text-align: center;
+                                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                                border-top: 4px solid #eb0400; /* Rojo de error estilo Twitch */
+                                max-width: 400px;
+                                animation: shake 0.4s ease-in-out; /* Animación de sacudida para el error */
+                            }}
+                            h1 {{
+                                color: #eb0400;
+                                margin-top: 0;
+                                font-size: 2.5rem;
+                                letter-spacing: -1px;
+                            }}
+                            p {{
+                                font-size: 1.1rem;
+                                line-height: 1.6;
+                                color: #adadb8;
+                            }}
+                            .status-icon {{
+                                background: #eb0400;
+                                width: 60px;
+                                height: 60px;
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                margin: 0 auto 1.5rem;
+                                font-size: 1.8rem;
+                                color: white;
+                                font-weight: bold;
+                            }}
+                            @keyframes shake {{
+                                0%, 100% {{ transform: translateX(0); }}
+                                25% {{ transform: translateX(-10px); }}
+                                75% {{ transform: translateX(10px); }}
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="card">
+                            <div class="status-icon">✕</div>
+                            <h1>DannBot</h1>
+                            <p>Hubo un problema con la autorización.<br><strong>Por favor, intenta el proceso de nuevo en la consola.</strong></p>
+                        </div>
+                    </body>
+                    </html>
+                    """
                 self._write_response(500, html)
             finally:
                 threading.Thread(target=server.shutdown, daemon=True).start()
