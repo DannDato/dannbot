@@ -1,6 +1,6 @@
 from twitchio.ext import commands
 from Helpers.helpers_stats import update_global_stats
-from Helpers.helpers_admin import create_stream_clip
+from Helpers.helpers_moderator import create_stream_clip
 from Helpers.printlog import printlog
 
 class general_commands(commands.Component):

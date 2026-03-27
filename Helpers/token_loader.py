@@ -1,8 +1,9 @@
 import json
 import os
+import sys
 
 from Helpers.printlog import printlog
-from Helpers.oauth_flow import ensure_token_data, get_token_path
+from Helpers.oauth_flow import ensure_token_data, get_token_path, OAuthFlowCancelled
 
 
 _TOKEN_CACHE = None
@@ -44,9 +45,12 @@ def load_token(*, ensure_valid=False, force_refresh=False):
     except json.JSONDecodeError as e:
         printlog(f"Error al decodificar el archivo JSON: {e}", "ERROR")
         exit()
+    except OAuthFlowCancelled as e:
+        printlog(f"Autorización cancelada. Cerrando bot de forma segura: {e}", "WARNING")
+        raise SystemExit(0)
     except Exception as e:
         printlog(f"Error cargando token.json: {e}", "ERROR")
-        exit()
+        raise SystemExit(1)
 
 
     

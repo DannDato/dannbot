@@ -4,7 +4,7 @@ import random
 import time
 from datetime import datetime, date
 
-
+from Helpers.helpers import is_authorized
 from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
 from Helpers.chatgpt import chatgpt
 from Helpers.helpers_bot import get_chatters_total
@@ -442,13 +442,13 @@ class dynamic_commands(commands.Component):
 
     @commands.command(name='ban?')
     async def ban(self,ctx):
-        if normalize_username(ctx.chatter.name)!="dani_14k":
+        if normalize_username(ctx.chatter.name)!="dani_14k" and not is_authorized(ctx):
             logging.warning(normalize_username(ctx.chatter.name))
             await ctx.send(f'[BOT] - Lo siento, este comando solo lo puede ejecutar @dani_14k')
             return
         lnBan = random.randint(1, 6)
         if lnBan == 5 :
-            lnTiempo=random.randint(1, 10)
+            lnTiempo=random.randint(1, 30)
             lnResponse=f"Está bien, autorizo ban de {lnTiempo} segundos 💣"
         else:
             lnResponse="NO, Lo siento. Lo dejaremos pasar por esta ocación para evitar conflictos...👀"

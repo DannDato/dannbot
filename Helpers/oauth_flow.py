@@ -53,6 +53,10 @@ TOKEN_FIELDS = (
 _TOKEN_CACHE = None
 
 
+class OAuthFlowCancelled(Exception):
+    """Se lanza cuando el usuario cancela/deniega la autorización OAuth."""
+
+
 def get_token_path():
     return TOKEN_PATH
 
@@ -327,6 +331,10 @@ def _run_oauth_server(existing_data, auto_open_browser=False, timeout=300):
                 if returned_state != state:
                     raise RuntimeError('Estado OAuth invalido.')
                 if error:
+                    if error == 'access_denied':
+                        raise OAuthFlowCancelled(
+                            error_description or 'El usuario canceló/denegó la autorización de Twitch.'
+                        )
                     raise RuntimeError(error_description or error)
                 if not code:
                     raise RuntimeError('Twitch no devolvió un código de autorización.')
@@ -397,6 +405,55 @@ def _run_oauth_server(existing_data, auto_open_browser=False, timeout=300):
                             <div class="status-icon">✓</div>
                             <h1>DannBot</h1>
                             <p>Autorización recibida.<br><strong>Ya puedes cerrar esta ventana y volver a la consola.</strong></p>
+                        </div>
+                    </body>
+                    </html>
+                """
+                self._write_response(200, html)
+            except OAuthFlowCancelled as exc:
+                result['error'] = f'OAUTH_CANCELLED:{exc}'
+                html = f"""
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body {{
+                                background-color: #0e0e10;
+                                color: #efeff1;
+                                font-family: 'Inter', 'Roobert', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                padding: 2rem;
+                            }}
+                            .card {{
+                                background-color: #18181b;
+                                padding: 3rem;
+                                border-radius: 12px;
+                                text-align: center;
+                                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                                border-top: 4px solid #f0ad4e;
+                                max-width: 450px;
+                            }}
+                            h1 {{
+                                color: #f0ad4e;
+                                margin-top: 0;
+                                font-size: 2.2rem;
+                            }}
+                            p {{
+                                font-size: 1.05rem;
+                                line-height: 1.5;
+                                color: #adadb8;
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="card">
+                            <h1>DannBot</h1>
+                            <p>Autorización cancelada.<br><strong>Puedes cerrar esta ventana y volver a intentarlo cuando quieras.</strong></p>
                         </div>
                     </body>
                     </html>
@@ -506,6 +563,8 @@ def _run_oauth_server(existing_data, auto_open_browser=False, timeout=300):
         server.server_close()
 
     if result['error']:
+        if result['error'].startswith('OAUTH_CANCELLED:'):
+            raise OAuthFlowCancelled(result['error'].split(':', 1)[1].strip())
         raise RuntimeError(result['error'])
     if not result['token_data']:
         raise RuntimeError('El servidor OAuth terminó sin generar credenciales.')
@@ -534,6 +593,9 @@ def _run_oauth_via_server_process(existing_data, timeout=300):
         except subprocess.TimeoutExpired:
             process.kill()
         raise
+
+    if process.returncode == 130:
+        raise OAuthFlowCancelled('El usuario canceló la autorización OAuth.')
 
     if process.returncode != 0:
         raise RuntimeError(f'El servidor OAuth terminó con código {process.returncode}.')
