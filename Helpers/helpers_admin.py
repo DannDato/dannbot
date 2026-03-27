@@ -21,65 +21,97 @@ def _table_exists(cursor, table_name: str) -> bool:
     return cursor.fetchone() is not None
 
 
-def _bar_height(value: int, maximum: int, min_height: int = 8, max_height: int = 120) -> int:
-    if value <= 0 or maximum <= 0:
-        return min_height
-    scaled = int((value / maximum) * max_height)
-    return max(min_height, min(max_height, scaled))
-
-
 def _build_streams_comparison_chart(users_1, users_2, users_3, messages_1, messages_2, messages_3) -> str:
     users_values = [safe_int(users_3), safe_int(users_2), safe_int(users_1)]
     messages_values = [safe_int(messages_3), safe_int(messages_2), safe_int(messages_1)]
     labels = ["S-2", "S-1", "Actual"]
 
-    max_users = max(users_values + [1])
-    max_messages = max(messages_values + [1])
+    width = 540
+    height = 250
+    left = 50
+    right = 20
+    top = 20
+    bottom = 45
+    inner_w = width - left - right
+    inner_h = height - top - bottom
 
-    def build_metric_rows(values, maximum, color_var: str):
-        top_cells = []
-        bar_cells = []
-        label_cells = []
+    max_val = max(users_values + messages_values + [1])
+    x_points = [left + int((inner_w / 2) * i) for i in range(3)]
 
-        for idx, value in enumerate(values):
-            h = _bar_height(value, maximum)
-            top_cells.append(
-                f'<td align="center" style="font-size:12px; color: var(--letter-color); padding-bottom: 6px;">{value}</td>'
-            )
-            bar_cells.append(
-                '<td valign="bottom" align="center" style="height:130px; padding: 0 8px;">'
-                f'<div style="display:inline-block; width: 34px; height: {h}px; background:{color_var}; '
-                'border-radius: 10px 10px 4px 4px;"></div></td>'
-            )
-            label_cells.append(
-                f'<td align="center" style="font-size:11px; color: var(--letter-color); opacity:0.85; padding-top: 6px;">{labels[idx]}</td>'
-            )
+    def y_of(value: int) -> int:
+        ratio = (value / max_val) if max_val > 0 else 0
+        return top + int(inner_h - (ratio * inner_h))
 
-        return (
-            "<tr>" + "".join(top_cells) + "</tr>"
-            + "<tr>" + "".join(bar_cells) + "</tr>"
-            + "<tr>" + "".join(label_cells) + "</tr>"
+    def polyline(values):
+        return " ".join(f"{x_points[i]},{y_of(values[i])}" for i in range(3))
+
+    users_line = polyline(users_values)
+    messages_line = polyline(messages_values)
+
+    # 5 líneas de guía del eje Y
+    y_grid = []
+    for i in range(6):
+        y = top + int((inner_h / 5) * i)
+        val = int(max_val - ((max_val / 5) * i))
+        y_grid.append(
+            f'<line x1="{left}" y1="{y}" x2="{width-right}" y2="{y}" stroke="var(--letter-color)" stroke-opacity="0.12" stroke-width="1" />'
+            f'<text x="{left-8}" y="{y+4}" text-anchor="end" font-size="10" fill="var(--letter-color)" fill-opacity="0.7">{val}</text>'
         )
 
-    users_rows = build_metric_rows(users_values, max_users, "var(--main-color)")
-    messages_rows = build_metric_rows(messages_values, max_messages, "var(--third-color)")
+    users_points_parts = []
+    messages_points_parts = []
+    for i in range(3):
+        uy = y_of(users_values[i])
+        my = y_of(messages_values[i])
+
+        # Si los valores quedan muy cerca en el eje Y, separar etiquetas para evitar empalme.
+        if abs(uy - my) < 22:
+            users_label_y = uy - 14
+            messages_label_y = my + 20
+        else:
+            users_label_y = uy - 9
+            messages_label_y = my + 16
+
+        users_points_parts.append(
+            f'<circle cx="{x_points[i]}" cy="{uy}" r="4" fill="var(--main-color)" />'
+            f'<text x="{x_points[i]}" y="{users_label_y}" text-anchor="middle" font-size="11" fill="var(--letter-color)">{users_values[i]}</text>'
+        )
+        messages_points_parts.append(
+            f'<circle cx="{x_points[i]}" cy="{my}" r="4" fill="var(--third-color)" />'
+            f'<text x="{x_points[i]}" y="{messages_label_y}" text-anchor="middle" font-size="11" fill="var(--letter-color)">{messages_values[i]}</text>'
+        )
+
+    users_points = "".join(users_points_parts)
+    messages_points = "".join(messages_points_parts)
+
+    x_labels = "".join(
+        f'<text x="{x_points[i]}" y="{height - 16}" text-anchor="middle" font-size="11" fill="var(--letter-color)" fill-opacity="0.9">{labels[i]}</text>'
+        for i in range(3)
+    )
 
     return f'''
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 6px 0 16px 0;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 8px 0 16px 0;">
         <tr>
             <td align="center" style="background-color: var(--bg-box); border-radius: 26px; padding: 18px;">
-                <p style="margin:0 0 10px 0; font-size:14px;"><b>Comparativa 3 streams (usuarios únicos)</b></p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:380px; margin:auto;">
-                    {users_rows}
-                </table>
-            </td>
-        </tr>
-        <tr><td style="height:8px;"></td></tr>
-        <tr>
-            <td align="center" style="background-color: var(--bg-box); border-radius: 26px; padding: 18px;">
-                <p style="margin:0 0 10px 0; font-size:14px;"><b>Comparativa 3 streams (mensajes)</b></p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:380px; margin:auto;">
-                    {messages_rows}
+                <p style="margin:0 0 10px 0; font-size:14px;"><b>Comparativa 3 streams</b> (usuarios vs mensajes)</p>
+                <svg width="100%" viewBox="0 0 {width} {height}" role="img" aria-label="Grafica comparativa de usuarios y mensajes">
+                    {''.join(y_grid)}
+                    <line x1="{left}" y1="{height-bottom}" x2="{width-right}" y2="{height-bottom}" stroke="var(--letter-color)" stroke-opacity="0.5" stroke-width="1.2" />
+                    <line x1="{left}" y1="{top}" x2="{left}" y2="{height-bottom}" stroke="var(--letter-color)" stroke-opacity="0.5" stroke-width="1.2" />
+
+                    <polyline points="{users_line}" fill="none" stroke="var(--main-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                    <polyline points="{messages_line}" fill="none" stroke="var(--third-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+                    {users_points}
+                    {messages_points}
+                    {x_labels}
+                </svg>
+
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 6px; font-size:12px; color: var(--letter-color);">
+                    <tr>
+                        <td style="padding-right: 14px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--main-color);"></span> Usuarios</td>
+                        <td><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--third-color);"></span> Mensajes</td>
+                    </tr>
                 </table>
             </td>
         </tr>
