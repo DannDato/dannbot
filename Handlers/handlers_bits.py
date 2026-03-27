@@ -3,7 +3,7 @@ from datetime import datetime
 import logging
 import os
 
-from Helpers.helpers import  cerrar_conexion, clean_text, normalize_username, safe_int
+from Helpers.helpers import clean_text, db_cursor, normalize_username, safe_int
 from Helpers.helpers_stats import update_global_stats
 from Helpers.colors import colorConvert, white, resetColor, green
 from Helpers.helpers_bot import new_user, update_stream_data
@@ -30,15 +30,9 @@ async def handle_bits(self, payload):
 
     USER = SimpleNamespace(id=USERID, name=USERNAME)
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # Insertar el nuevo registro en la tabla
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute('''INSERT INTO donated_bits (amount, user, message, date)VALUES (?, ?, ?, ?)''', ( AMMOUNT, USERID, MESSAGE, timestamp))
-        # Confirmar los cambios y cerrar la conexión
-        conn.commit()   
-        conn.close()
-        cerrar_conexion(conn, cursor)
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''INSERT INTO donated_bits (amount, user, message, date)VALUES (?, ?, ?, ?)''', (AMMOUNT, USERID, MESSAGE, timestamp))
         ctx = "danndato"
         await ctx.send(f"Ehh! @{USER.name} Gracias por {'ese' if AMMOUNT == 1 else 'esos'} {AMMOUNT} bit{'' if AMMOUNT == 1 else 's'}!")
 
@@ -46,7 +40,4 @@ async def handle_bits(self, payload):
     except sqlite3.Error as e:
         logging.error("Ocurrió un error al capturar la donación de bits")
     finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
-            await update_global_stats("xp_Fuerza",USERID,0.15)
+        await update_global_stats("xp_Fuerza",USERID,0.15)

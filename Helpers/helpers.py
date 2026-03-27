@@ -133,25 +133,23 @@ async def is_channel_online():
     """
     max_attempts = 5
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # Verificar en la base de datos si hay un stream activo
-        cursor.execute('''
-            SELECT COUNT(*)
-            FROM stream_data
-            WHERE accion = "start_stream" AND NOT EXISTS (
-                SELECT 1
+        with db_cursor(DB_PATH) as (_, cursor):
+            # Verificar en la base de datos si hay un stream activo
+            cursor.execute('''
+                SELECT COUNT(*)
                 FROM stream_data
-                WHERE accion = "end_stream"
-                AND datetime(date) > (
-                    SELECT MAX(date)
+                WHERE accion = "start_stream" AND NOT EXISTS (
+                    SELECT 1
                     FROM stream_data
-                    WHERE accion = "start_stream"
-                )
-            );
-        ''')
-        result = cursor.fetchone()
-        cerrar_conexion(conn, cursor)
+                    WHERE accion = "end_stream"
+                    AND datetime(date) > (
+                        SELECT MAX(date)
+                        FROM stream_data
+                        WHERE accion = "start_stream"
+                    )
+                );
+            ''')
+            result = cursor.fetchone()
         if result and result[0] > 0:
             # printlog("Un stream está activo según la base de datos.","WARNING")
             return True

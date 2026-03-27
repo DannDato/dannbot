@@ -9,6 +9,15 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
+try:
+    import certifi
+
+    # Ensure HTTPS calls to Twitch validate against a known CA bundle.
+    os.environ.setdefault('SSL_CERT_FILE', certifi.where())
+    os.environ.setdefault('REQUESTS_CA_BUNDLE', certifi.where())
+except Exception:
+    pass
+
 import requests
 
 from Helpers.printlog import printlog
@@ -17,12 +26,12 @@ from Helpers.required_scopes import required_scopes
 
 TOKEN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Credentials'))
 TOKEN_PATH = os.path.join(TOKEN_DIR, 'token.json')
-REDIRECT_HOST = '127.0.0.1'
+REDIRECT_HOST = 'localhost'
 REDIRECT_PORT = 8080
 HEALTH_PATH = '/health'
 START_PATH = '/start'
-REDIRECT_PATH = '/callback'
-REDIRECT_URI = f'http://{REDIRECT_HOST}:{REDIRECT_PORT}{REDIRECT_PATH}'
+REDIRECT_PATH = '/'
+REDIRECT_URI = f'http://{REDIRECT_HOST}:{REDIRECT_PORT}'
 AUTHORIZE_URL = 'https://id.twitch.tv/oauth2/authorize'
 TOKEN_URL = 'https://id.twitch.tv/oauth2/token'
 VALIDATE_URL = 'https://id.twitch.tv/oauth2/validate'

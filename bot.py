@@ -6,6 +6,16 @@ import os
 import sys
 import asyncio
 import contextlib
+
+try:
+    import certifi
+
+    # Ensure Python, requests and aiohttp use a valid CA bundle for Twitch HTTPS.
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+except Exception:
+    pass
+
 import twitchio
 import importlib
 from twitchio import eventsub
@@ -27,14 +37,14 @@ from Handlers.console_handler import console_control
 from Helpers.health_check import monitor_bot_health
 
 from Helpers.colors import (
-    azul, white, resetColor, 
-    channelColor, colorConvert, 
+    azul, white, resetColor,
+    channelColor, colorConvert,
     userColors, rosa, red, green
 )
 init_console()
 animated_message(" Iniciando DannBot", resetColor)
 
-token_data = load_token()
+token_data = load_token(ensure_valid=True)
 CLIENT_ID = token_data.get("client_id")
 CLIENT_SECRET = token_data.get("client_secret")
 BOT_ID = token_data.get("bot_id")
@@ -106,7 +116,7 @@ class Bot(commands.AutoBot):
         self.happy_birthday_task = None
         self.timed_messages_task = None
         self.monitor_task = None
-        self._closing = False
+        self._bot_closing = False
         animated_message("Credenciales aplicadas", rosa)
 
     async def _cancel_task(self, task: asyncio.Task | None) -> None:
@@ -118,10 +128,10 @@ class Bot(commands.AutoBot):
             await task
 
     async def close(self, **options) -> None:
-        if self._closing:
+        if self._bot_closing:
             return
 
-        self._closing = True
+        self._bot_closing = True
         self.connected = False
 
         for task in (
@@ -148,14 +158,19 @@ class Bot(commands.AutoBot):
         for filename in os.listdir(commands_dir):
             if filename.endswith(".py") and not filename.startswith("__"):
                 module_name = f"{commands_dir}.{filename[:-3]}"
+                printlog(f"Cargando modulo: {module_name}", "DEBUG")
                 module = importlib.import_module(module_name)
+                loaded_component = False
                 # Buscar clases que hereden de commands.Component
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
                     if isinstance(attr, type) and issubclass(attr, commands.Component) and attr is not commands.Component:
                         await self.add_component(attr(self))
+                        loaded_component = True
                         printlog(f"Lista de comandos cargados: {attr_name}")
-        await asyncio.sleep(1) 
+                if not loaded_component:
+                    printlog(f"No se encontro ningun commands.Component en {module_name}", "WARNING")
+        await asyncio.sleep(1)
     #______________________________________________________________________
 
     # Evento que se dispara cuando el bot está listo
@@ -183,7 +198,7 @@ class Bot(commands.AutoBot):
     # Listener para seguidores
     async def event_follow(self, payload: twitchio.ChannelFollow) -> None:
         await handle_follow(self, payload)
-        
+
     #listener para donaciones de bits
     async def event_cheer(self, payload: twitchio.ChannelCheer) -> None:
         await handle_cheer(self, payload)
@@ -200,7 +215,7 @@ class Bot(commands.AutoBot):
     async def event_ban(self, payload: twitchio.ChannelBan) -> None:
         printlog(f"Se ha Baneado a {payload.user.name} del canal por {payload.reason}")
         #Aqui agregaremos un handler para llevar registro de los baneos
-    
+
     #Listener para saber cuando se banea a alguien
     async def event_unban(self, payload: twitchio.ChannelUnban) -> None:
         printlog(f"Se quitado el baneo a {payload.user.name} del canal")
@@ -213,16 +228,16 @@ class Bot(commands.AutoBot):
     # async def event_stream_online(self, payload: twitchio.StreamOnline) -> None:
     #     printlog("Se ha inicializado un stream!")
     #     #Aqui agregaremos el handler para iniciar directo
-    
+
     # async def event_stream_offline(self, payload: twitchio.StreamOffline) -> None:
     #     printlog("Se ha detenido el stream!")
     #     #Aqui agregaremos el handler para detener directo
-        
+
     #______________________________________________________________________
     #Eventos de error
     async def event_command_error(self, payload: twitchio.ext.commands.CommandErrorPayload) -> None:
         printlog(f"Se ha presentado un error de comando o comando desconocido {payload}", "WARNING")
-    
+
     async def event_error(self, payload: twitchio.EventErrorPayload) -> None:
         printlog(f"Se ha capturado un error de evento {safe_int(payload.error)}", "ERROR")
 

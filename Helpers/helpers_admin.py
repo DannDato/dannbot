@@ -7,7 +7,7 @@ from Helpers.helpers_stats import update_global_stats, get_top_chatter_day
 from Helpers.helpers_xp import update_xp
 from Helpers.helpers_bot import update_stream_data
 from Helpers.mailer import enviar_correo
-from Helpers.helpers import safe_int, cerrar_conexion
+from Helpers.helpers import safe_int, db_cursor
 from Helpers.printlog import printlog
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
@@ -21,29 +21,28 @@ async def end_stream():
     :return: True si se finalizó el stream, False en caso contrario.
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            # Verificar si hay un stream iniciado y no cerrado
+            cursor.execute('''
+                SELECT date 
+                FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND subquery.date >= stream_data.date
+                )
+                ORDER BY date ASC
+                LIMIT 1;
+            ''')
+            result = cursor.fetchone()
 
-        # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''
-            SELECT date 
-            FROM stream_data
-            WHERE accion = "start_stream"
-            AND NOT EXISTS (
-                SELECT 1
-                FROM stream_data AS subquery
-                WHERE subquery.accion = "end_stream"
-                AND subquery.date >= stream_data.date
-            )
-            ORDER BY date ASC
-            LIMIT 1;
-        ''')
-        result = cursor.fetchone()
+            if not result:
+                printlog("No se encontró ningún stream iniciado y sin cerrar.","WARNING")
+                return False
 
-        if result:
-            start_date = result[0]
             current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
             dollar = 18.75
             cursor.execute(
                 '''
@@ -56,42 +55,28 @@ async def end_stream():
                 (current_date,)
             )
             bits, subs = cursor.fetchone()
-            mSubs = (safe_int(subs)*1.52) * dollar
-            mBits = (safe_int(bits)/100) * dollar
+            mSubs = (safe_int(subs) * 1.52) * dollar
+            mBits = (safe_int(bits) / 100) * dollar
+            total_money = safe_int(mSubs + mBits)
 
-            total_money = safe_int(mSubs+mBits)
-
-            # Insertar el registro de finalización
             cursor.execute('''
                 INSERT INTO stream_data (accion, value, date)
                 VALUES ("total_money", ?, ?),("end_stream", "channel", ?);
-            ''', (total_money,current_date,current_date))
-            conn.commit()       
+            ''', (total_money, current_date, current_date))
 
-            # Módulos de finalización
-            top_chatter_day = await get_top_chatter_day()
-            if top_chatter_day is not None:
-                await update_global_stats("xp_Fuerza",top_chatter_day,3)
-                await update_global_stats("top_chatter_day", top_chatter_day, 1)
+        top_chatter_day = await get_top_chatter_day()
+        if top_chatter_day is not None:
+            await update_global_stats("xp_Fuerza", top_chatter_day, 3)
+            await update_global_stats("top_chatter_day", top_chatter_day, 1)
 
-            await update_xp()
-            await end_mail()
-            printlog(f"Stream finalizado correctamente: {current_date}.")
-            cerrar_conexion(conn, cursor)
-            return True
-        else:
-            printlog("No se encontró ningún stream iniciado y sin cerrar.","WARNING")
-            cerrar_conexion(conn, cursor)
-            return False
+        await update_xp()
+        await end_mail()
+        printlog(f"Stream finalizado correctamente: {current_date}.")
+        return True
 
     except sqlite3.Error as e:
         printlog(f"Error en la base de datos: {e}","ERROR")
         return False
-
-    finally:
-        if conn:
-            conn.close()
-            cerrar_conexion(conn, cursor)
 
     
 async def start_stream():
@@ -102,68 +87,56 @@ async def start_stream():
     :return: True si se inició el stream, False en caso contrario.
     """
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            # Verificar si hay un stream iniciado y no cerrado
+            cursor.execute('''
+                SELECT date 
+                FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND subquery.date >= stream_data.date
+                )
+                ORDER BY date DESC
+                LIMIT 1;
+            ''')
+            result = cursor.fetchone()
 
-        # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''
-            SELECT date 
-            FROM stream_data
-            WHERE accion = "start_stream"
-            AND NOT EXISTS (
-                SELECT 1
-                FROM stream_data AS subquery
-                WHERE subquery.accion = "end_stream"
-                AND subquery.date >= stream_data.date
-            )
-            ORDER BY date DESC
-            LIMIT 1;
-        ''')
-        result = cursor.fetchone()
+            if result:
+                printlog("Ya hay un stream iniciado y sin cerrar.","WARNING")
+                return False
 
-        if result:
-            printlog("Ya hay un stream iniciado y sin cerrar.","WARNING")
-            return False
+            cursor.execute('''
+                SELECT date
+                FROM stream_data
+                WHERE accion = "end_stream"
+                ORDER BY date DESC
+                LIMIT 1;
+            ''')
+            result_end = cursor.fetchone()
 
-        # Verificar si el último stream finalizó correctamente
-        cursor.execute('''
-            SELECT date
-            FROM stream_data
-            WHERE accion = "end_stream"
-            ORDER BY date DESC
-            LIMIT 1;
-        ''')
-        result_end = cursor.fetchone()
+            if result_end:
+                last_end_date = result_end[0]
+                printlog(f"Último stream finalizado correctamente el {last_end_date}.")
+            else:
+                printlog("No se encontró ningún stream finalizado anteriormente.","WARNING")
 
-        if result_end:
-            last_end_date = result_end[0]
-            printlog(f"Último stream finalizado correctamente el {last_end_date}.")
-        else:
-            printlog("No se encontró ningún stream finalizado anteriormente.","WARNING")
+            current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute('''
+                INSERT INTO stream_data (accion, value, date)
+                VALUES ("start_stream", "channel", ?),("new_followers", "0", ?);
+            ''', (current_date, current_date))
 
-        # Insertar el registro de inicio del nuevo stream
-        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cursor.execute('''
-            INSERT INTO stream_data (accion, value, date)
-            VALUES ("start_stream", "channel", ?),("new_followers", "0", ?);
-        ''', (current_date,current_date))
-        conn.commit()
-        
-        await update_stream_data("total_users",1)
-        await update_stream_data("total_messages",1)
+        await update_stream_data("total_users", 1)
+        await update_stream_data("total_messages", 1)
         printlog(f"Nuevo stream iniciado correctamente a las {current_date}.")
-        cerrar_conexion(conn, cursor)
         return True
 
     except sqlite3.Error as e:
         printlog(f"Error en la base de datos: {e}","ERROR")
-        cerrar_conexion(conn, cursor)
         return False
-
-    finally:
-        if conn:
-            conn.close()
-            cerrar_conexion(conn, cursor)
     
 async def end_mail():
     """Lee el contenido de un archivo HTML y lo devuelve como texto"""
@@ -173,11 +146,10 @@ async def end_mail():
         contenido_html = archivo.read()
         printlog("Leyendo HTML de reporte")
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        printlog("Iniciando lectura de base de datos")
-        # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''
+        with db_cursor(DB_PATH) as (_, cursor):
+            printlog("Iniciando lectura de base de datos")
+            # Verificar si hay un stream iniciado y no cerrado
+            cursor.execute('''
             WITH StreamPeriods AS (
             SELECT start.id AS start_id,
                 start.date AS start_date,
@@ -202,32 +174,28 @@ async def end_mail():
         JOIN StreamPeriods sp
         ON s.date BETWEEN sp.start_date AND sp.end_date
         ORDER BY sp.stream_number, s.date;
-        ''')
-        result = cursor.fetchall()
-        printlog("Datos obtenidos en cursor")
-        # Estructura para almacenar los datos
-        streams = {}
+            ''')
+            result = cursor.fetchall()
+            printlog("Datos obtenidos en cursor")
+            # Estructura para almacenar los datos
+            streams = {}
 
         # Procesar los resultados
-        printlog("Recoriendo DATA del cursor")
-        for row in result:
-            id, accion, value, date, stream_number = row
-            # Si el stream no está en el diccionario, inicializarlo
-            if stream_number not in streams:
-                streams[stream_number] = {}
-            # Si la acción no está en el stream, inicializarla
-            if accion not in streams[stream_number]:
-                # Almacenar como lista si hay múltiples valores (ej: mensajes)
-                if accion in ["first_user", "total_messages", "total_users", "top_chatter","new_bits","new_subs","total_money","new_followers"]:
-                    streams[stream_number][accion] = []
-                else:
-                    streams[stream_number][accion] = {}
+            printlog("Recoriendo DATA del cursor")
+            for row in result:
+                id, accion, value, date, stream_number = row
+                if stream_number not in streams:
+                    streams[stream_number] = {}
+                if accion not in streams[stream_number]:
+                    if accion in ["first_user", "total_messages", "total_users", "top_chatter","new_bits","new_subs","total_money","new_followers"]:
+                        streams[stream_number][accion] = []
+                    else:
+                        streams[stream_number][accion] = {}
 
-            # Guardar el valor correctamente
-            if isinstance(streams[stream_number][accion], list):
-                streams[stream_number][accion].append(value)
-            else:
-                streams[stream_number][accion] = {"id": id, "value": value, "date": date}
+                if isinstance(streams[stream_number][accion], list):
+                    streams[stream_number][accion].append(value)
+                else:
+                    streams[stream_number][accion] = {"id": id, "value": value, "date": date}
 
         printlog("Asignando variables del Stream mas reciente")
         # Stream más reciente (1)
@@ -304,9 +272,9 @@ async def end_mail():
         pViwers=str(pViwers)[:5]+"%"
         pMensajes=str(pMensajes)[:5]+"%"
 
-        cursor.execute(f'''
+        cursor.execute('''
             SELECT username FROM users WHERE twitch_id=?
-        ''',(top_chatter_1,))
+        ''', (top_chatter_1,))
         topChatterName = cursor.fetchone()
 
   
@@ -321,30 +289,28 @@ async def end_mail():
         printlog("Ejecutando consultas complementarias")
         # OBTENER EL CONTEO DE LAS PERSONAS QUE CHATEARON EN DIRECTO AL MENOS UNA VEZ
         cursor.execute(f'''
-            WITH allmessages AS (
-                SELECT DISTINCT user FROM {ptable_name}
-                WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
-                union
-                SELECT DISTINCT user FROM {table_name}
-                WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
-                GROUP BY user
-                )
-            SELECT count(*) AS chatters FROM allmessages
+        WITH allmessages AS (
+            SELECT DISTINCT user FROM {ptable_name}
+            WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
+            union
+            SELECT DISTINCT user FROM {table_name}
+            WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
+            GROUP BY user
+            )
+        SELECT count(*) AS chatters FROM allmessages
         ''')
         chatters = cursor.fetchone()
         nChatters = str(chatters[0])
-        # _________________________________________________________________
 
         cursor.execute(f'''
-            SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM history_users 
-            WHERE date BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
-            UNION
-            SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM {table_name}
-            WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
-            GROUP BY user
+        SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM history_users 
+        WHERE date BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
+        UNION
+        SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM {table_name}
+        WHERE timestamp BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
+        GROUP BY user
         ''')
-        # Obtener los usuarios y extraer solo los nombres (evitar que queden como tuplas)
-        users = [user[0] for user in cursor.fetchall()]  
+        users = [user[0] for user in cursor.fetchall()]
 
         # Convertir la cadena a un objeto datetime
         # fecha_obj = datetime.strptime(start_time_1, "%Y-%m-%d %H:%M:%S")
@@ -366,10 +332,6 @@ async def end_mail():
             aUsers = "No users"
             bUsers = "No users"
             cUsers = "No users"
-
-        # Cerrar conexión
-        conn.close()
-        cerrar_conexion(conn, cursor)
 
         printlog("Reemplazando datos en HTML")
         reemplazos = {
@@ -424,13 +386,7 @@ async def end_mail():
         return await enviar_correo("danieltova97@gmail.com", rasunto, contenido_html)
 
     except sqlite3.Error as e:
-        cerrar_conexion(conn, cursor)
         printlog(f"Error en al intentar generar el mail de reporte : {e}","ERROR")
         return False
-
-    finally:
-        if conn:
-            conn.close()
-            cerrar_conexion(conn, cursor)
     
     

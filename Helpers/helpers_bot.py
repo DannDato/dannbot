@@ -278,23 +278,13 @@ async def user_joined(self, user):
             # Conectar a la base de datos (si no existe, se creará automáticamente)
             try:
                 await count_user_joined(username)
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                # Insertar el nuevo registro en la tabla
-                cursor.execute('''INSERT INTO history_users (user, date)VALUES (?, ?)''', (userid, timestamp))
-                # Confirmar los cambios y cerrar la conexión
-                conn.commit()
-                conn.close()
-                cerrar_conexion(conn, cursor)
+                with db_cursor(DB_PATH, commit=True) as (_, cursor):
+                    cursor.execute('''INSERT INTO history_users (user, date)VALUES (?, ?)''', (userid, timestamp))
                 printlog(f'\033[38;5;154m {username} se ha unido \033[0m')
 
             except sqlite3.Error as e:
                 printlog(f'{username} se ha unido')
                 printlog(f"Error al insertar el usuario en la base de datos: {e}","ERROR")
-                if conn:
-                    conn.rollback()
-                    conn.close()
-                    cerrar_conexion(conn, cursor)
         
 
 async def read_save_chat(self, message):
@@ -314,6 +304,7 @@ async def read_save_chat(self, message):
         await interactuar(channel,message)
         await analisis(channel,message)
         await desafiar(channel,message)
+        userid = None
         try:
             username = normalize_username(message.author.name)
             userid=message.author.id
@@ -328,38 +319,29 @@ async def read_save_chat(self, message):
             month = now.month
             table_name = f"chat_{year}{month:02}"
 
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
+            with db_cursor(DB_PATH, commit=True) as (_, cursor):
+                cursor.execute('''
+                    SELECT name 
+                    FROM sqlite_master 
+                    WHERE type='table' AND name=?;
+                ''', (table_name,))
+                table_exists = cursor.fetchone() is not None
+                if not table_exists:
+                    cursor.execute(f'''
+                        CREATE TABLE {table_name} (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user TEXT,
+                            message TEXT,
+                            date TEXT,
+                            timestamp TEXT
+                        );
+                    ''')
+                    printlog(f"Tabla '{table_name}' creada correctamente.")
 
-            # Verificar si la tabla existe
-            cursor.execute('''
-                SELECT name 
-                FROM sqlite_master 
-                WHERE type='table' AND name=?;
-            ''', (table_name,))
-            table_exists = cursor.fetchone() is not None
-            if not table_exists:
-                # Crear la tabla si no existe
                 cursor.execute(f'''
-                    CREATE TABLE {table_name} (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user TEXT,
-                        message TEXT,
-                        date TEXT,
-                        timestamp TEXT
-                    );
-                ''')
-                printlog(f"Tabla '{table_name}' creada correctamente.")
-
-            # Insertar datos
-            cursor.execute(f'''
-                INSERT INTO {table_name} (user, message, date, timestamp)
-                VALUES (?, ?, ?, ?);
-            ''', (userid, message, now.strftime('%Y-%m-%d'), now.strftime('%Y-%m-%d %H:%M:%S')))
-            conn.commit()
-
-            if conn:
-                conn.close()
+                    INSERT INTO {table_name} (user, message, date, timestamp)
+                    VALUES (?, ?, ?, ?);
+                ''', (userid, message, now.strftime('%Y-%m-%d'), now.strftime('%Y-%m-%d %H:%M:%S')))
 
             await update_stream_data("total_messages",1)
             await update_global_stats("messages",userid,1)
@@ -369,44 +351,39 @@ async def read_save_chat(self, message):
         except sqlite3.Error as e:
             printlog(f"Error al gestionar la tabla de chat: {e}","ERROR")
         finally:
-            if conn:
-                conn.close()
-                cerrar_conexion(conn, cursor)
-            await update_global_stats("xp_Voluntad",userid,0.15)
+            if userid is not None:
+                await update_global_stats("xp_Voluntad",userid,0.15)
   
 
 async def update_stream_data(stat_category, value):
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         current_date = datetime.now().strftime('%Y-%m-%d')
-        # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''
-            SELECT date 
-            FROM stream_data
-            WHERE accion = "start_stream"
-            AND NOT EXISTS (
-                SELECT 1
-                FROM stream_data AS subquery
-                WHERE subquery.accion = "end_stream"
-                AND subquery.date >= stream_data.date
-            )
-            ORDER BY date ASC
-            LIMIT 1;
-        ''')
-        result = cursor.fetchone()
-        if result:
-            # Verificar si el usuario ya tiene un valor para esta categoría
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                SELECT date 
+                FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND subquery.date >= stream_data.date
+                )
+                ORDER BY date ASC
+                LIMIT 1;
+            ''')
+            result = cursor.fetchone()
+            if not result:
+                return None
+
             cursor.execute(f'''
                 SELECT value FROM stream_data
                 WHERE accion = "{stat_category}" AND DATETIME(date)>= DATETIME('{result[0]}')
-            ''',)
-
+            ''')
             result = cursor.fetchone()
 
             if result:
-                # Si el usuario ya tiene una estadística, actualizar el valor
                 hvalue = int(result[0]) + value
                 cursor.execute(f'''
                     UPDATE stream_data
@@ -414,80 +391,54 @@ async def update_stream_data(stat_category, value):
                     WHERE accion = ? AND date like '%{current_date}%'
                 ''', (hvalue, stat_category))
             else:
-                # Si no existe, insertar un nuevo registro
                 current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 cursor.execute('''
                     INSERT INTO stream_data (accion, value, date)
                     VALUES (?, ?, ?)
                 ''', (stat_category, value, current_date))
-                
 
-            # Confirmar los cambios y cerrar la conexión
-            conn.commit()
-            conn.close()
-            cerrar_conexion(conn, cursor)   
-            return True
+        return True
 
     except sqlite3.Error as e:
         printlog(f"Error al registrar conteo de mensajes del stream en la base de datos: {e}","ERROR")
-        if conn:
-            cerrar_conexion(conn, cursor)   
-            conn.rollback()
-            conn.close()
         return None
     
 async def count_user_joined(user):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # Verificar si hay un stream iniciado y no cerrado
-        cursor.execute('''
-            SELECT date 
-            FROM stream_data    
-            WHERE accion = "start_stream"
-            AND NOT EXISTS (
-                SELECT 1
-                FROM stream_data AS subquery
-                WHERE subquery.accion = "end_stream"
-                AND subquery.date >= stream_data.date
-            )
-            ORDER BY date ASC
-            LIMIT 1;
-        ''')
-        result = cursor.fetchone()
-        # return
-        if result:
-            # Verificar si el usuario ya tiene un valor para esta categoría
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT date 
+                FROM stream_data    
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND subquery.date >= stream_data.date
+                )
+                ORDER BY date ASC
+                LIMIT 1;
+            ''')
+            result = cursor.fetchone()
+            if not result:
+                return None
+
             cursor.execute(f'''
                 SELECT user FROM history_users
                 WHERE DATETIME(date)>= DATETIME('{result[0]}')
                 AND user=?
-            ''',(user,))
-
+            ''', (user,))
             result = cursor.fetchone()
-            if result:
-                # Confirmar los cambios y cerrar la conexión
-                conn.commit()
-                conn.close()
-                return False
-                
-            else:
-                await update_stream_data("total_users",1)
-                
 
-            # Confirmar los cambios y cerrar la conexión
-            conn.commit()
-            conn.close()
-            cerrar_conexion(conn, cursor)
-            return True
+        if result:
+            return False
+
+        await update_stream_data("total_users",1)
+        return True
 
     except sqlite3.Error as e:
         printlog(f"Error al registrar conteo de Usuarios del stream en la base de datos: {e}","ERROR")
-        if conn:
-            conn.rollback()
-            conn.close()
-            cerrar_conexion(conn, cursor)
         return None
     
 #Timers para mensajes aleatorios

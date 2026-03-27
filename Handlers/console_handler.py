@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import datetime
+import sys
 
 from Helpers.console_log import clear_console, animated_message
 from Helpers.colors import resetColor, white, red, green, dorado
