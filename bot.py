@@ -26,7 +26,7 @@ from Helpers.token_loader import load_token
 from Helpers.console_log import init_console, clear_console, animated_message
 from Helpers.printlog import printlog
 from Helpers.helpers import safe_int
-from Helpers.helpers_bot import user_joined, send_timed_messages, happy_birthday
+from Helpers.helpers_bot import user_joined, send_timed_messages, happy_birthday, poll_chatters
 
             #Importar handlers/Manejadores de eventos
 from Handlers.handlers_message import handle_message
@@ -116,6 +116,7 @@ class Bot(commands.AutoBot):
         self.happy_birthday_task = None
         self.timed_messages_task = None
         self.monitor_task = None
+        self.chatters_poll_task = None
         self._bot_closing = False
         animated_message("Credenciales aplicadas", rosa)
 
@@ -139,6 +140,7 @@ class Bot(commands.AutoBot):
             self.timed_messages_task,
             self.monitor_task,
             self.console_task,
+            self.chatters_poll_task,
         ):
             await self._cancel_task(task)
 
@@ -185,6 +187,8 @@ class Bot(commands.AutoBot):
             self.timed_messages_task = asyncio.create_task(send_timed_messages(self, user))
         if self.monitor_task is None or self.monitor_task.done():
             self.monitor_task = asyncio.create_task(monitor_bot_health(self))
+        if self.chatters_poll_task is None or self.chatters_poll_task.done():
+            self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
         animated_message("DannBot en linea", green)
 

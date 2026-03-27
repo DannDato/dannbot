@@ -12,7 +12,7 @@ import requests
 from urllib.parse import urlencode
 
 from Helpers.printlog import printlog
-from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token, db_cursor
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token, get_broadcaster_id, db_cursor
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
 from Helpers.helpers_stats import update_global_stats, today_birthdays, week_birthdays
 
@@ -520,4 +520,207 @@ async def save_current_data():
 
 def deEmojify(text):
     return emoji.get_emoji_regexp().sub(r'', text.decode('utf8'))
+
+
+# ---------------------------------------------------------------------------
+# SEGUIMIENTO DE VIEWERS POR POLLING  (Reemplazo del evento join de TwitchIO 2)
+# ---------------------------------------------------------------------------
+
+# Bots conocidos excluidos del conteo de viewers
+_KNOWN_BOTS: frozenset = frozenset({'streamelements', 'nightbot', 'dannprod', 'dannievt', 'streamlabs', 'moobot'})
+
+# Snapshot en memoria de chatters actuales: set de (user_id, user_login)
+_current_chatters: set = set()
+
+
+async def set_stream_data_value(stat_category: str, value: int | float):
+    """Establece directamente el valor de un campo de stream_data para el stream
+    activo (a diferencia de update_stream_data que lo incrementa)."""
+    try:
+        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                SELECT date FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1 FROM stream_data AS sub
+                    WHERE sub.accion = "end_stream"
+                    AND sub.date >= stream_data.date
+                )
+                ORDER BY date ASC LIMIT 1;
+            ''')
+            result = cursor.fetchone()
+            if not result:
+                return None
+            stream_start = result[0]
+            cursor.execute(
+                'SELECT id FROM stream_data WHERE accion = ? AND datetime(date) >= datetime(?)',
+                (stat_category, stream_start)
+            )
+            row = cursor.fetchone()
+            if row:
+                cursor.execute('UPDATE stream_data SET value = ? WHERE id = ?', (value, row[0]))
+            else:
+                cursor.execute(
+                    'INSERT INTO stream_data (accion, value, date) VALUES (?, ?, ?)',
+                    (stat_category, value, current_date)
+                )
+        return True
+    except sqlite3.Error as e:
+        printlog(f"Error al guardar {stat_category}: {e}", "ERROR")
+        return None
+
+
+async def _get_stream_data_value(stat_category: str):
+    """Lee el valor actual de un campo de stream_data para el stream activo."""
+    try:
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('''
+                SELECT date FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1 FROM stream_data AS sub
+                    WHERE sub.accion = "end_stream"
+                    AND sub.date >= stream_data.date
+                )
+                ORDER BY date ASC LIMIT 1;
+            ''')
+            result = cursor.fetchone()
+            if not result:
+                return 0
+            cursor.execute(
+                'SELECT value FROM stream_data WHERE accion = ? AND datetime(date) >= datetime(?)',
+                (stat_category, result[0])
+            )
+            row = cursor.fetchone()
+            return int(row[0]) if row else 0
+    except sqlite3.Error as e:
+        printlog(f"Error al leer {stat_category}: {e}", "ERROR")
+        return 0
+
+
+async def handle_chatter_join(user_id: str, user_login: str):
+    """Procesa la entrada de un chatter nuevo detectado por polling.
+    Si es la primera vez en el stream activo, lo registra en history_users
+    e incrementa total_users.
+    """
+    if user_login.lower() in _KNOWN_BOTS:
+        return
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    username = normalize_username(user_login)
+    try:
+        await new_user(user_id, username)
+        is_new = await count_user_joined(user_id)
+        if is_new:
+            with db_cursor(DB_PATH, commit=True) as (_, cursor):
+                cursor.execute(
+                    'INSERT INTO history_users (user, date) VALUES (?, ?)',
+                    (user_id, timestamp)
+                )
+            printlog(f'\033[38;5;154m {username} se ha unido al chat \033[0m')
+    except sqlite3.Error as e:
+        printlog(f"Error procesando join de {username}: {e}", "ERROR")
+
+
+async def get_chatters_total(bot, force_refresh: bool = True) -> int:
+    """Devuelve el total de chatters usando fetch_chatters.
+
+    Si `force_refresh` es True, consulta Twitch y actualiza el snapshot en memoria.
+    Si falla la consulta, regresa el ultimo snapshot disponible.
+    """
+    global _current_chatters
+
+    if not force_refresh:
+        return len(_current_chatters)
+
+    try:
+        token = load_token_file()
+        bot_id = token.get('bot_id')
+        broadcaster_id = get_broadcaster_id()
+        if not broadcaster_id or not bot_id:
+            return len(_current_chatters)
+
+        broadcaster = bot.create_partialuser(broadcaster_id)
+        chatters_obj = await broadcaster.fetch_chatters(
+            moderator=bot_id, first=1000, max_results=None
+        )
+
+        snapshot: set = set()
+        async for chatter in chatters_obj.users:
+            if chatter.name and chatter.name.lower() not in _KNOWN_BOTS:
+                snapshot.add((chatter.id, chatter.name))
+
+        _current_chatters = snapshot
+        return len(_current_chatters)
+
+    except Exception as e:
+        printlog(f"Error obteniendo chatters para !viewers: {e}", "WARNING")
+        return len(_current_chatters)
+
+
+async def poll_chatters(bot):
+    """Tarea de fondo que consulta la lista de chatters cada 5 segundos mientras
+    el stream esté activo. Detecta nuevos ingresos, actualiza
+    stream_actual_viewers, stream_max_viewers y stream_avg_viewers en stream_data.
+    """
+    global _current_chatters
+    token = load_token_file()
+    bot_id = token.get('bot_id')
+    _current_chatters = set()
+
+    while True:
+        try:
+            if not await is_channel_online():
+                # Stream inactivo: limpiar snapshot y revisar más despacio
+                if _current_chatters:
+                    _current_chatters = set()
+                await asyncio.sleep(30)
+                continue
+
+            broadcaster_id = get_broadcaster_id()
+            if not broadcaster_id or not bot_id:
+                await asyncio.sleep(30)
+                continue
+
+            broadcaster = bot.create_partialuser(broadcaster_id)
+            chatters_obj = await broadcaster.fetch_chatters(
+                moderator=bot_id, first=1000, max_results=None
+            )
+
+            snapshot: set = set()
+            async for chatter in chatters_obj.users:
+                if chatter.name and chatter.name.lower() not in _KNOWN_BOTS:
+                    snapshot.add((chatter.id, chatter.name))
+
+            # Detectar quiénes entraron desde el último ciclo
+            joined = snapshot - _current_chatters
+            for uid, ulogin in joined:
+                await handle_chatter_join(uid, ulogin)
+
+            _current_chatters = snapshot
+
+            # Actualizar estadísticas de viewers
+            actual = len(_current_chatters)
+            await set_stream_data_value('stream_actual_viewers', actual)
+
+            current_max = await _get_stream_data_value('stream_max_viewers')
+            if actual > current_max:
+                await set_stream_data_value('stream_max_viewers', actual)
+
+            # Promedio acumulado de viewers en el stream activo
+            current_sum = await _get_stream_data_value('stream_viewers_sum')
+            current_samples = await _get_stream_data_value('stream_viewers_samples')
+            new_sum = current_sum + actual
+            new_samples = current_samples + 1
+            await set_stream_data_value('stream_viewers_sum', new_sum)
+            await set_stream_data_value('stream_viewers_samples', new_samples)
+            avg_viewers = round(new_sum / new_samples, 2) if new_samples > 0 else 0
+            await set_stream_data_value('stream_avg_viewers', avg_viewers)
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            printlog(f"Error en poll_chatters: {e}", "WARNING")
+
+        await asyncio.sleep(5)
     

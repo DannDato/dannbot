@@ -16,7 +16,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 async def end_stream():
     """
     Finaliza un stream si está iniciado y no se ha cerrado.
-    
+
     :param db_path: Ruta a la base de datos SQLite.
     :return: True si se finalizó el stream, False en caso contrario.
     """
@@ -24,7 +24,7 @@ async def end_stream():
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
             # Verificar si hay un stream iniciado y no cerrado
             cursor.execute('''
-                SELECT date 
+                SELECT date
                 FROM stream_data
                 WHERE accion = "start_stream"
                 AND NOT EXISTS (
@@ -46,7 +46,7 @@ async def end_stream():
             dollar = 18.75
             cursor.execute(
                 '''
-                SELECT 
+                SELECT
                     COALESCE(MAX(CASE WHEN accion = "new_bits" THEN value END), 0) AS bits,
                     COALESCE(MAX(CASE WHEN accion = "new_subs" THEN value END), 0) AS subs
                 FROM stream_data
@@ -78,11 +78,11 @@ async def end_stream():
         printlog(f"Error en la base de datos: {e}","ERROR")
         return False
 
-    
+
 async def start_stream():
     """
     Inicia un nuevo stream si no hay uno iniciado o si el último stream fue terminado.
-    
+
     :param db_path: Ruta a la base de datos SQLite.
     :return: True si se inició el stream, False en caso contrario.
     """
@@ -90,7 +90,7 @@ async def start_stream():
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
             # Verificar si hay un stream iniciado y no cerrado
             cursor.execute('''
-                SELECT date 
+                SELECT date
                 FROM stream_data
                 WHERE accion = "start_stream"
                 AND NOT EXISTS (
@@ -137,7 +137,7 @@ async def start_stream():
     except sqlite3.Error as e:
         printlog(f"Error en la base de datos: {e}","ERROR")
         return False
-    
+
 async def end_mail():
     """Lee el contenido de un archivo HTML y lo devuelve como texto"""
     HTML_PATH = os.path.join(os.path.dirname(__file__), '..', 'Html', 'mails', 'end_stream.html')
@@ -187,7 +187,7 @@ async def end_mail():
                 if stream_number not in streams:
                     streams[stream_number] = {}
                 if accion not in streams[stream_number]:
-                    if accion in ["first_user", "total_messages", "total_users", "top_chatter","new_bits","new_subs","total_money","new_followers"]:
+                    if accion in ["first_user", "total_messages", "total_users", "top_chatter","new_bits","new_subs","total_money","new_followers","stream_max_viewers","stream_avg_viewers"]:
                         streams[stream_number][accion] = []
                     else:
                         streams[stream_number][accion] = {}
@@ -209,7 +209,9 @@ async def end_mail():
         new_bits = streams[1]["new_bits"][0] if "new_bits" in streams[1] else None
         new_subs = streams[1]["new_subs"][0] if "new_subs" in streams[1] else None
         total_money = streams[1]["total_money"][0] if "total_money" in streams[1] else None
-        
+        stream_max_viewers_1 = streams[1]["stream_max_viewers"][0] if "stream_max_viewers" in streams[1] else 0
+        stream_avg_viewers_1 = streams[1]["stream_avg_viewers"][0] if "stream_avg_viewers" in streams[1] else 0
+
 
         # Stream segundo más reciente (2)
         printlog("Asignacion de variables del stream anterior")
@@ -243,7 +245,7 @@ async def end_mail():
             contenido_html =contenido_html.replace('var(--pMensajes-color)','var(--second-color)')
         else:
             contenido_html =contenido_html.replace('var(--pMensajes-color)','gray')
-            
+
         # Convertir las cadenas de texto a objetos datetime
         start_time_1 = datetime.strptime(start_time_1, "%Y-%m-%d %H:%M:%S")
         end_time_1 = datetime.strptime(end_time_1, "%Y-%m-%d %H:%M:%S")
@@ -262,7 +264,7 @@ async def end_mail():
         segundo_criterio, segundo_criterio_valor = list(criterios_ordenados.items())[1]
 
         printlog("Ordenando criterios de conclusión")
-        
+
         if criterio_valor > 0: rasunto = f'''Incremento del {criterio_valor}% en {criterio} '''
         if criterio_valor == 0: rasunto = f'''Todo igual en {criterio} '''
         if criterio_valor < 0: rasunto = f'''Disminución del {criterio_valor}% en {criterio} '''
@@ -277,7 +279,7 @@ async def end_mail():
         ''', (top_chatter_1,))
         topChatterName = cursor.fetchone()
 
-  
+
         now = datetime.now()
         year = now.year
         month = now.month
@@ -303,7 +305,7 @@ async def end_mail():
         nChatters = str(chatters[0])
 
         cursor.execute(f'''
-        SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM history_users 
+        SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM history_users
         WHERE date BETWEEN DATETIME('{start_time_1}') AND DATETIME('{end_time_1}')
         UNION
         SELECT (SELECT username FROM users WHERE twitch_id=user) as user FROM {table_name}
@@ -329,13 +331,14 @@ async def end_mail():
             cUsers = "<br>".join(users[split_size * 2:])
         else:
             # Si no hay usuarios, asignar "No users"
+            total_users = 0
             aUsers = "No users"
             bUsers = "No users"
             cUsers = "No users"
 
         printlog("Reemplazando datos en HTML")
         reemplazos = {
-            "[nViwers]": str(total_users_1),
+            "[nViwers]": str(total_users),
             "[TotalUsers3]":str(total_users_3),
             "[TotalUsers2]":str(total_users_2),
             "[TotalUsers1]":str(total_users_1),
@@ -356,16 +359,18 @@ async def end_mail():
             "[bUsers]":str(bUsers),
             "[fecha_reporte]":str(fecha_reporte),
             "[cUsers]":str(cUsers),
-            "[rConclusion]":str(rConclusion)
+            "[rConclusion]":str(rConclusion),
+            "[peakViewers]": str(stream_max_viewers_1),
+            "[avgViewers]": str(stream_avg_viewers_1)
         }
 
-        
+
 
         # Aplicar reemplazos correctamente
         for palabra, nuevo_valor in reemplazos.items():
             contenido_html = contenido_html.replace(palabra, nuevo_valor)
 
-        
+
         variables_css = {
             "--bg-color": "#121212",
             "--main-color": "#00f5ff",
@@ -388,5 +393,5 @@ async def end_mail():
     except sqlite3.Error as e:
         printlog(f"Error en al intentar generar el mail de reporte : {e}","ERROR")
         return False
-    
-    
+
+

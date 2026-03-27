@@ -7,6 +7,7 @@ from datetime import datetime, date
 
 from Helpers.helpers import send_large_message, validar_fecha, normalize_username, wordslist
 from Helpers.chatgpt import chatgpt
+from Helpers.helpers_bot import get_chatters_total
 from Helpers.helpers_dynamic import (
     gen_response, get_steam_library, get_vips, get_followers_count, get_follow_age,
     get_viewers
@@ -492,4 +493,5 @@ class dynamic_commands(commands.Component):
 
     @commands.command(name='viewers')
     async def viewers(self, ctx):
-        await ctx.send(f'Ahora mismo hay {get_viewers()} viewers 😎! ')
+        total = await get_chatters_total(self.bot, force_refresh=True)
+        await ctx.send(f'[BOT] - Ahora mismo hay {total} personas en el chat 😎!')
