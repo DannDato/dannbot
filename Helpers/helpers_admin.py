@@ -1,5 +1,7 @@
 import sqlite3
 import os
+import json
+from urllib.parse import quote
 from datetime import datetime
 
 
@@ -26,67 +28,68 @@ def _build_streams_comparison_chart(users_1, users_2, users_3, messages_1, messa
     messages_values = [safe_int(messages_3), safe_int(messages_2), safe_int(messages_1)]
     labels = ["S-2", "S-1", "Actual"]
 
-    width = 540
-    height = 250
-    left = 50
-    right = 20
-    top = 20
-    bottom = 45
-    inner_w = width - left - right
-    inner_h = height - top - bottom
+    chart_config = {
+        "type": "line",
+        "data": {
+            "labels": labels,
+            "datasets": [
+                {
+                    "label": "Usuarios",
+                    "data": users_values,
+                    "borderColor": "#00f5ff",
+                    "backgroundColor": "#00f5ff",
+                    "fill": False,
+                    "tension": 0.35,
+                    "pointRadius": 4,
+                    "pointHoverRadius": 5,
+                    "borderWidth": 3,
+                },
+                {
+                    "label": "Mensajes",
+                    "data": messages_values,
+                    "borderColor": "#ff9e00",
+                    "backgroundColor": "#ff9e00",
+                    "fill": False,
+                    "tension": 0.35,
+                    "pointRadius": 4,
+                    "pointHoverRadius": 5,
+                    "borderWidth": 3,
+                },
+            ],
+        },
+        "options": {
+            "plugins": {
+                "legend": {
+                    "labels": {"color": "#ffffff"}
+                },
+                "title": {
+                    "display": True,
+                    "text": "Comparativa 3 streams",
+                    "color": "#ffffff",
+                },
+            },
+            "scales": {
+                "x": {
+                    "ticks": {"color": "#ffffff"},
+                    "grid": {"color": "rgba(255,255,255,0.12)"},
+                },
+                "y": {
+                    "beginAtZero": True,
+                    "ticks": {"color": "#ffffff"},
+                    "grid": {"color": "rgba(255,255,255,0.12)"},
+                },
+            },
+        },
+    }
 
-    max_val = max(users_values + messages_values + [1])
-    x_points = [left + int((inner_w / 2) * i) for i in range(3)]
-
-    def y_of(value: int) -> int:
-        ratio = (value / max_val) if max_val > 0 else 0
-        return top + int(inner_h - (ratio * inner_h))
-
-    def polyline(values):
-        return " ".join(f"{x_points[i]},{y_of(values[i])}" for i in range(3))
-
-    users_line = polyline(users_values)
-    messages_line = polyline(messages_values)
-
-    # 5 líneas de guía del eje Y
-    y_grid = []
-    for i in range(6):
-        y = top + int((inner_h / 5) * i)
-        val = int(max_val - ((max_val / 5) * i))
-        y_grid.append(
-            f'<line x1="{left}" y1="{y}" x2="{width-right}" y2="{y}" stroke="var(--letter-color)" stroke-opacity="0.12" stroke-width="1" />'
-            f'<text x="{left-8}" y="{y+4}" text-anchor="end" font-size="10" fill="var(--letter-color)" fill-opacity="0.7">{val}</text>'
-        )
-
-    users_points_parts = []
-    messages_points_parts = []
-    for i in range(3):
-        uy = y_of(users_values[i])
-        my = y_of(messages_values[i])
-
-        # Si los valores quedan muy cerca en el eje Y, separar etiquetas para evitar empalme.
-        if abs(uy - my) < 22:
-            users_label_y = uy - 14
-            messages_label_y = my + 20
-        else:
-            users_label_y = uy - 9
-            messages_label_y = my + 16
-
-        users_points_parts.append(
-            f'<circle cx="{x_points[i]}" cy="{uy}" r="4" fill="var(--main-color)" />'
-            f'<text x="{x_points[i]}" y="{users_label_y}" text-anchor="middle" font-size="11" fill="var(--letter-color)">{users_values[i]}</text>'
-        )
-        messages_points_parts.append(
-            f'<circle cx="{x_points[i]}" cy="{my}" r="4" fill="var(--third-color)" />'
-            f'<text x="{x_points[i]}" y="{messages_label_y}" text-anchor="middle" font-size="11" fill="var(--letter-color)">{messages_values[i]}</text>'
-        )
-
-    users_points = "".join(users_points_parts)
-    messages_points = "".join(messages_points_parts)
-
-    x_labels = "".join(
-        f'<text x="{x_points[i]}" y="{height - 16}" text-anchor="middle" font-size="11" fill="var(--letter-color)" fill-opacity="0.9">{labels[i]}</text>'
-        for i in range(3)
+    encoded_chart = quote(json.dumps(chart_config, separators=(",", ":")))
+    chart_url = (
+        "https://quickchart.io/chart"
+        "?width=900"
+        "&height=420"
+        "&devicePixelRatio=2"
+        "&backgroundColor=%23161616"
+        f"&c={encoded_chart}"
     )
 
     return f'''
@@ -94,18 +97,7 @@ def _build_streams_comparison_chart(users_1, users_2, users_3, messages_1, messa
         <tr>
             <td align="center" style="background-color: var(--bg-box); border-radius: 26px; padding: 18px;">
                 <p style="margin:0 0 10px 0; font-size:14px;"><b>Comparativa 3 streams</b> (usuarios vs mensajes)</p>
-                <svg width="100%" viewBox="0 0 {width} {height}" role="img" aria-label="Grafica comparativa de usuarios y mensajes">
-                    {''.join(y_grid)}
-                    <line x1="{left}" y1="{height-bottom}" x2="{width-right}" y2="{height-bottom}" stroke="var(--letter-color)" stroke-opacity="0.5" stroke-width="1.2" />
-                    <line x1="{left}" y1="{top}" x2="{left}" y2="{height-bottom}" stroke="var(--letter-color)" stroke-opacity="0.5" stroke-width="1.2" />
-
-                    <polyline points="{users_line}" fill="none" stroke="var(--main-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-                    <polyline points="{messages_line}" fill="none" stroke="var(--third-color)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-
-                    {users_points}
-                    {messages_points}
-                    {x_labels}
-                </svg>
+                <img src="{chart_url}" alt="Grafica comparativa de usuarios y mensajes" style="display:block; width:100%; max-width:560px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);" />
 
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 6px; font-size:12px; color: var(--letter-color);">
                     <tr>
@@ -113,6 +105,10 @@ def _build_streams_comparison_chart(users_1, users_2, users_3, messages_1, messa
                         <td><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--third-color);"></span> Mensajes</td>
                     </tr>
                 </table>
+
+                <p style="margin:8px 0 0 0; font-size:11px; color: var(--letter-color); opacity:0.8;">
+                    S-2: U={users_values[0]} M={messages_values[0]} | S-1: U={users_values[1]} M={messages_values[1]} | Actual: U={users_values[2]} M={messages_values[2]}
+                </p>
             </td>
         </tr>
     </table>
