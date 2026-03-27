@@ -1,11 +1,11 @@
 from twitchio.ext import commands
 import logging
 import random
-import time 
+import time
 from datetime import datetime, date
 
 
-from Helpers.helpers import send_large_message, validar_fecha, normalize_username, wordslist
+from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
 from Helpers.chatgpt import chatgpt
 from Helpers.helpers_bot import get_chatters_total
 from Helpers.helpers_dynamic import (
@@ -28,35 +28,35 @@ class dynamic_commands(commands.Component):
 
                 INDICE
         -comandos
-        -bot 
-        -so 
+        -bot
+        -so
         -memide
-        -bd 
-        -cumpleaños  
+        -bd
+        -cumpleaños
         -ruleta
         -mecaben
         -bola8
         -trivia
-        -insultar 
+        -insultar
         -insultame
-        -halago 
+        -halago
         -caraocruz
         -meporte
-        -nalgada 
+        -nalgada
         -pies
-        -abrazo 
-        -duelo 
+        -abrazo
+        -duelo
         -ip
-        -amor 
-        -odio 
+        -amor
+        -odio
         -midinero
-        -donar 
-        -juegos 
-        -setso 
+        -donar
+        -juegos
+        -setso
         -xeno
         -ban?
-        -vips 
-        -joteria            
+        -vips
+        -joteria
     """
     @commands.command(name='comandos', aliases=["help", "commands", "ayuda"])
     async def comandos(self, ctx):
@@ -82,8 +82,8 @@ class dynamic_commands(commands.Component):
         # Responder con la lista de comandos
         await send_large_message(ctx, command_string)
 
-    
-    
+
+
     @commands.command(name='followers', aliases=["seguidores"])
     async def followers(self, ctx):
         total = await get_followers_count()
@@ -115,11 +115,11 @@ class dynamic_commands(commands.Component):
             await ctx.send(f'[BOT] - Amigos! Vamos a seguir a @{mentioned_user} en su canal www.twitch.tv/{mentioned_user}')
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.chatter.name}, este comando es solo para moderadores.')
-    
+
     @commands.command(name='memide')
     async def memide(self,ctx):
         lnCm = random.randint(0, 35)
-        if lnCm <= 5: 
+        if lnCm <= 5:
             lcExtra  ="🥺"
         elif lnCm > 5 and lnCm < 13:
             lcExtra ="👀"
@@ -136,23 +136,24 @@ class dynamic_commands(commands.Component):
 
     @commands.command(name='bd')
     async def bd(self,ctx):
-        if ctx.message.text.strip() == '!bd': 
-            printlog("No ingresó texto para el comando !bd","WARNING") 
-            await ctx.send(f'[BOT] - @{ctx.chatter.name} Debe ser Año, Mes, día. así: "!bd 2000-01-31" ;)')
+        if ctx.message.text.strip() == '!bd':
+            printlog("No ingresó texto para el comando !bd","WARNING")
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} Dame tu fecha de nacimiento! Puedes usar cualquier formato (ej: 2000-01-31, 31/1/2000, 31 de enero de 2000) y lo entenderé 😊')
             return;
         bd = ctx.message.text.strip().split(' ')[1].strip()
         bd = bd.strip()
-        bd = bd.replace("/","-")
-        pasa = validar_fecha(bd)
+
+        # Usar nueva función de parsing flexible
+        pasa = await parse_flexible_date(bd)
         if pasa[0] == True:
-            guardado = await save_user_bd(bd, ctx.chatter.id)
+            guardado = await save_user_bd(pasa[1], ctx.chatter.id)
             if guardado == True:
                 await ctx.send(f'[BOT] - Perfecto @{ctx.chatter.name} ahora recordaré tu cumpleaños!')
         else:
-            await ctx.send(f'[BOT] - @{ctx.chatter.name} Debe ser Año, Mes, día. así: "!bd 2000-01-31" ;)')
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} No entendí ese formato 😅 Intenta de nuevo, por ejemplo: 31/12/1999 o 1999-12-31')
         await update_global_stats("xp_Voluntad",ctx.chatter.id,0.55)
-    
-    @commands.command(name='cumpleaños', aliases=["cumple","birthday"])
+
+    @commands.command(name='cumpleaños', aliases=["cumple","birthday","cum"])
     async def cumpleaños(self,ctx):
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
@@ -180,20 +181,20 @@ class dynamic_commands(commands.Component):
             await ctx.send(f"[BOT] - El cumpleaños 🎉 de @{mentioned_user} es el {bd[4]} de {bd[3]} {complemento}")
         else:
             await ctx.send(f"[BOT] - No se cuando es el cumpleaños de @{mentioned_user} 😔 díganle que lo guarde con el comando !bd YYYY-MM-DD ")
-        
+
     @commands.command(name='ruleta')
     async def ruleta(self,ctx):
         await ctx.send(f'[BOT] - @{ctx.chatter.name} quiere jugar a la ruleta rusa... toma el arma, se prepara...')
         time.sleep(1)
         lnOpcion = random.randint(0,5)
-        if lnOpcion == 0: 
+        if lnOpcion == 0:
             lcRespuesta  ="Bye, se ha matao mi hijo ☠️"
         else:
             lcRespuesta  ="La bala le dió en el pie... se salva 😎"
         await ctx.send(f'[BOT] - {lcRespuesta}')
         await update_global_stats("xp_Voluntad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Habilidad",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='mecaben', aliases=["mecabe"])
     async def mecaben(self,ctx):
         lnBoca = random.randint(1,3)
@@ -223,7 +224,7 @@ class dynamic_commands(commands.Component):
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.chatter.name}')
         await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)
         await update_global_stats("xp_Habilidad",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='insultar', aliases=["insulto", "insulta"])
     async def insultar(self,ctx):
         if '@' not in ctx.message.text:
@@ -234,7 +235,7 @@ class dynamic_commands(commands.Component):
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='insultame')
     async def insultame(self,ctx):
         mentioned_user = ctx.chatter.name
@@ -257,7 +258,7 @@ class dynamic_commands(commands.Component):
     @commands.command(name='caraocruz')
     async def caraocruz(self,ctx):
         lnResp = random.randint(0, 1)
-        if lnResp == 0: lcRespuesta = "Cara" 
+        if lnResp == 0: lcRespuesta = "Cara"
         else: lcRespuesta = "Cruz"
         await ctx.send(f'[BOT] - {lcRespuesta} @{ctx.chatter.name}')
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
@@ -286,13 +287,13 @@ class dynamic_commands(commands.Component):
         await ctx.send(f'[BOT] - {ctx.chatter.name} Le ha dado una nalgada a @{mentioned_user}... y le dijo: {lcRespuesta}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='pies')
     async def pies(self,ctx):
         await ctx.send(f'[BOT] - {ctx.chatter.name} cochino, no andes pidiendo patas por aquí 🦶🦶🦶')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='abrazo', aliases=["abrazar","hug"])
     async def abrazo(self,ctx):
         #______________Get mentioned user____________________
@@ -358,7 +359,7 @@ class dynamic_commands(commands.Component):
             primerUsuario = normalize_username(ctx.chatter.name)  # Tomar el nombre de quien lo envía
             segundoUsuario = normalize_username(countUsers[1].split()[0])  # Tomar el texto después del segundo '@' hasta el siguiente espacio
         lnAmor = random.randint(1, 100)
-        if lnAmor <= 33: 
+        if lnAmor <= 33:
             lcExtra  ="❤️"
         elif lnAmor > 33 and lnAmor < 66:
             lcExtra ="❤️❤️"
@@ -367,7 +368,7 @@ class dynamic_commands(commands.Component):
         time.sleep(1)
         await ctx.send(f'[BOT] - El amor entre @{primerUsuario} y @{segundoUsuario} es del {lnAmor}% {lcExtra}')
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='odio')
     async def odio(self,ctx):
         if not ctx.message.text.strip().startswith('!odio @'):
@@ -381,7 +382,7 @@ class dynamic_commands(commands.Component):
             primerUsuario = normalize_username(ctx.chatter.name)  # Tomar el nombre de quien lo envía
             segundoUsuario = normalize_username(countUsers[1].split()[0])  # Tomar el texto después del segundo '@' hasta el siguiente espacio
         lnAmor = random.randint(1, 100)
-        if lnAmor <= 33: 
+        if lnAmor <= 33:
             lcExtra  ="🤬"
         elif lnAmor > 33 and lnAmor < 66:
             lcExtra ="🤬🤬"
@@ -391,7 +392,7 @@ class dynamic_commands(commands.Component):
         await ctx.send(f'[BOT] - El odio entre @{primerUsuario} y @{segundoUsuario} es del {lnAmor}% {lcExtra}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='dinero', aliases=["midinero"])
     async def midinero(self,ctx):
         lnBanco = random.randint(1, 10000)
@@ -409,7 +410,7 @@ class dynamic_commands(commands.Component):
         #______________Get mentioned user____________________
         await ctx.send(f'[BOT] - Yo creo que @{mentioned_user} deberia donar {lnBits} bits 👀')
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-   
+
     @commands.command(name="juegos", aliases=["games"])
     async def juegos(self,ctx):
         if ctx.chatter.moderator:
@@ -421,7 +422,7 @@ class dynamic_commands(commands.Component):
         else:
             await ctx.send(f'[BOT] - Lo siento {ctx.chatter.name}, este comando es solo para moderadores.')
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='setso')
     async def setso(self,ctx):
         if not ctx.message.text.strip().startswith('!setso @'):
@@ -431,7 +432,7 @@ class dynamic_commands(commands.Component):
         await ctx.send(f'[BOT] - 😈 @{ctx.chatter.name} quiere llevarse a @{mentioned_user} a hacer cositas...🥵 ¿será que acepta?')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='xeno')
     async def xeno(self,ctx):
         dt1 = date.fromisoformat('2024-12-19')
@@ -445,7 +446,7 @@ class dynamic_commands(commands.Component):
             logging.warning(normalize_username(ctx.chatter.name))
             await ctx.send(f'[BOT] - Lo siento, este comando solo lo puede ejecutar @dani_14k')
             return
-        lnBan = random.randint(1, 10)
+        lnBan = random.randint(1, 6)
         if lnBan == 5 :
             lnTiempo=random.randint(1, 10)
             lnResponse=f"Está bien, autorizo ban de {lnTiempo} segundos 💣"
@@ -481,11 +482,11 @@ class dynamic_commands(commands.Component):
             lcExtra="Aléjese gei (No es cierto, no a la homofobia) ❤️"
         if nivel >=95:
             lcExtra="Increible, tu nivel de joteria es realmente impresionante 🏳️‍🌈"
-        
+
         await ctx.send(f"[BOT] - Tu nivel de joteria @{ctx.chatter.name} es de {nivel}% {lcExtra}")
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
-    
+
     @commands.command(name='followage', aliases=["siguiendo"])
     async def followage(self, ctx):
         if '@' in ctx.message.text:

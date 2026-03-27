@@ -7,6 +7,7 @@ import aiohttp
 import time
 from contextlib import contextmanager
 from datetime import datetime
+from openai import OpenAI, OpenAIError
 
 
 #Cargar el token para operaciones con las credenciales
@@ -34,7 +35,7 @@ _broadcaster_id_cache = None
     is_channel_online       :
     clean_text              :
     get_viewers_count       :
-    cerrar_conexion         :   
+    cerrar_conexion         :
     wordslist               :
     validar_fecha           :
     format_username         :
@@ -92,14 +93,14 @@ def safe_int(value):
         return int(value) if value not in [None, ""] else 0
     except ValueError:
         return 0
-    
+
 # Función para verificar si el autor del mensaje está en la lista de usuarios permitidos
 def is_authorized(ctx):
     # Lista de usuarios autorizados
     AUTHORIZED_USERS = ['danndato', 'lauunieves',]
     if ctx.chatter.name.lower() in AUTHORIZED_USERS:
         return True
-    else: return False 
+    else: return False
 
 #Función que divide una cadena de texto grande en diferentes mensajes en base al límite definid
 async def send_large_message(ctx, message):
@@ -199,7 +200,7 @@ def clean_text(text):
 
     # Reemplazar saltos de línea, tabulaciones y otras marcas invisibles por espacios
     text = re.sub(r"[\n\r\t\f\v]+", " ", text)
-    
+
     # Colapsar múltiples espacios a uno solo
     text = re.sub(r"\s+", " ", text)
 
@@ -276,11 +277,157 @@ def validar_fecha(bd):
         fecha = datetime.strptime(bd, "%Y-%m-%d")
         # Año razonable (ajusta el rango si lo necesitas)
         if fecha.year < 1900 or fecha.year > 2100:
-            return False, "El año debe estar entre 1900 y 2100."    
+            return False, "El año debe estar entre 1900 y 2100."
         return True, "Fecha válida."
-    
+
     except ValueError:
         return False, "Fecha inválida. Revisa el día y el mes."
+
+async def parse_flexible_date(date_str: str) -> tuple[bool, str]:
+    """
+    Intenta parsear una fecha en múltiples formatos (local parsing).
+    Si falla, utiliza OpenAI para interpretar la entrada y convertirla a YYYY-MM-DD.
+
+    Args:
+        date_str: Cadena de fecha en cualquier formato (ej: "25-12-1999", "25/12/99", "15 de octubre del 1997")
+
+    Returns:
+        (True, "YYYY-MM-DD") si es válida, (False, None) si falla
+    """
+
+    # Diccionarios para nombres de meses en español e inglés
+    months_es = {
+        'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+        'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
+        'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dic': 12
+    }
+
+    months_en = {
+        'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6,
+        'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12,
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'jun': 6, 'jul': 7,
+        'aug': 8, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    }
+
+    all_months = {**months_es, **months_en}
+
+    # Formatos locales a intentar
+    local_formats = [
+        "%Y-%m-%d",      # 1999-12-25
+        "%d-%m-%Y",      # 25-12-1999
+        "%d/%m/%Y",      # 25/12/1999
+        "%d/%m/%y",      # 25/12/99
+        "%d-%m-%y",      # 25-12-99
+        "%Y/%m/%d",      # 1999/12/25
+        "%m/%d/%Y",      # 12/25/1999
+        "%m-%d-%Y",      # 12-25-1999
+        "%d.%m.%Y",      # 25.12.1999
+        "%Y.%m.%d",      # 1999.12.25
+        "%d%m%Y",        # 25121999
+        "%Y%m%d",        # 19991225
+    ]
+
+    # Intentar parsear con formatos locales simples
+    for fmt in local_formats:
+        try:
+            fecha = datetime.strptime(date_str.strip(), fmt)
+            # Validar rango razonable de año
+            if 1900 <= fecha.year <= 2100:
+                return True, fecha.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    # Intentar parsear patrones con nombres de meses (ej: "15 de octubre del 1997")
+    date_lower = date_str.lower().strip()
+
+    # Buscar patrón: número + opcional(de) + nombre_mes + opcional(del/de) + número
+    for month_name, month_num in all_months.items():
+        # Patrones: "15 de octubre del 1997", "15 octubre 1997", "15 de octubre 97", etc.
+        patterns = [
+            rf"(\d{{1,2}})\s+de\s+{month_name}\s+del\s+(\d{{2,4}})",      # 15 de octubre del 1997
+            rf"(\d{{1,2}})\s+de\s+{month_name}\s+de\s+(\d{{2,4}})",       # 15 de octubre de 1997
+            rf"(\d{{1,2}})\s+{month_name}\s+(\d{{2,4}})",                 # 15 octubre 1997
+            rf"(\d{{1,2}})\s+de\s+{month_name}\s+(\d{{2,4}})",            # 15 de octubre 1997
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, date_lower)
+            if match:
+                day = match.group(1)
+                year = match.group(2)
+
+                # Convertir año de 2 dígitos a 4 si es necesario
+                if len(year) == 2:
+                    year = int(year)
+                    # Si es 00-50, asumir 2000-2050; si es 51-99, asumir 1951-1999
+                    if year <= 50:
+                        year = 2000 + year
+                    else:
+                        year = 1900 + year
+                    year = str(year)
+
+                try:
+                    fecha = datetime(int(year), month_num, int(day))
+                    if 1900 <= fecha.year <= 2100:
+                        return True, fecha.strftime("%Y-%m-%d")
+                except ValueError:
+                    continue
+
+    # Si local parsing falla, intentar con OpenAI
+    try:
+        client = OpenAI()
+
+        prompt = (
+            f"Parse this date string into YYYY-MM-DD format only. "
+            f"If it's ambiguous, assume DD/MM/YYYY format (European/Latin standard). "
+            f"Return ONLY the date in YYYY-MM-DD format. "
+            f"If you cannot parse it, return: INVALID\n\n"
+            f"Input: {date_str}"
+        )
+
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a date parser. Respond with only the date in YYYY-MM-DD format or INVALID."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=20,
+            temperature=0
+        )
+
+
+        if not completion.choices:
+            printlog("No se recibió respuesta de OpenAI para el parsing de fecha.", level="WARNING")
+            return False, None
+
+        response = completion.choices[0].message.content.strip()
+
+        # Verificar que la respuesta sea un formato válido YYYY-MM-DD
+        if response == "INVALID" or not re.match(r"^\d{4}-\d{2}-\d{2}$", response):
+            printlog(f"OpenAI no pudo parsear la fecha correctamente. Respuesta: {response}", level="WARNING")
+            return False, None
+
+        # Validar que sea una fecha real
+        try:
+            fecha = datetime.strptime(response, "%Y-%m-%d")
+            if 1900 <= fecha.year <= 2100:
+                printlog(f"Fecha parseada exitosamente por OpenAI: {response}", level="INFO")
+                return True, response
+        except ValueError:
+            printlog(f"OpenAI devolvió un formato correcto pero fecha inválida: {response}", level="WARNING")
+            return False, None
+
+    except OpenAIError:
+        printlog("Error al comunicarse con OpenAI para el parsing de fecha.", level="ERROR")
+        return False, None
+    except Exception:
+        printlog("Error inesperado durante el parsing de fecha con OpenAI.", level="ERROR")
+        return False, None
+    printlog("No se pudo parsear la fecha con métodos locales ni con OpenAI.", level="WARNING")
+    return False, None
+
+
 
 def format_usernames(usernames):
     if len(usernames) > 1:
@@ -291,7 +438,7 @@ def format_usernames(usernames):
         return f"@{usernames[0]}"
     else:
         return ""
-    
+
 def printlog(message, level="INFO"):
     """
     """
@@ -301,7 +448,7 @@ def printlog(message, level="INFO"):
         "ERROR": "\033[91m",  # Red
         "DEBUG": "\033[94m"   # Blue
     }
-    
+
     gray = "\033[90m"
     reset = "\033[0m"
     datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -311,7 +458,7 @@ def printlog(message, level="INFO"):
     logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Logs', f'{date}.log'))
     if not os.path.exists(os.path.dirname(logs_path)):
         os.makedirs(os.path.dirname(logs_path))
-    
+
     if level in levels:
         print(f"{gray}{datetime} {levels[level]} [{level}] - {reset}{message}{reset}")
     else:
