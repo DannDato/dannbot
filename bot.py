@@ -35,6 +35,7 @@ from Handlers.handlers_cheer import handle_cheer
 from Handlers.handlers_subs import handle_sub, handle_sub_gift
 from Handlers.console_handler import console_control
 from Helpers.health_check import monitor_bot_health
+from Helpers.helpers_admin import start_stream
 
 from Helpers.colors import (
     azul, white, resetColor,
@@ -116,6 +117,8 @@ class Bot(commands.AutoBot):
         self.monitor_task = None
         self.chatters_poll_task = None
         self._bot_closing = False
+        self.command_modules_loaded = True
+        self.command_module_issues = []
         animated_message("Credenciales aplicadas", rosa)
 
     async def _cancel_task(self, task: asyncio.Task | None) -> None:
@@ -154,6 +157,8 @@ class Bot(commands.AutoBot):
     #Setup inicial del bot, carga dinámica de archivos py para modulos de comandos
     async def setup_hook(self) -> None:
         animated_message("Cargando comandos...", white)
+        self.command_modules_loaded = True
+        self.command_module_issues = []
         commands_dir = "Commands"
         command_files = [
             filename for filename in os.listdir(commands_dir)
@@ -176,9 +181,18 @@ class Bot(commands.AutoBot):
                             loaded_component = True
                             printlog(f"Lista de comandos cargados: {attr_name}")
                     if not loaded_component:
+                        self.command_modules_loaded = False
+                        self.command_module_issues.append(module_name)
                         printlog(f"No se encontro ningun commands.Component en {module_name}", "WARNING")
                 except Exception as e:
+                    self.command_modules_loaded = False
+                    self.command_module_issues.append(module_name)
                     printlog(f"Error cargando {module_name}: {e}", "ERROR")
+
+        if not self.command_modules_loaded:
+            printlog("No se pudieron cargar todos los modulos, se necesita atencion", "ERROR")
+            printlog(f"Modulos con problemas: {', '.join(self.command_module_issues)}", "WARNING")
+            animated_message("Carga incompleta de modulos", red)
         await asyncio.sleep(1)
     #______________________________________________________________________
 
@@ -197,6 +211,8 @@ class Bot(commands.AutoBot):
         if self.chatters_poll_task is None or self.chatters_poll_task.done():
             self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
+        if not self.command_modules_loaded:
+            await user.send_message(sender=self.user, message="[BOT] - Se me olvidaron los comandooos! ayudame datooo")
         animated_message("DannBot en linea", green)
 
     # Listener para mensajes
@@ -236,9 +252,14 @@ class Bot(commands.AutoBot):
     async def event_channel_update(self, payload: twitchio.ChannelUpdate) -> None:
         printlog(f"Se ha actualizado la información del canal {payload.title} | {payload.category_name}")
 
-    # async def event_stream_online(self, payload: twitchio.StreamOnline) -> None:
-    #     printlog("Se ha inicializado un stream!")
-    #     #Aqui agregaremos el handler para iniciar directo
+    async def event_stream_online(self, payload: twitchio.StreamOnline) -> None:
+        printlog(f"Evento stream_online recibido para broadcaster {payload.broadcaster.id}")
+
+        stream_started = await start_stream()
+        if stream_started:
+            printlog("Stream iniciado automaticamente desde EventSub stream_online.")
+        else:
+            printlog("Ya existia un stream activo en BD. Se ignora stream_online para evitar duplicados.", "WARNING")
 
     # async def event_stream_offline(self, payload: twitchio.StreamOffline) -> None:
     #     printlog("Se ha detenido el stream!")

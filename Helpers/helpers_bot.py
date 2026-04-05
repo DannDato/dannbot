@@ -8,11 +8,10 @@ import json
 import sys
 import urllib.parse
 import aiohttp
-import requests
 from urllib.parse import urlencode
 
 from Helpers.printlog import printlog
-from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token, get_broadcaster_id, db_cursor
+from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token, get_broadcaster_id_async, db_cursor
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
 from Helpers.helpers_stats import update_global_stats, today_birthdays, week_birthdays
 
@@ -204,14 +203,19 @@ def check_credentials_or_generate():
         "Client-Id": token_data['client_id']
     }
 
-    response = requests.get("https://api.twitch.tv/helix/users", headers=headers)
-    if response.status_code == 401:
+    async def _validate_user_token():
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api.twitch.tv/helix/users", headers=headers) as response:
+                return response.status, await response.text()
+
+    response_status, response_text = asyncio.run(_validate_user_token())
+    if response_status == 401:
         printlog(f"{white}❌ El token no es válido o no coincide con el client_id.","ERROR")
         print("⚠️  El token parece haber expirado o no coincide con tu app.")
         ask_for_credentials_and_save()
         return
-    elif response.status_code != 200:
-        printlog(f"{white}Error inesperado verificando token: {response.status_code} - {response.text}","ERROR")
+    elif response_status != 200:
+        printlog(f"{white}Error inesperado verificando token: {response_status} - {response_text}","ERROR")
         sys.exit(1)
 
     printlog(f"{white}✅ Token validado correctamente.")
@@ -610,7 +614,7 @@ async def get_chatters_total(bot, force_refresh: bool = True) -> int:
     try:
         token = load_token_file()
         bot_id = token.get('bot_id')
-        broadcaster_id = get_broadcaster_id()
+        broadcaster_id = await get_broadcaster_id_async()
         if not broadcaster_id or not bot_id:
             return len(_current_chatters)
 
@@ -651,7 +655,7 @@ async def poll_chatters(bot):
                 await asyncio.sleep(30)
                 continue
 
-            broadcaster_id = get_broadcaster_id()
+            broadcaster_id = await get_broadcaster_id_async()
             if not broadcaster_id or not bot_id:
                 await asyncio.sleep(30)
                 continue

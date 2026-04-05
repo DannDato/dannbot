@@ -1,9 +1,9 @@
-import requests
 import unicodedata
 import os
 import sqlite3
 import re
 import aiohttp
+import asyncio
 import time
 from contextlib import contextmanager
 from datetime import datetime
@@ -16,6 +16,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
 _broadcaster_id_cache = None
 _broadcaster_cache_key = None
+_channel_online_cache = {"value": None, "checked_at": 0.0}
 
 """
         I N D E X
@@ -35,6 +36,15 @@ _broadcaster_cache_key = None
 """
 
 def get_broadcaster_id(force_refresh=False):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(get_broadcaster_id_async(force_refresh=force_refresh))
+
+    raise RuntimeError("get_broadcaster_id() no debe usarse desde contexto async. Usa get_broadcaster_id_async().")
+
+
+async def get_broadcaster_id_async(force_refresh=False):
     global _broadcaster_id_cache, _broadcaster_cache_key
 
     token_data = load_token()
@@ -56,10 +66,12 @@ def get_broadcaster_id(force_refresh=False):
         "Authorization": f"Bearer {access_token}"
     }
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-    except requests.RequestException:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=10) as response:
+                if response.status != 200:
+                    return 0
+                data = await response.json(content_type=None)
+    except aiohttp.ClientError:
         return 0
 
     # Extraer y mostrar el ID del usuario
@@ -133,55 +145,128 @@ def normalize_username(username):
 #Revisión de si el canal se encuentra en vivo
 async def is_channel_online():
     """
-    Verifica si un canal de Twitch está transmitiendo en vivo.
-    Primero verifica en la base de datos si hay un stream activo,
-    si no encuentra, realiza la solicitud al servidor de Twitch.
+    Verifica si el canal está en vivo usando primero señales locales validadas
+    y después confirma con Helix cuando hace falta.
+
+    Orden de validación:
+    1) `stream_data`: existe `start_stream` sin `end_stream` posterior.
+    2) Si el inicio es reciente o ya hay actividad reciente del stream, se considera online.
+    3) Si no hay suficiente evidencia local, se confirma con Helix `/streams`.
+
+    Esto evita falsos positivos por streams mal cerrados en BD y elimina el scraping HTML frágil.
     """
-    max_attempts = 5
     try:
         with db_cursor(DB_PATH) as (_, cursor):
-            # Verificar en la base de datos si hay un stream activo
+            current_time = datetime.now()
+            current_time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
             cursor.execute('''
-                SELECT COUNT(*)
+                SELECT date
                 FROM stream_data
                 WHERE accion = "start_stream" AND NOT EXISTS (
                     SELECT 1
-                    FROM stream_data
-                    WHERE accion = "end_stream"
-                    AND datetime(date) > (
-                        SELECT MAX(date)
-                        FROM stream_data
-                        WHERE accion = "start_stream"
-                    )
-                );
+                    FROM stream_data AS ended
+                    WHERE ended.accion = "end_stream"
+                    AND datetime(ended.date) >= datetime(stream_data.date)
+                )
+                ORDER BY datetime(date) DESC
+                LIMIT 1;
             ''')
-            result = cursor.fetchone()
-        if result and result[0] > 0:
-            # printlog("Un stream está activo según la base de datos.","WARNING")
-            return True
-        # printlog("No hay stream activo en la base de datos, verificando en Twitch...","ERROR")
-        # Si no hay registro en la base de datos, realizar solicitud a Twitch
-        broadcaster_id = get_broadcaster_id()
-        if not broadcaster_id:
-            return False
+            active_stream = cursor.fetchone()
 
+            if active_stream:
+                stream_started_at = _parse_db_datetime(active_stream[0])
+                if stream_started_at is not None:
+                    cursor.execute('''
+                        SELECT 1
+                        FROM stream_data
+                        WHERE datetime(date) >= datetime(?)
+                        AND datetime(date) >= datetime(?, '-20 minutes')
+                        AND accion IN (
+                            'total_messages',
+                            'total_users',
+                            'new_followers',
+                            'stream_actual_viewers',
+                            'stream_max_viewers',
+                            'stream_avg_viewers',
+                            'new_bits',
+                            'new_subs'
+                        )
+                        LIMIT 1;
+                    ''', (active_stream[0], current_time_str))
+                    has_recent_activity = cursor.fetchone() is not None
+                    if has_recent_activity:
+                        return True
+
+        helix_is_live = await _is_channel_online_via_helix()
+        if active_stream and not helix_is_live:
+            printlog("Hay start_stream abierto en BD pero Helix no confirma directo en vivo.", "WARNING")
+        elif not active_stream and helix_is_live:
+            printlog("Helix detecta stream en vivo pero no hay start_stream activo en BD.", "WARNING")
+
+        return helix_is_live
+    except sqlite3.Error:
+        return await _is_channel_online_via_helix(force_refresh=True)
+
+
+def _parse_db_datetime(value):
+    if not value:
+        return None
+
+    normalized = str(value).replace("T", " ").replace("Z", "")
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(normalized, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+async def _is_channel_online_via_helix(force_refresh=False, cache_seconds=30):
+    global _channel_online_cache
+
+    now_monotonic = time.monotonic()
+    cached_value = _channel_online_cache.get("value")
+    checked_at = _channel_online_cache.get("checked_at", 0.0)
+    if not force_refresh and cached_value is not None and (now_monotonic - checked_at) <= cache_seconds:
+        return cached_value
+
+    token_data = load_token()
+    access_token = token_data.get("access_token")
+    client_id = token_data.get("client_id")
+    owner_id = token_data.get("owner_id") or token_data.get("bot_id")
+
+    if not access_token or not client_id or not owner_id:
+        _channel_online_cache = {"value": False, "checked_at": now_monotonic}
+        return False
+
+    headers = {
+        "Client-ID": client_id,
+        "Authorization": f"Bearer {access_token}",
+    }
+    params = {"user_id": str(owner_id), "type": "live"}
+
+    try:
         async with aiohttp.ClientSession() as session:
-            for attempt in range(max_attempts):
-                try:
-                    async with session.get(f'https://www.twitch.tv/{broadcaster_id}', timeout=10) as resp:
-                        contents = await resp.text()
-                        if 'isLiveBroadcast' in contents:
-                            printlog(f"{broadcaster_id} está en línea según Twitch.","INFO")
-                            return True
-                        # if attempt == max_attempts: printlog(f"{broadcaster_id} está offline según Twitch.")
-                except Exception as e:
-                    printlog(f"Error en la solicitud a Twitch: {e}","ERROR")
-        # Si después de todos los intentos no se obtiene confirmación, retornar False
-        # printlog(f"{broadcaster_id} sigue offline después de {max_attempts} intentos.")
-        return False
-    except sqlite3.Error as e:
-        # printlog(f"Error al acceder a la base de datos: {e}","ERROR")
-        return False
+            async with session.get(
+                "https://api.twitch.tv/helix/streams",
+                headers=headers,
+                params=params,
+                timeout=10,
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    printlog(f"Error validando stream en Helix ({resp.status}): {body}", "WARNING")
+                    _channel_online_cache = {"value": False, "checked_at": now_monotonic}
+                    return False
+
+                data = await resp.json(content_type=None)
+                is_live = bool(data.get("data"))
+                _channel_online_cache = {"value": is_live, "checked_at": now_monotonic}
+                return is_live
+    except aiohttp.ClientError as e:
+        printlog(f"Error consultando Helix streams: {e}", "WARNING")
+        return bool(cached_value) if cached_value is not None else False
 
 import re
 import unicodedata

@@ -415,7 +415,7 @@ class dynamic_commands(commands.Component):
     async def juegos(self,ctx):
         if ctx.chatter.moderator:
             printlog("a veeeeer")
-            library = get_steam_library()
+            library = await get_steam_library()
             juegosList=", ⠀⠀ ".join(library)
             await ctx.send("[BOT] - Juegos en la biblioteca de danndato")
             await send_large_message(ctx,f"{juegosList}")

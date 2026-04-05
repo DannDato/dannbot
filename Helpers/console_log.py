@@ -1,6 +1,5 @@
 import os
 import shutil
-import time
 
 from Helpers.config_loader import load_config
 
@@ -81,10 +80,7 @@ def animated_message(text,color):
     # Mover al inicio de la línea y luego al centro
     gotoxy(centro_x, 11)
 
-    # Imprimir letra por letra con 20ms de espera
-    for letra in mensaje_sin_espacios:
-        print(letra, end="", flush=True)  # No salto de línea y limpia el buffer
-        time.sleep(0.005)  # Espera 20 ms entre cada letra
+    print(mensaje_sin_espacios, end="", flush=True)
 
     # Restaurar la posición original del cursor
     print("\033[u", end="")  # Restaura la posición del cursor

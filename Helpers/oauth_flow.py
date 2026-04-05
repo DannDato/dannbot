@@ -4,6 +4,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import asyncio
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -18,7 +19,7 @@ try:
 except Exception:
     pass
 
-import requests
+import aiohttp
 
 from Helpers.printlog import printlog
 from Helpers.required_scopes import required_scopes
@@ -154,16 +155,20 @@ def _validate_token(access_token, expected_client_id=None):
     if not access_token:
         return None
 
-    headers = {'Authorization': f'OAuth {access_token}'}
-    try:
-        response = requests.get(VALIDATE_URL, headers=headers, timeout=15)
-    except requests.RequestException:
-        return None
+    async def _request():
+        headers = {'Authorization': f'OAuth {access_token}'}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(VALIDATE_URL, headers=headers, timeout=15) as response:
+                    if response.status != 200:
+                        return None
+                    return await response.json(content_type=None)
+        except aiohttp.ClientError:
+            return None
 
-    if response.status_code != 200:
+    payload = asyncio.run(_request())
+    if not payload:
         return None
-
-    payload = response.json()
     if expected_client_id and payload.get('client_id') != expected_client_id:
         return None
     return payload
@@ -181,27 +186,34 @@ def _refresh_access_token(token_data):
         'client_secret': token_data['client_secret'],
     }
 
-    try:
-        response = requests.post(TOKEN_URL, data=payload, timeout=20)
-    except requests.RequestException as exc:
-        printlog(f'No se pudo refrescar el access token: {exc}', 'WARNING')
-        return None
+    async def _request():
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(TOKEN_URL, data=payload, timeout=20) as response:
+                    body = await response.text()
+                    if response.status != 200:
+                        printlog(f'No se pudo refrescar el access token: {body}', 'WARNING')
+                        return None
+                    return json.loads(body)
+        except aiohttp.ClientError as exc:
+            printlog(f'No se pudo refrescar el access token: {exc}', 'WARNING')
+            return None
 
-    if response.status_code != 200:
-        printlog(f'No se pudo refrescar el access token: {response.text}', 'WARNING')
-        return None
-
-    return response.json()
+    return asyncio.run(_request())
 
 
 def _fetch_authenticated_user(access_token, client_id):
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Client-ID': client_id,
-    }
-    response = requests.get(USERS_URL, headers=headers, timeout=20)
-    response.raise_for_status()
-    payload = response.json()
+    async def _request():
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Client-ID': client_id,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(USERS_URL, headers=headers, timeout=20) as response:
+                response.raise_for_status()
+                return await response.json(content_type=None)
+
+    payload = asyncio.run(_request())
 
     if not payload.get('data'):
         raise RuntimeError('Twitch no devolvió datos del usuario autenticado.')
@@ -259,22 +271,32 @@ def _exchange_code_for_token(client_id, client_secret, code):
         'grant_type': 'authorization_code',
         'redirect_uri': REDIRECT_URI,
     }
-    response = requests.post(TOKEN_URL, data=payload, timeout=20)
-    response.raise_for_status()
-    return response.json()
+    async def _request():
+        async with aiohttp.ClientSession() as session:
+            async with session.post(TOKEN_URL, data=payload, timeout=20) as response:
+                response.raise_for_status()
+                return await response.json(content_type=None)
+
+    return asyncio.run(_request())
 
 
 def _wait_for_server_ready(timeout=30):
     deadline = time.time() + timeout
     last_error = None
+
+    async def _ping_healthcheck():
+        async with aiohttp.ClientSession() as session:
+            async with session.get(get_healthcheck_url(), timeout=2) as response:
+                return response.status
+
     while time.time() < deadline:
         try:
-            response = requests.get(get_healthcheck_url(), timeout=2)
-            if response.status_code == 200:
+            response_status = asyncio.run(_ping_healthcheck())
+            if response_status == 200:
                 return
-        except requests.RequestException as exc:
+        except Exception as exc:
             last_error = exc
-        time.sleep(0.25)
+        threading.Event().wait(0.25)
 
     raise TimeoutError(f'El servidor OAuth no respondió a tiempo. Último error: {last_error}')
 

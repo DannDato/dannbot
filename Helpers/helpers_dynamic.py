@@ -1,5 +1,4 @@
 
-import requests
 import aiohttp
 import os
 from datetime import datetime, timezone
@@ -319,7 +318,7 @@ async def get_viewers():
 
 
 #___________________________________________________________________________________________
-def get_steam_library():
+async def get_steam_library():
     steam_credentials = _get_steam_credentials()
     # Endpoint de la API de Steam
     url = "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
@@ -334,9 +333,12 @@ def get_steam_library():
     }
 
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status != 200:
+                    printlog("Error al obtener la biblioteca de Steam:","ERROR")
+                    return []
+                data = await response.json(content_type=None)
 
         # Verificar si hay juegos en la biblioteca
         if "response" in data and "games" in data["response"]:
@@ -345,7 +347,7 @@ def get_steam_library():
         else:
             printlog("No se encontraron juegos en la biblioteca.")
             return []
-    except requests.exceptions.RequestException as e:
+    except aiohttp.ClientError:
         printlog(f"Error al obtener la biblioteca de Steam:","ERROR")
         return []
 
