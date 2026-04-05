@@ -9,7 +9,7 @@ from Helpers.helpers import is_authorized
 from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
 from Helpers.chatgpt import chatgpt
 from Helpers.helpers_bot import get_chatters_total
-from Helpers.helpers_moderator import create_stream_clip
+from Helpers.helpers_moderator import create_stream_clip, list_basic_command_names
 from Helpers.helpers_dynamic import (
     gen_response, get_steam_library, get_vips, get_followers_count, get_follow_age,
     get_viewers
@@ -72,18 +72,33 @@ class dynamic_commands(commands.Component):
         """
         await update_global_stats("xp_Astucia", ctx.chatter.id, 0.15)
 
-        excluded_commands = wordslist("comandos_excluidos.txt")
-
-        # Usar set para evitar duplicados y solo listar el "name" principal
-        command_names = {
-            cmd.name
-            for cmd in self.bot.commands.values()
-            if cmd.name not in excluded_commands
+        excluded_commands = {
+            cmd.strip().lower().lstrip('!')
+            for cmd in wordslist("comandos_excluidos.txt")
+            if cmd.strip()
         }
+        can_see_all = bool(getattr(ctx.chatter, "moderator", False)) or is_authorized(ctx)
+
+        # Comandos hardcodeados cargados en el bot (nombre principal) + comandos de BD.
+        hardcoded_commands = {
+            cmd.name.strip().lower()
+            for cmd in self.bot.commands.values()
+            if getattr(cmd, "name", None)
+        }
+        db_commands = list_basic_command_names()
+        command_names = hardcoded_commands | db_commands
+
+        if not can_see_all:
+            command_names = {
+                cmd_name
+                for cmd_name in command_names
+                if cmd_name not in excluded_commands
+            }
 
         # Construir el string
-        command_string = "[BOT] - 🤖 𝗧𝗼𝗱𝗼𝘀 𝗹𝗼𝘀 𝗰𝗼𝗺𝗮𝗻𝗱𝗼𝘀: ⠀⠀⠀"
-        command_string += " ⠀⠀⠀!".join(sorted(command_names))
+        sorted_commands = sorted(command_names)
+        command_string = "[BOT] - 🤖 𝗧𝗼𝗱𝗼𝘀 𝗹𝗼𝘀 𝗰𝗼𝗺𝗮𝗻𝗱𝗼𝘀: "
+        command_string += " ".join(f"!{command_name}" for command_name in sorted_commands)
 
         # Responder con la lista de comandos
         await send_large_message(ctx, command_string)

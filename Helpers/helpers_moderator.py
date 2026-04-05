@@ -149,6 +149,23 @@ def custom_command_exists(raw_command: str) -> bool:
         return False
 
 
+def list_basic_command_names() -> set[str]:
+    """Retorna los nombres de comandos guardados en BD sin prefijo !."""
+    try:
+        _ensure_basic_commands_table()
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('SELECT command FROM commands')
+            rows = cursor.fetchall()
+            return {
+                str(row[0]).strip().lower().lstrip('!')
+                for row in rows
+                if row and str(row[0]).strip()
+            }
+    except sqlite3.Error as e:
+        printlog(f'Error listando comandos basicos: {e}', 'ERROR')
+        return set()
+
+
 def _normalize_text(value: str) -> str:
     text = unicodedata.normalize("NFKD", value or "")
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
