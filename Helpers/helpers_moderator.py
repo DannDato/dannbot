@@ -2,11 +2,81 @@ import asyncio
 import re
 import unicodedata
 import difflib
+import os
+import sqlite3
 
 import aiohttp
 
+from Helpers.helpers import db_cursor
 from Helpers.token_loader import load_token
 from Helpers.printlog import printlog
+
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+
+def _normalize_custom_command_name(raw_command: str) -> str:
+    command_name = (raw_command or '').strip().lower()
+    if not command_name:
+        return ''
+    if not command_name.startswith('!'):
+        command_name = f'!{command_name}'
+    return command_name.split()[0]
+
+
+def _ensure_basic_commands_table() -> None:
+    with db_cursor(DB_PATH, commit=True) as (_, cursor):
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS commands (
+                command TEXT PRIMARY KEY,
+                response TEXT NOT NULL
+            )
+        ''')
+
+
+async def save_basic_command(raw_command: str, raw_response: str) -> tuple[bool, str]:
+    command_name = _normalize_custom_command_name(raw_command)
+    response = (raw_response or '').strip()
+
+    if not command_name:
+        return False, 'El comando no puede estar vacio.'
+    if command_name == '!':
+        return False, 'El comando no es valido.'
+    if len(command_name) < 2:
+        return False, 'El comando no es valido.'
+    if not response:
+        return False, 'La respuesta no puede estar vacia.'
+
+    try:
+        _ensure_basic_commands_table()
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute(
+                '''
+                INSERT INTO commands (command, response)
+                VALUES (?, ?)
+                ON CONFLICT(command)
+                DO UPDATE SET response = excluded.response
+                ''',
+                (command_name, response)
+            )
+        return True, command_name
+    except sqlite3.Error as e:
+        printlog(f'Error guardando comando basico {command_name}: {e}', 'ERROR')
+        return False, 'No pude guardar el comando en la base de datos.'
+
+
+def get_basic_command_response(raw_command: str) -> str | None:
+    command_name = _normalize_custom_command_name(raw_command)
+    if not command_name:
+        return None
+
+    try:
+        _ensure_basic_commands_table()
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('SELECT response FROM commands WHERE command = ? LIMIT 1', (command_name,))
+            result = cursor.fetchone()
+            return result[0] if result else None
+    except sqlite3.Error as e:
+        printlog(f'Error leyendo comando basico {command_name}: {e}', 'ERROR')
+        return None
 
 
 def _normalize_text(value: str) -> str:

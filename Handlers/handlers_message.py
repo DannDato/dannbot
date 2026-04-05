@@ -9,6 +9,7 @@ from Helpers.colors import colorConvert, white, resetColor, userColors, channelC
 from Helpers.helpers_bot import new_user, update_stream_data
 from Helpers.printlog import printlog
 from Helpers.helpers_dynamic import analisis, interactuar, desafiar
+from Helpers.helpers_moderator import get_basic_command_response
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -19,6 +20,7 @@ async def handle_message(self, payload):
     Para estadísticas
     """
     self.messages_processed += 1
+    custom_command_handled = False
     chatter = payload.chatter
     CHATTER_NAME = normalize_username(chatter.name)
     CHATTER_ID = safe_int(chatter.id)
@@ -80,7 +82,19 @@ async def handle_message(self, payload):
         await update_global_stats("messages",CHATTER_ID,1)
 
 
+        if MESSAGE.startswith('!'):
+            command_name = MESSAGE.split()[0].lower()
+            command_lookup = command_name[1:] if command_name.startswith('!') else command_name
+            if not self.get_command(command_lookup):
+                custom_response = get_basic_command_response(command_name)
+                if custom_response:
+                    channel_user = self.create_partialuser(BROADCASTER_ID)
+                    await channel_user.send_message(sender=self.user, message=custom_response)
+                    custom_command_handled = True
+
     except sqlite3.Error as e:
         printlog(f"Ha ocurrido un error al guardar el mensaje recibido {e}","ERROR")
     finally:
         await update_global_stats("xp_Voluntad",CHATTER_ID,0.05)
+
+    return custom_command_handled

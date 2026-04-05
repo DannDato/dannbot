@@ -217,7 +217,9 @@ class Bot(commands.AutoBot):
 
     # Listener para mensajes
     async def event_message(self, message: twitchio.ChatMessage) -> None:
-        await handle_message(self, message)
+        custom_command_handled = await handle_message(self, message)
+        if custom_command_handled:
+            return
         # Procesar los comandos recibidos dentro del mensaje despues del hanlder personalizado
         message.text=message.text.lower() #Bajamos a minusculas por si el comando está capitalizado
         await self.process_commands(message)
