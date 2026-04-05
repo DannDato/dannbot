@@ -14,17 +14,28 @@ from Helpers.printlog import printlog
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
-#asignacion de credenciales
-token_data = load_token()
-CLIENT_ID = token_data.get("client_id")
-BOT_ID = token_data.get("bot_id")
-# Canal objetivo real del bot.
-OWNER_ID = token_data.get("owner_id") or BOT_ID
-ACCESS_TOKEN = token_data.get("access_token")
-CHANNEL_NAME = token_data.get("channel_name")
+def _get_runtime_token_data():
+    return load_token()
 
-steam_api = os.environ.get("DANNBOT_STEAM_API") or token_data.get("steam_api")
-steamid = os.environ.get("DANNBOT_STEAM_ID") or token_data.get("steamID")
+
+def _get_runtime_credentials():
+    token_data = _get_runtime_token_data()
+    bot_id = token_data.get("bot_id")
+    return {
+        "client_id": token_data.get("client_id"),
+        "bot_id": bot_id,
+        "owner_id": token_data.get("owner_id") or bot_id,
+        "access_token": token_data.get("access_token"),
+        "channel_name": token_data.get("channel_name"),
+    }
+
+
+def _get_steam_credentials():
+    token_data = _get_runtime_token_data()
+    return {
+        "steam_api": os.environ.get("DANNBOT_STEAM_API") or token_data.get("steam_api"),
+        "steamid": os.environ.get("DANNBOT_STEAM_ID") or token_data.get("steamID"),
+    }
 
 
 async def analisis(message, userid):
@@ -42,7 +53,8 @@ async def analisis(message, userid):
         await update_global_stats("xp_Astucia",userid,1.25)
 
 async def interactuar(self, message, username):
-    user = self.create_partialuser(BOT_ID)
+    credentials = _get_runtime_credentials()
+    user = self.create_partialuser(credentials["bot_id"])
     mensaje=clean_text(message).lower()
     #validar que el mensaje no sea dirigido a otra persona para generar respuestas
     if any(word in mensaje for word in ["@"]):
@@ -63,7 +75,8 @@ async def interactuar(self, message, username):
 
 
 async def desafiar(self, username):
-    user = self.create_partialuser(BOT_ID)
+    credentials = _get_runtime_credentials()
+    user = self.create_partialuser(credentials["bot_id"])
     lnReto = random.randint(0, 2500)
     if await is_channel_online():
         if lnReto == 500: await user.send_message(sender=self.user, message=f'[RETO RANDOM] 🔮 @{username} {gen_response("desafios.txt")}')
@@ -89,12 +102,13 @@ def gen_response(document):
 
 #___________________________________________________________________________________________
 async def get_vips():
+    credentials = _get_runtime_credentials()
     headers = {
-        'Client-Id': CLIENT_ID,
-        'Authorization': f'Bearer {ACCESS_TOKEN}',
+        'Client-Id': credentials["client_id"],
+        'Authorization': f'Bearer {credentials["access_token"]}',
     }
 
-    channel_login = CHANNEL_NAME
+    channel_login = credentials["channel_name"]
     if not channel_login:
         printlog('No hay channel_name configurado para consultar VIPs.', "WARNING")
         return []
@@ -126,10 +140,11 @@ async def get_vips():
         return []
 
 async def get_followers_count():
-    url = f"https://api.twitch.tv/helix/channels/followers?broadcaster_id={OWNER_ID}"
+    credentials = _get_runtime_credentials()
+    url = f"https://api.twitch.tv/helix/channels/followers?broadcaster_id={credentials['owner_id']}"
     headers = {
-        "Client-Id": CLIENT_ID,
-        "Authorization": f"Bearer {ACCESS_TOKEN}"
+        "Client-Id": credentials["client_id"],
+        "Authorization": f"Bearer {credentials['access_token']}"
     }
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers) as resp:
@@ -194,6 +209,9 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
     if not user_id:
         return None, None
 
+    credentials = _get_runtime_credentials()
+    owner_id = credentials["owner_id"]
+
     _ensure_follow_cache_table()
     now = datetime.now(timezone.utc)
 
@@ -206,7 +224,7 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
                     FROM followage_cache
                     WHERE user_id = ? AND broadcaster_id = ?
                     ''',
-                    (str(user_id), str(OWNER_ID))
+                    (str(user_id), str(owner_id))
                 )
                 row = cursor.fetchone()
 
@@ -226,11 +244,11 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
 
     url = "https://api.twitch.tv/helix/channels/followers"
     headers = {
-        "Client-ID": CLIENT_ID,
-        "Authorization": f"Bearer {ACCESS_TOKEN}"
+        "Client-ID": credentials["client_id"],
+        "Authorization": f"Bearer {credentials['access_token']}"
     }
     params = {
-        "broadcaster_id": OWNER_ID,
+        "broadcaster_id": owner_id,
         "user_id": str(user_id),
         "first": 1
     }
@@ -262,7 +280,7 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
                         followed_at=COALESCE(followage_cache.followed_at, excluded.followed_at),
                         fetched_at=excluded.fetched_at
                     ''',
-                    (str(user_id), str(OWNER_ID), followed_at, now.isoformat())
+                    (str(user_id), str(owner_id), followed_at, now.isoformat())
                 )
         except sqlite3.Error as e:
             printlog(f"Error guardando cache followage: {e}", "WARNING")
@@ -277,12 +295,13 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
     return None, None
 
 async def get_viewers():
+    credentials = _get_runtime_credentials()
     url = "https://api.twitch.tv/helix/streams"
     headers = {
-        "Client-ID": CLIENT_ID,
-        "Authorization": f"Bearer {ACCESS_TOKEN}"
+        "Client-ID": credentials["client_id"],
+        "Authorization": f"Bearer {credentials['access_token']}"
     }
-    params = {"user_id": str(OWNER_ID)}
+    params = {"user_id": str(credentials["owner_id"])}
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -301,13 +320,14 @@ async def get_viewers():
 
 #___________________________________________________________________________________________
 def get_steam_library():
+    steam_credentials = _get_steam_credentials()
     # Endpoint de la API de Steam
     url = "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
 
     # Parámetros de la solicitud
     params = {
-        "key": steam_api,  # Tu API Key de Steam
-        "steamid": steamid,  # Tu Steam ID64
+        "key": steam_credentials["steam_api"],  # Tu API Key de Steam
+        "steamid": steam_credentials["steamid"],  # Tu Steam ID64
         "include_appinfo": True,  # Incluye información del juego (como el título)
         "include_played_free_games": True,  # Incluye juegos gratuitos
         "format": "json"  # Respuesta en formato JSON

@@ -14,12 +14,8 @@ from openai import OpenAI, OpenAIError
 from Helpers.token_loader import load_token
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
-#asignacion de credenciales
-token_data = load_token()
-access_token = token_data.get("access_token")
-client_id = token_data.get("client_id")
-channel_name = token_data.get("channel_name")
 _broadcaster_id_cache = None
+_broadcaster_cache_key = None
 
 """
         I N D E X
@@ -39,8 +35,15 @@ _broadcaster_id_cache = None
 """
 
 def get_broadcaster_id(force_refresh=False):
-    global _broadcaster_id_cache
-    if _broadcaster_id_cache and not force_refresh:
+    global _broadcaster_id_cache, _broadcaster_cache_key
+
+    token_data = load_token()
+    access_token = token_data.get("access_token")
+    client_id = token_data.get("client_id")
+    channel_name = token_data.get("channel_name")
+    cache_key = (channel_name, client_id, access_token)
+
+    if _broadcaster_id_cache and not force_refresh and _broadcaster_cache_key == cache_key:
         return _broadcaster_id_cache
 
     if not channel_name or not client_id or not access_token:
@@ -62,6 +65,7 @@ def get_broadcaster_id(force_refresh=False):
     # Extraer y mostrar el ID del usuario
     if "data" in data and len(data["data"]) > 0:
         _broadcaster_id_cache = data["data"][0]["id"]
+        _broadcaster_cache_key = cache_key
         return _broadcaster_id_cache
 
     return 0

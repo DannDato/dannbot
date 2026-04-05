@@ -7,6 +7,14 @@ from Helpers.oauth_flow import ensure_token_data, get_token_path, OAuthFlowCance
 
 
 _TOKEN_CACHE = None
+_TOKEN_CACHE_MTIME = None
+
+
+def _get_token_mtime(token_path):
+    try:
+        return os.path.getmtime(token_path)
+    except OSError:
+        return None
 
 
 def _has_required_token_fields(token_data):
@@ -28,12 +36,14 @@ def load_token(*, ensure_valid=False, force_refresh=False):
     - ensure_valid=True: valida/refresca token via OAuth flow (llamada de red).
     - ensure_valid=False: lectura local para evitar bloqueos durante imports.
     """
-    global _TOKEN_CACHE
-
-    if _TOKEN_CACHE is not None and not force_refresh:
-        return dict(_TOKEN_CACHE)
+    global _TOKEN_CACHE, _TOKEN_CACHE_MTIME
 
     token_path = get_token_path()
+    current_mtime = _get_token_mtime(token_path)
+
+    if _TOKEN_CACHE is not None and not force_refresh and _TOKEN_CACHE_MTIME == current_mtime:
+        return dict(_TOKEN_CACHE)
+
     try:
         token_data = {}
         if os.path.exists(token_path):
@@ -43,8 +53,10 @@ def load_token(*, ensure_valid=False, force_refresh=False):
         needs_oauth = ensure_valid or not _has_required_token_fields(token_data)
         if needs_oauth:
             token_data = ensure_token_data()
+            current_mtime = _get_token_mtime(token_path)
 
         _TOKEN_CACHE = dict(token_data)
+        _TOKEN_CACHE_MTIME = current_mtime
         return dict(token_data)
     except json.JSONDecodeError as e:
         printlog(f"Error al decodificar el archivo JSON: {e}", "ERROR")
