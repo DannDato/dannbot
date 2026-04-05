@@ -1,3 +1,4 @@
+import asyncio
 import re
 import unicodedata
 import difflib
@@ -57,6 +58,88 @@ def _category_match_threshold(query: str) -> float:
     return 0.48
 
 
+def _expand_category_queries(query: str) -> list[str]:
+    normalized = _normalize_text(query)
+    variants = [query.strip()]
+
+    alias_map = {
+        # Typos comunes de Fortnite
+        "fornai": "Fortnite",
+        "fortnai": "Fortnite",
+        "fornite": "Fortnite",
+        "forknite": "Fortnite",
+        "forknine": "Fortnite",
+        "fortnite": "Fortnite",
+
+        # Tecnologia en espanol/ingles
+        "tecnologia": "Science & Technology",
+        "tecnology": "Science & Technology",
+        "technology": "Science & Technology",
+        "science and technology": "Science & Technology",
+        "science technology": "Science & Technology",
+    }
+
+    mapped = alias_map.get(normalized)
+    if mapped and mapped not in variants:
+        variants.append(mapped)
+
+    return variants
+
+
+def _preferred_category_name(query: str) -> str | None:
+    normalized = _normalize_text(query)
+    preferred = {
+        "tecnologia": "Science & Technology",
+        "tecnology": "Science & Technology",
+        "technology": "Science & Technology",
+        "fornai": "Fortnite",
+        "fortnai": "Fortnite",
+        "fornite": "Fortnite",
+        "forknite": "Fortnite",
+        "forknine": "Fortnite",
+    }
+    return preferred.get(normalized)
+
+
+def _preferred_category_id(query: str) -> str | None:
+    normalized = _normalize_text(query)
+    preferred_ids = {
+        # Twitch category IDs conocidas y estables para casos frecuentes.
+        "tecnologia": "509670",  # Science & Technology
+        "tecnology": "509670",
+        "technology": "509670",
+        "science and technology": "509670",
+        "science technology": "509670",
+        "fornai": "33214",      # Fortnite
+        "fortnai": "33214",
+        "fornite": "33214",
+        "forknite": "33214",
+        "forknine": "33214",
+        "fortnite": "33214",
+    }
+    return preferred_ids.get(normalized)
+
+
+def _score_category_candidate(
+    user_query: str,
+    query_variants: list[str],
+    candidate_name: str,
+    top_rank: int | None,
+) -> float:
+    # Similaridad base contra query original y variantes (aliases/correcciones).
+    score = _similarity_score(user_query, candidate_name)
+    for variant in query_variants:
+        score = max(score, _similarity_score(variant, candidate_name))
+
+    # Bonus por popularidad (top categories) para resolver mejor typos ambiguos.
+    if top_rank is not None:
+        # rank 1 -> +0.20, rank 100 -> ~+0.00
+        popularity_bonus = max(0.0, (101 - top_rank) / 100.0) * 0.20
+        score += popularity_bonus
+
+    return score
+
+
 async def set_stream_title(raw_title: str) -> tuple[bool, str]:
     suffix = "[ !redes !discord !sr ]"
     title = (raw_title or "").strip()
@@ -108,6 +191,10 @@ async def set_stream_category(raw_category: str) -> tuple[bool, str]:
     if not query:
         return False, "La categoria no puede estar vacia."
 
+    query_variants = _expand_category_queries(query)
+    preferred_name = _preferred_category_name(query)
+    preferred_id = _preferred_category_id(query)
+
     token_data = load_token()
     access_token = token_data.get("access_token")
     client_id = token_data.get("client_id")
@@ -122,31 +209,93 @@ async def set_stream_category(raw_category: str) -> tuple[bool, str]:
         "Content-Type": "application/json",
     }
 
+    # Atajo confiable para intenciones muy comunes (evita matches raros por typo).
+    if preferred_id and preferred_name:
+        try:
+            async with aiohttp.ClientSession() as session:
+                params = {"broadcaster_id": str(broadcaster_id)}
+                payload = {"game_id": preferred_id}
+                async with session.patch(
+                    "https://api.twitch.tv/helix/channels",
+                    headers=headers,
+                    params=params,
+                    json=payload,
+                ) as resp:
+                    if resp.status == 204:
+                        return True, preferred_name
+                    body = await resp.text()
+                    printlog(f"No se pudo aplicar categoria preferida ({resp.status}): {body}", "WARNING")
+        except Exception as e:
+            printlog(f"Error aplicando categoria preferida: {e}", "WARNING")
+
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://api.twitch.tv/helix/search/categories",
-                headers=headers,
-                params={"query": query, "first": 20},
-            ) as resp:
-                if resp.status != 200:
-                    data = await resp.text()
-                    printlog(f"Error buscando categoria ({resp.status}): {data}", "WARNING")
-                    return False, "No pude buscar categorias en Twitch."
+            candidates_by_id: dict[str, dict] = {}
+            top_rank_by_id: dict[str, int] = {}
 
-                data = await resp.json()
-                candidates = data.get("data", [])
-                if not candidates:
-                    return False, "No encontre categorias parecidas."
+            # 1) Buscar por query y por variantes para ampliar cobertura de typos/idioma.
+            for q in query_variants:
+                async with session.get(
+                    "https://api.twitch.tv/helix/search/categories",
+                    headers=headers,
+                    params={"query": q, "first": 30},
+                ) as resp:
+                    if resp.status != 200:
+                        data = await resp.text()
+                        printlog(f"Error buscando categoria ({resp.status}): {data}", "WARNING")
+                        return False, "No pude buscar categorias en Twitch."
+
+                    data = await resp.json()
+                    for item in data.get("data", []):
+                        category_id = item.get("id")
+                        if category_id:
+                            candidates_by_id[category_id] = item
+
+            # 2) Mezclar con top categorias para priorizar las principales de Twitch.
+            async with session.get(
+                "https://api.twitch.tv/helix/games/top",
+                headers=headers,
+                params={"first": 100},
+            ) as top_resp:
+                if top_resp.status == 200:
+                    top_data = await top_resp.json()
+                    for idx, item in enumerate(top_data.get("data", []), start=1):
+                        category_id = item.get("id")
+                        if category_id:
+                            top_rank_by_id[category_id] = idx
+                            candidates_by_id.setdefault(category_id, item)
+
+            candidates = list(candidates_by_id.values())
+            if not candidates:
+                return False, "No encontre categorias parecidas."
 
             scored_candidates = []
-            for item in candidates:
-                name = item.get("name", "")
-                score = _similarity_score(query, name)
-                scored_candidates.append((score, item))
 
-            scored_candidates.sort(key=lambda x: x[0], reverse=True)
-            best_score, best = scored_candidates[0] if scored_candidates else (0.0, None)
+            # Preferencia dura para categorias clave (ej. tecnologia -> Science & Technology)
+            if preferred_name:
+                preferred_norm = _normalize_text(preferred_name)
+                for item in candidates:
+                    if _normalize_text(item.get("name", "")) == preferred_norm:
+                        best = item
+                        best_score = 1.0
+                        break
+                else:
+                    best = None
+                    best_score = 0.0
+            else:
+                best = None
+                best_score = 0.0
+
+            if best is None:
+                for item in candidates:
+                    category_id = item.get("id", "")
+                    name = item.get("name", "")
+                    rank = top_rank_by_id.get(category_id)
+                    score = _score_category_candidate(query, query_variants, name, rank)
+                    scored_candidates.append((score, item))
+
+                scored_candidates.sort(key=lambda x: x[0], reverse=True)
+                best_score, best = scored_candidates[0] if scored_candidates else (0.0, None)
 
             threshold = _category_match_threshold(query)
             if not best or best_score < threshold:
@@ -262,23 +411,33 @@ async def create_stream_clip(has_delay: bool = True) -> tuple[bool, str]:
                 if resp.status in (200, 202) and data.get("data"):
                     clip = data["data"][0]
                     clip_id = clip.get("id")
-                    edit_url = clip.get("edit_url")
-                    public_url = f"https://clips.twitch.tv/{clip_id}" if clip_id else None
+                    if not clip_id:
+                        return True, "Clip solicitado. En unos segundos deberia aparecer en el canal."
 
-                    if edit_url and public_url:
-                        return True, f"Clip creado: {public_url} | Editar: {edit_url}"
-                    if edit_url:
-                        return True, f"Clip creado. Editalo aqui: {edit_url}"
-                    if public_url:
-                        return True, f"Clip creado: {public_url}"
-                    return True, "Clip solicitado. En unos segundos deberia aparecer en el canal."
+                    # Twitch puede devolver 202 antes de que el clip este publicado.
+                    # Reintentamos brevemente hasta obtener la URL publica final.
+                    for _ in range(10):
+                        async with session.get(
+                            "https://api.twitch.tv/helix/clips",
+                            headers=headers,
+                            params={"id": clip_id},
+                        ) as get_resp:
+                            get_data = await get_resp.json(content_type=None)
+                            if get_resp.status == 200 and get_data.get("data"):
+                                url = get_data["data"][0].get("url")
+                                if url:
+                                    return True, f"Clip creado: {url}"
+                        await asyncio.sleep(1)
+
+                    # Fallback si Helix aun no entrega URL publica.
+                    return True, f"Clip creado: https://clips.twitch.tv/{clip_id}"
 
                 if resp.status == 404:
-                    return False, "No pude crear clip. Asegurate de estar en vivo."
+                    return False, "De que hago clip si no está en vivo 😑."
                 if resp.status in (401, 403):
-                    return False, "Sin permisos para crear clip. Revisa que el token tenga clips:edit."
+                    return False, "Sin permisos para crear clip. Díganle a dato que le falta el scope clips:edit."
                 if resp.status == 429:
-                    return False, "Demasiados intentos de clip. Espera un poco y vuelve a intentar."
+                    return False, "Demasiados intentos de clip. Esperen un poco..."
 
                 printlog(f"Error creando clip ({resp.status}): {data}", "WARNING")
                 return False, "No pude crear el clip en Twitch."

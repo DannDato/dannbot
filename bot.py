@@ -157,21 +157,30 @@ class Bot(commands.AutoBot):
     async def setup_hook(self) -> None:
         animated_message("Cargando comandos...", white)
         commands_dir = "Commands"
-        for filename in os.listdir(commands_dir):
+        command_files = [
+            filename for filename in os.listdir(commands_dir)
+            if filename.endswith(".py") and not filename.startswith("__")
+        ]
+        command_files.sort()
+
+        for filename in command_files:
             if filename.endswith(".py") and not filename.startswith("__"):
                 module_name = f"{commands_dir}.{filename[:-3]}"
                 printlog(f"Cargando modulo: {module_name}", "DEBUG")
-                module = importlib.import_module(module_name)
-                loaded_component = False
-                # Buscar clases que hereden de commands.Component
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if isinstance(attr, type) and issubclass(attr, commands.Component) and attr is not commands.Component:
-                        await self.add_component(attr(self))
-                        loaded_component = True
-                        printlog(f"Lista de comandos cargados: {attr_name}")
-                if not loaded_component:
-                    printlog(f"No se encontro ningun commands.Component en {module_name}", "WARNING")
+                try:
+                    module = importlib.import_module(module_name)
+                    loaded_component = False
+                    # Buscar clases que hereden de commands.Component
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
+                        if isinstance(attr, type) and issubclass(attr, commands.Component) and attr is not commands.Component:
+                            await self.add_component(attr(self))
+                            loaded_component = True
+                            printlog(f"Lista de comandos cargados: {attr_name}")
+                    if not loaded_component:
+                        printlog(f"No se encontro ningun commands.Component en {module_name}", "WARNING")
+                except Exception as e:
+                    printlog(f"Error cargando {module_name}: {e}", "ERROR")
         await asyncio.sleep(1)
     #______________________________________________________________________
 

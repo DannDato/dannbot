@@ -14,9 +14,10 @@ class moderator_commands(commands.Component):
         self.bot = bot
 
     def _can_manage_stream(self, ctx) -> bool:
-        return is_authorized(ctx) and is_mod(ctx)
+        # Permitir si es moderador o está en la lista autorizada.
+        return is_authorized(ctx) or is_mod(ctx)
 
-    @commands.command(name='titulo')
+    @commands.command(name='titulo', aliases=['title'])
     async def titulo(self, ctx):
         if not self._can_manage_stream(ctx):
             await ctx.send("[BOT] - Hey, este comando es solo para usuarios autorizados y moderadores 😑")
@@ -30,7 +31,7 @@ class moderator_commands(commands.Component):
         ok, result = await set_stream_title(parts[1].strip())
         await ctx.send(f'[BOT] - {"Titulo actualizado: " + result if ok else result}')
 
-    @commands.command(name='categoria', aliases=['cat'])
+    @commands.command(name='categoria', aliases=['cat', 'game', 'category'])
     async def categoria(self, ctx):
         if not self._can_manage_stream(ctx):
             await ctx.send("[BOT] - Hey, este comando es solo para usuarios autorizados y moderadores 😑")

@@ -166,6 +166,32 @@ Robustez agregada:
 - bases locales (`*.db`, `*.sqlite`, `*.sqbpro`)
 - `Logs/`, `Reportes/`, `Gpt/`, caches y entornos virtuales
 
+### Eliminar `token.json` del repo de forma segura
+
+Si quieres sacar `Credentials/token.json` por completo sin romper el proyecto:
+
+1. Rotar secretos primero (obligatorio):
+  - Regenera/revoca `access_token` y `refresh_token`.
+  - Si hubo exposicion, rota tambien `client_secret` en tu app de Twitch.
+
+2. Mantener archivo local pero no versionado:
+  - `Credentials/token.json` debe quedar solo en tu maquina.
+  - El repo incluye `Credentials/token.example.json` como plantilla segura.
+
+3. Si alguna vez estuvo en historial Git y quieres purgarlo:
+  - Requiere reescritura de historial y forzar push.
+  - Con `git filter-repo` (recomendado):
+
+```bash
+git filter-repo --path Credentials/token.json --invert-paths
+git push --force --all
+git push --force --tags
+```
+
+4. Despues de purgar historial:
+  - Invalidar tokens anteriores nuevamente por seguridad.
+  - Pedir al equipo que vuelva a clonar o haga hard reset a ramas compartidas.
+
 ## Troubleshooting rapido
 
 - Error OAuth/cancelacion: vuelve a ejecutar `python bot.py`; el cierre ya es limpio.

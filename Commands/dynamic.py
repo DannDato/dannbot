@@ -1,7 +1,7 @@
+import asyncio
 from twitchio.ext import commands
 import logging
 import random
-import time
 from datetime import datetime, date
 
 from Helpers.helpers import is_authorized
@@ -185,7 +185,7 @@ class dynamic_commands(commands.Component):
     @commands.command(name='ruleta')
     async def ruleta(self,ctx):
         await ctx.send(f'[BOT] - @{ctx.chatter.name} quiere jugar a la ruleta rusa... toma el arma, se prepara...')
-        time.sleep(1)
+        await asyncio.sleep(1)
         lnOpcion = random.randint(0,5)
         if lnOpcion == 0:
             lcRespuesta  ="Bye, se ha matao mi hijo ☠️"
@@ -326,7 +326,7 @@ class dynamic_commands(commands.Component):
                 lcText = "Desenlace inesperado: Ambos sueltan los cuchillos y ríen."
             case 3:
                 lcText = "Empate mortal: Caen juntos, aferrados a sus armas."
-        time.sleep(1)
+        await asyncio.sleep(1)
         await ctx.send(f'[BOT] - {lcText}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Fuerza",ctx.chatter.id,0.15)
@@ -365,7 +365,7 @@ class dynamic_commands(commands.Component):
             lcExtra ="❤️❤️"
         elif lnAmor >= 66:
             lcExtra ="❤️❤️❤️"
-        time.sleep(1)
+        await asyncio.sleep(1)
         await ctx.send(f'[BOT] - El amor entre @{primerUsuario} y @{segundoUsuario} es del {lnAmor}% {lcExtra}')
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
 
@@ -388,7 +388,7 @@ class dynamic_commands(commands.Component):
             lcExtra ="🤬🤬"
         elif lnAmor >= 66:
             lcExtra ="🤬🤬🤬"
-        time.sleep(1)
+        await asyncio.sleep(1)
         await ctx.send(f'[BOT] - El odio entre @{primerUsuario} y @{segundoUsuario} es del {lnAmor}% {lcExtra}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
@@ -487,11 +487,16 @@ class dynamic_commands(commands.Component):
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
 
-    @commands.command(name='followage', aliases=["siguiendo"])
+    @commands.command(name='followage', aliases=["siguiendo","fa"])
     async def followage(self, ctx):
         if '@' in ctx.message.text:
             mentioned_user = ctx.message.text.strip().split('@')[1].strip().split()[0]
             user_id = await get_twitch_id(mentioned_user)
+            if user_id is None:
+                # Fallback a Helix por login si aun no está registrado en la BD local.
+                users = await self.bot.fetch_users(logins=[mentioned_user])
+                if users:
+                    user_id = users[0].id
             if user_id is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}.")
                 return
@@ -505,6 +510,9 @@ class dynamic_commands(commands.Component):
             return
 
         delta, followed_dt = await get_follow_age(user_id)
+        if followed_dt is None:
+            # Si hay cache negativa antigua, intenta una consulta fresca.
+            delta, followed_dt = await get_follow_age(user_id, force_refresh=True)
         if followed_dt is None:
             await ctx.send(f"[BOT] - @{target_name} no sigue el canal o no pude consultar su followage.")
             return

@@ -164,15 +164,17 @@ async def is_channel_online():
         if not broadcaster_id:
             return False
 
-        for attempt in range(max_attempts):
-            try:
-                contents = requests.get(f'https://www.twitch.tv/{broadcaster_id}', timeout=10).content.decode('utf-8')
-                if 'isLiveBroadcast' in contents:
-                    printlog(f"{broadcaster_id} está en línea según Twitch.","INFO")
-                    return True
-                    # if attempt == max_attempts: printlog(f"{broadcaster_id} está offline según Twitch.")
-            except requests.RequestException as e:
-                printlog(f"Error en la solicitud a Twitch: {e}","ERROR")
+        async with aiohttp.ClientSession() as session:
+            for attempt in range(max_attempts):
+                try:
+                    async with session.get(f'https://www.twitch.tv/{broadcaster_id}', timeout=10) as resp:
+                        contents = await resp.text()
+                        if 'isLiveBroadcast' in contents:
+                            printlog(f"{broadcaster_id} está en línea según Twitch.","INFO")
+                            return True
+                        # if attempt == max_attempts: printlog(f"{broadcaster_id} está offline según Twitch.")
+                except Exception as e:
+                    printlog(f"Error en la solicitud a Twitch: {e}","ERROR")
         # Si después de todos los intentos no se obtiene confirmación, retornar False
         # printlog(f"{broadcaster_id} sigue offline después de {max_attempts} intentos.")
         return False

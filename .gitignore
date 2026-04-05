@@ -8,6 +8,7 @@
 token.json
 token_dev.json
 Credentials/*.json
+!Credentials/token.example.json
 Credentials/*.token
 Credentials/*.secret
 Credentials/*.pem

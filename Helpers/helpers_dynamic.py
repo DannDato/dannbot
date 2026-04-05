@@ -19,7 +19,8 @@ token_data = load_token()
 CLIENT_ID = token_data.get("client_id")
 CLIENT_SECRET = token_data.get("client_secret")
 BOT_ID = token_data.get("bot_id")
-OWNER_ID = token_data.get("bot_id")  # canal objetivo del bot
+# Canal objetivo real del bot (puede ser distinto a bot_id si se usa cuenta bot separada).
+OWNER_ID = token_data.get("owner_id") or token_data.get("channel_id") or BOT_ID
 ACCESS_TOKEN = token_data.get("access_token")
 BOT_NAME = token_data.get("bot_name")
 CHANNEL_NAME = token_data.get("channel_name")
@@ -91,34 +92,44 @@ def gen_response(document):
 
 #___________________________________________________________________________________________
 async def get_vips():
-    # Obtener el ID de tu canal
-    user_url = f'https://api.twitch.tv/helix/users?login={INITIAL_CHANNELS}'
     headers = {
         'Client-Id': CLIENT_ID,
         'Authorization': f'Bearer {ACCESS_TOKEN}',
     }
 
-    user_response = requests.get(user_url, headers=headers)
-    user_data = user_response.json()
+    channel_login = CHANNEL_NAME or (INITIAL_CHANNELS[0] if INITIAL_CHANNELS else None)
+    if not channel_login:
+        printlog('No hay channel_name configurado para consultar VIPs.', "WARNING")
+        return []
 
-    if user_data['data']:
-        channel_id = user_data['data'][0]['id']
-        # Obtener la lista de VIPs del canal
-        vips_url = f'https://api.twitch.tv/helix/channels/vips?broadcaster_id={channel_id}'
-        vips_response = requests.get(vips_url, headers=headers)
-        vips_data = vips_response.json()
+    try:
+        async with aiohttp.ClientSession() as session:
+            user_url = 'https://api.twitch.tv/helix/users'
+            async with session.get(user_url, headers=headers, params={'login': channel_login}) as user_resp:
+                user_data = await user_resp.json(content_type=None)
+                if user_resp.status != 200:
+                    printlog(f'Error consultando canal para VIPs ({user_resp.status}): {user_data}', "WARNING")
+                    return []
 
-        # Imprimir los nombres de los VIPs
-        if 'data' in vips_data:
-            vips = [vip['user_name'] for vip in vips_data['data']]
-            return vips
-        else:
-            printlog(f'No se encontraron VIPs en el canal {INITIAL_CHANNELS}.')
-    else:
-        printlog(f'No se encontró el canal {INITIAL_CHANNELS}.',"WARNING")
+            if not user_data.get('data'):
+                printlog(f'No se encontró el canal {channel_login}.', "WARNING")
+                return []
+
+            channel_id = user_data['data'][0]['id']
+            vips_url = 'https://api.twitch.tv/helix/channels/vips'
+            async with session.get(vips_url, headers=headers, params={'broadcaster_id': channel_id}) as vips_resp:
+                vips_data = await vips_resp.json(content_type=None)
+                if vips_resp.status != 200:
+                    printlog(f'Error consultando VIPs ({vips_resp.status}): {vips_data}', "WARNING")
+                    return []
+
+            return [vip.get('user_name') for vip in vips_data.get('data', []) if vip.get('user_name')]
+    except Exception as e:
+        printlog(f'Error obteniendo VIPs: {e}', "WARNING")
+        return []
 
 async def get_followers_count():
-    url = f"https://api.twitch.tv/helix/channels/followers?broadcaster_id={BOT_ID}"
+    url = f"https://api.twitch.tv/helix/channels/followers?broadcaster_id={OWNER_ID}"
     headers = {
         "Client-Id": CLIENT_ID,
         "Authorization": f"Bearer {ACCESS_TOKEN}"
@@ -198,7 +209,7 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
                     FROM followage_cache
                     WHERE user_id = ? AND broadcaster_id = ?
                     ''',
-                    (str(user_id), str(BOT_ID))
+                    (str(user_id), str(OWNER_ID))
                 )
                 row = cursor.fetchone()
 
@@ -210,7 +221,9 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
                     if followed_at_cached:
                         followed_dt = datetime.fromisoformat(followed_at_cached.replace("Z", "+00:00"))
                         return now - followed_dt, followed_dt
-                    return None, None
+                    # Cache negativo corto para evitar "pegarse" ante errores transitorios.
+                    if age_seconds <= 300:
+                        return None, None
         except (sqlite3.Error, ValueError) as e:
             printlog(f"Error leyendo cache followage: {e}", "WARNING")
 
@@ -220,38 +233,42 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
         "Authorization": f"Bearer {ACCESS_TOKEN}"
     }
     params = {
-        "broadcaster_id": BOT_ID,
+        "broadcaster_id": OWNER_ID,
         "user_id": str(user_id),
         "first": 1
     }
 
     followed_at = None
+    api_ok = False
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, params=params) as resp:
                 data = await resp.json()
-                if resp.status == 200 and data.get("data"):
-                    followed_at = data["data"][0].get("followed_at")
+                if resp.status == 200:
+                    api_ok = True
+                    if data.get("data"):
+                        followed_at = data["data"][0].get("followed_at")
                 elif resp.status != 200:
                     printlog(f"Error Helix followage ({resp.status}): {data}", "WARNING")
     except Exception as e:
         printlog(f"Error consultando Helix followage: {e}", "WARNING")
 
-    try:
-        with db_cursor(DB_PATH, commit=True) as (_, cursor):
-            cursor.execute(
-                '''
-                INSERT INTO followage_cache (user_id, broadcaster_id, followed_at, fetched_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(user_id, broadcaster_id)
-                DO UPDATE SET
-                    followed_at=COALESCE(followage_cache.followed_at, excluded.followed_at),
-                    fetched_at=excluded.fetched_at
-                ''',
-                (str(user_id), str(BOT_ID), followed_at, now.isoformat())
-            )
-    except sqlite3.Error as e:
-        printlog(f"Error guardando cache followage: {e}", "WARNING")
+    if api_ok:
+        try:
+            with db_cursor(DB_PATH, commit=True) as (_, cursor):
+                cursor.execute(
+                    '''
+                    INSERT INTO followage_cache (user_id, broadcaster_id, followed_at, fetched_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(user_id, broadcaster_id)
+                    DO UPDATE SET
+                        followed_at=COALESCE(followage_cache.followed_at, excluded.followed_at),
+                        fetched_at=excluded.fetched_at
+                    ''',
+                    (str(user_id), str(OWNER_ID), followed_at, now.isoformat())
+                )
+        except sqlite3.Error as e:
+            printlog(f"Error guardando cache followage: {e}", "WARNING")
 
     if followed_at:
         try:
@@ -262,21 +279,27 @@ async def get_follow_age(user_id, force_refresh: bool = False, cache_hours: int 
 
     return None, None
 
-def get_viewers():
+async def get_viewers():
     url = "https://api.twitch.tv/helix/streams"
     headers = {
         "Client-ID": CLIENT_ID,
         "Authorization": f"Bearer {ACCESS_TOKEN}"
     }
-    params = { "user_login": BOT_ID}
-    response = requests.get(url, headers=headers, params=params).json()
+    params = {"user_id": str(OWNER_ID)}
 
-    if response.get("data"):
-        stream_info = response["data"][0]
-        viewers = stream_info["viewer_count"]
-        return viewers
-    else:
-        return 0  # si está offline
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as resp:
+                data = await resp.json(content_type=None)
+                if resp.status != 200:
+                    printlog(f"Error consultando viewers ({resp.status}): {data}", "WARNING")
+                    return 0
+                if data.get("data"):
+                    return int(data["data"][0].get("viewer_count", 0))
+    except Exception as e:
+        printlog(f"Error al consultar viewers: {e}", "WARNING")
+
+    return 0  # si está offline o hubo error
 
 
 #___________________________________________________________________________________________

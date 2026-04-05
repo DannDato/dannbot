@@ -1,4 +1,6 @@
 from twitchio.ext import commands
+import time
+from Helpers.helpers import is_authorized
 from Helpers.helpers_stats import update_global_stats
 from Helpers.helpers_moderator import create_stream_clip
 from Helpers.printlog import printlog
@@ -7,6 +9,10 @@ class general_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
         super().__init__()
         self.bot = bot
+        self._clip_user_cooldown_seconds = 60
+        self._clip_global_cooldown_seconds = 12
+        self._clip_last_global_ts = 0.0
+        self._clip_last_by_user = {}
     """
                     COMANDOS GENERALES
 
@@ -191,8 +197,31 @@ class general_commands(commands.Component):
 
     @commands.command(name='clip')
     async def clip(self, ctx):
+        now_ts = time.monotonic()
+        user_key = str(ctx.chatter.id)
+        bypass_cooldown = bool(getattr(ctx.chatter, "moderator", False)) or is_authorized(ctx)
+
+        if not bypass_cooldown:
+            last_global = self._clip_last_global_ts
+            if now_ts - last_global < self._clip_global_cooldown_seconds:
+                remaining = int(self._clip_global_cooldown_seconds - (now_ts - last_global)) + 1
+                await ctx.send(f"[BOT] - Esperen {remaining}s para crear otro clip 😅")
+                return
+
+            last_user = self._clip_last_by_user.get(user_key, 0.0)
+            if now_ts - last_user < self._clip_user_cooldown_seconds:
+                remaining = int(self._clip_user_cooldown_seconds - (now_ts - last_user)) + 1
+                await ctx.send(f"[BOT] - @{ctx.chatter.name} espera {remaining}s antes de usar !clip otra vez.")
+                return
+
+            self._clip_last_global_ts = now_ts
+            self._clip_last_by_user[user_key] = now_ts
+
         ok, result = await create_stream_clip(has_delay=True)
-        await ctx.send(f"[BOT] - {result}")
+        if ok:
+            await ctx.send(f"[BOT] - @{ctx.chatter.name} listo, te deje el clip: {result.replace('Clip creado: ', '')}")
+        else:
+            await ctx.send(f"[BOT] - {result}")
         printlog(f"{ctx.chatter.name} uso clip -> {'ok' if ok else 'fail'}")
 
     @commands.command(name='speak', aliases=["spk", "voz"])
