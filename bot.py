@@ -36,7 +36,7 @@ from Handlers.handlers_subs import handle_sub, handle_sub_gift
 from Handlers.console_handler import console_control
 from Helpers.health_check import monitor_bot_health
 from Helpers.helpers_admin import start_stream
-from Helpers.helpers_moderator import ensure_seed_basic_commands
+from Seed.basic_commands import ensure_seed_basic_commands
 
 from Helpers.colors import (
     azul, white, resetColor,
@@ -55,24 +55,6 @@ ACCESS_TOKEN = token_data.get("access_token")
 CHANNEL_NAME = token_data.get("channel_name")
 
 animated_message("Token cargado correctamente...", azul)
-
-# async def main():
-#     subs = [
-#         eventsub.ChatMessageSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
-#         eventsub.ChannelCheerSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
-#         eventsub.ChannelSubscribeSubscription(broadcaster_user_id=OWNER_ID, user_id=BOT_ID),
-#         eventsub.ChannelFollowSubscription(broadcaster_user_id=OWNER_ID, moderator_user_id=OWNER_ID),
-#         eventsub.ChannelSubscriptionGiftSubscription(broadcaster_user_id=OWNER_ID),
-#         eventsub.ChannelBanSubscription(broadcaster_user_id=OWNER_ID),
-#         eventsub.ChannelUnbanSubscription(broadcaster_user_id=OWNER_ID),
-#         eventsub.ChannelUpdateSubscription(broadcaster_user_id=OWNER_ID),
-#         eventsub.StreamOnlineSubscription(broadcaster_user_id=OWNER_ID),
-#         eventsub.StreamOfflineSubscription(broadcaster_user_id=OWNER_ID),
-#     ]
-#     bot = Bot(subs=subs)
-#     bot_task = asyncio.create_task(bot.start())
-#     console_task = asyncio.create_task(console_control(bot))
-#     await asyncio.wait([bot_task, console_task], return_when=asyncio.FIRST_COMPLETED)
 
 async def main():
     subs = [
@@ -266,9 +248,6 @@ class Bot(commands.AutoBot):
         else:
             printlog("Ya existia un stream activo en BD. Se ignora stream_online para evitar duplicados.", "WARNING")
 
-    # async def event_stream_offline(self, payload: twitchio.StreamOffline) -> None:
-    #     printlog("Se ha detenido el stream!")
-    #     #Aqui agregaremos el handler para detener directo
 
     #______________________________________________________________________
     #Eventos de error
