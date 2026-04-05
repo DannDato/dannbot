@@ -1,49 +1,247 @@
 # DannBot
 
-Bot de Twitch construido con Python y TwitchIO para automatizar chat, registrar estadisticas del stream, gestionar comandos modulares y generar reportes HTML enviados por correo.
+Bot de Twitch construido con Python + TwitchIO para automatizar chat, registrar metricas del stream y gestionar comandos mixtos (hardcodeados + base de datos).
 
-## Resumen
+## Estado actual del proyecto
 
-DannBot actualmente incluye:
+Esta version ya no usa un archivo de comandos generales hardcodeados para respuestas estaticas.
 
-- Integracion con Twitch EventSub (mensajes, follows, subs, bits, ban/unban, updates de canal, online/offline).
-- Sistema de comandos modular por componentes.
-- Registro de actividad en SQLite (usuarios, mensajes, follows, subs, stream_data, etc.).
-- Polling de chatters cada 5s para metrica real de personas en chat.
-- Reporte de fin de stream con comparativas, conclusiones y grafica embebida en el correo.
-- Integracion opcional con OpenAI para funciones de lenguaje natural (por ejemplo parseo flexible de fechas).
+Ahora hay dos capas de comandos:
 
-## Estructura principal
+1. Comandos hardcodeados (logica real)
+- Se implementan en componentes de `Commands/`.
+- Se usan cuando el comando requiere programacion, llamadas API, cooldowns, validaciones o efectos colaterales.
+- Ejemplos: `!clip`, `!titulo`, `!categoria`, `!mark`, `!bd`, `!followage`, `!end`.
 
-- `bot.py`: arranque principal del bot y suscripciones EventSub.
-- `server.py`: flujo OAuth local para autorizar Twitch.
-- `Commands/`: componentes de comandos.
-- `Handlers/`: handlers de eventos EventSub/chat.
-- `Helpers/`: utilidades de API, DB, OAuth, correo, stats, etc.
-- `Html/mails/end_stream.html`: plantilla del correo de reporte.
-- `Credentials/token.json`: token OAuth y datos de Twitch del canal autorizado (archivo local, no versionado).
-- `.env`: credenciales sensibles de app y SMTP (archivo local, no versionado).
+2. Comandos fijos de texto (seed + BD)
+- Se guardan en tabla `commands` de `data.db`.
+- Se inicializan desde `Seed/basic_commands.py` al arrancar.
+- Se pueden crear/editar/eliminar desde chat con `!newcmd`, `!editcmd`, `!delcmd`.
 
-## Componentes de comandos
+## Arquitectura principal
 
-Carga dinamica desde `Commands/` en `setup_hook`.
+- `bot.py`
+  - Arranque del bot.
+  - Suscripciones EventSub.
+  - Carga dinamica de componentes en `Commands/`.
+  - Ejecuta seed de comandos base con `ensure_seed_basic_commands()`.
 
-- `admin.py`: comandos administrativos de stream/control (`!ini`, `!end`, `!restart`, `!status`).
-- `moderator.py`: comandos de moderacion de stream (`!titulo`, `!categoria`, `!mark`).
-- `general.py`: comandos generales del chat y `!clip`.
-- `dynamic.py`: comandos dinamicos/juegos/utilidades (`!viewers`, `!followage`, `!bd`, etc.).
-- `stats.py`, `player.py`: estadisticas de usuario y progresion.
+- `Seed/basic_commands.py`
+  - Fuente oficial del seed de comandos fijos.
+  - Define comandos canonicamente (uno por fila) con aliases en lista.
+  - Migra esquema para soportar columna `aliases`.
+  - Consolida filas legacy que antes estaban duplicadas por alias.
 
-## Requisitos
+- `Helpers/helpers_moderator.py`
+  - Gestion CRUD de comandos en BD.
+  - Resolucion de comandos por nombre o alias.
+  - Listado de comandos canonicos o con aliases.
+  - Helpers de Twitch para titulo/categoria/clip/marker.
 
-- Python 3.12+
+- `Handlers/handlers_message.py`
+  - Guarda chat y estadisticas.
+  - Si el mensaje inicia con `!` y no existe comando hardcodeado, busca en BD.
+  - Soporta placeholder `{user}` en respuestas de BD.
+
+- `Commands/moderator.py`
+  - `!newcmd`, `!editcmd`, `!delcmd`.
+  - Bloquea edicion/eliminacion de comandos nativos del bot.
+  - Solo permite operar sobre comandos existentes en BD.
+
+- `Commands/dynamic.py`
+  - Comandos con logica dinamica.
+  - `!comandos` mezcla comandos hardcodeados + comandos de BD.
+  - Aplica visibilidad segun permisos y lista de excluidos.
+
+## Seed de comandos (nuevo flujo)
+
+Ubicacion:
+- `Seed/basic_commands.py`
+
+Estructura del seed:
+
+```python
+DEFAULT_BASIC_COMMAND_SEEDS = [
+    {
+        'command': 'user',
+        'aliases': ['usuario', 'name', 'id'],
+        'response': '[BOT] - Mi usuario en todos los juegos es DannDato'
+    },
+    ...
+]
+```
+
+Comportamiento de `ensure_seed_basic_commands()`:
+
+1. Asegura tabla `commands`.
+2. Si falta la columna `aliases`, la agrega (`ALTER TABLE ... ADD COLUMN`).
+3. Inserta comandos canonicos faltantes.
+4. Si el comando ya existe, fusiona aliases existentes + aliases del seed.
+5. Si detecta filas antiguas duplicadas por alias con misma respuesta, las elimina para compactar la BD.
+
+Resultado:
+- La lista de comandos ya no crece artificialmente por aliases duplicados.
+- Los aliases siguen funcionando para invocar el comando.
+
+## Esquema de base de datos para comandos
+
+Tabla: `commands`
+
+- `command TEXT PRIMARY KEY`
+  - Nombre canonico (normalizado, ej. `!user`).
+- `response TEXT NOT NULL`
+  - Mensaje de respuesta.
+- `aliases TEXT DEFAULT '[]'`
+  - JSON array de aliases normalizados (ej. `["!id","!name","!usuario"]`).
+
+## Diferencia entre comandos fijos y dinamicos
+
+Comandos fijos (BD):
+- Son respuestas de texto.
+- Se pueden gestionar sin tocar codigo.
+- Se ejecutan cuando no existe comando hardcodeado con ese nombre.
+
+Comandos dinamicos (codigo):
+- Requieren logica, estado o llamadas externas.
+- Viven en `Commands/*.py`.
+- Tienen prioridad sobre BD.
+
+Prioridad de ejecucion en mensajes:
+
+1. Si existe comando hardcodeado, se procesa por TwitchIO.
+2. Si no existe, se intenta resolver en BD (nombre o alias).
+
+## Comando !comandos (visibilidad por rol)
+
+Implementado en `Commands/dynamic.py`.
+
+Hace merge de:
+- Comandos hardcodeados cargados en runtime.
+- Comandos de BD (canonicos).
+
+Filtro de seguridad:
+- Lee `Helpers/textos/comandos_excluidos.txt`.
+- Usuario regular: no ve comandos excluidos.
+- Moderador o `is_authorized`: ve todos, incluidos excluidos.
+
+## Nuevas funciones clave (documentadas)
+
+### En `Seed/basic_commands.py`
+
+- `_ensure_basic_commands_table()`
+  - Crea tabla `commands` y asegura columna `aliases`.
+
+- `_parse_aliases(raw_aliases)`
+  - Interpreta aliases desde JSON (o fallback CSV legacy).
+
+- `_serialize_aliases(aliases)`
+  - Normaliza y serializa aliases a JSON.
+
+- `ensure_seed_basic_commands()`
+  - Ejecuta seed, fusiona aliases y consolida duplicados legacy.
+
+### En `Helpers/helpers_moderator.py`
+
+- `_resolve_stored_command_name(raw_command)`
+  - Resuelve comando canonico por nombre principal o alias.
+
+- `save_basic_command(raw_command, raw_response)`
+  - Crea/actualiza comando principal (sin forzar aliases).
+
+- `edit_basic_command(raw_command, raw_response)`
+  - Edita respuesta buscando por comando o alias.
+
+- `delete_basic_command(raw_command)`
+  - Elimina comando canonico buscando por comando o alias.
+
+- `get_basic_command_response(raw_command)`
+  - Obtiene respuesta por comando o alias.
+
+- `custom_command_exists(raw_command)`
+  - Verifica existencia real en BD (incluye alias).
+
+- `list_basic_command_names(include_aliases=False)`
+  - Lista nombres de comandos de BD.
+  - Por defecto solo canonicos (lista compacta).
+  - Opcionalmente incluye aliases.
+
+### En `Commands/moderator.py`
+
+- `!newcmd` / `!ncmd`
+  - Crea comando en BD (sin aliases obligatorios).
+
+- `!editcmd` / `!ecmd`
+  - Edita comando existente en BD.
+
+- `!delcmd` / `!dcmd` / `!rmcmd`
+  - Elimina comando existente en BD.
+
+Validaciones relevantes:
+- Solo mod/autorizados.
+- No permite tocar comandos nativos.
+- Solo actua si el comando existe en BD.
+
+## Uso de aiohttp en el proyecto
+
+El bot usa `aiohttp` para todas las llamadas HTTP async a Twitch/OAuth, evitando bloqueos del loop.
+
+Patron general:
+
+```python
+async with aiohttp.ClientSession() as session:
+    async with session.get|post|patch(url, headers=..., params|json|data=...) as resp:
+        data = await resp.json(...)
+```
+
+Donde se usa principalmente:
+
+1. `Helpers/helpers_moderator.py`
+- `PATCH /helix/channels` para `!titulo` y `!categoria`.
+- `GET /helix/search/categories` + `GET /helix/games/top` para matching de categorias.
+- `POST /helix/streams/markers` para `!mark`.
+- `POST /helix/clips` y polling de `GET /helix/clips` para `!clip`.
+
+2. `Helpers/helpers_dynamic.py`
+- Followers, VIPs, viewers, followage, Steam, etc.
+
+3. `Helpers/helpers.py`
+- Validaciones de broadcaster y tokens.
+
+4. `Helpers/oauth_flow.py`
+- Validacion/intercambio/refresh de tokens OAuth.
+
+Buenas practicas aplicadas:
+- Requests asincronas.
+- Manejo de status codes y fallback seguro.
+- Mensajes de error controlados para chat/log.
+
+## Comandos por modulo (resumen)
+
+- `Commands/admin.py`
+  - `!ini`, `!end`, `!restart`, `!status`
+
+- `Commands/moderator.py`
+  - `!titulo`, `!categoria`, `!mark`
+  - `!newcmd`, `!editcmd`, `!delcmd`
+
+- `Commands/dynamic.py`
+  - `!comandos` (merge hardcodeados + BD, con filtro por permisos)
+  - y el resto de comandos dinamicos del bot (stats, utilidades, juegos, etc.)
+
+- `Commands/player.py`, `Commands/stats.py`
+  - Progresion/estadisticas de usuario y funcionalidades relacionadas.
+
+## Configuracion y ejecucion
+
+Requisitos:
+- Python 3.11+
 - Dependencias de `Tools/requirements.txt`
 
-Instalacion sugerida (Windows PowerShell):
+Instalacion recomendada (Windows PowerShell):
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python -m venv bot
+.\bot\Scripts\Activate.ps1
 pip install -r Tools/requirements.txt
 ```
 
@@ -53,189 +251,43 @@ Ejecucion:
 python bot.py
 ```
 
-## Configuracion de entorno (.env)
+## Credenciales y seguridad
 
-Crea `.env` a partir de `.env.example`.
+Archivos locales importantes:
+- `Credentials/token.json` (token Twitch runtime)
+- `.env` (secretos de entorno como SMTP/OpenAI/Steam)
 
-Variables usadas actualmente:
+No versionar secretos.
 
-```env
-# Twitch OAuth app
-DANNBOT_CLIENT_ID=...
-DANNBOT_CLIENT_SECRET=...
+## Notas de mantenimiento
 
-# SMTP para envio de reportes
-DANNBOT_MAIL_USER=tu_correo@gmail.com
-DANNBOT_MAIL_PASS=tu_app_password
-```
+1. Si modificas seed:
+- Edita solo `Seed/basic_commands.py`.
+- Reinicia bot para aplicar `ensure_seed_basic_commands()`.
 
-Aliases soportados:
+2. Si agregas comandos dinamicos nuevos:
+- Crear/editar componente en `Commands/`.
+- Mantener validaciones de permisos donde aplique.
 
-- `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`
-- `SMTP_USER`, `SMTP_PASS`
+3. Si tocas el flujo de comandos BD:
+- Revisar `Helpers/helpers_moderator.py` y `Handlers/handlers_message.py` juntos.
 
-## OAuth y token
-
-### Que guarda `Credentials/token.json`
-
-`token.json` se usa para datos de conexion del usuario/canal autorizado en Twitch, por ejemplo:
-
-- `access_token`, `refresh_token`
-- `client_id`, `client_secret`
-- `bot_id`, `owner_id`, `channel_name`
-- `scopes`, `token_type`, `expires_in`, `token_obtained_at`
-
-Nota: credenciales SMTP/OpenAI/Steam no dependen de `token.json`; se leen de `.env`.
-
-### Flujo OAuth
-
-Si no hay token utilizable, el bot inicia flujo OAuth con `server.py` en `http://localhost:8080`.
-
-- Si el usuario autoriza: se genera/actualiza `Credentials/token.json`.
-- Si el usuario cancela o deniega: el flujo termina limpio sin dejar procesos colgados ni logs ruidosos.
-
-## Scopes requeridos (minimos actuales)
-
-Definidos en `Helpers/required_scopes.py`.
-
-Incluyen lo necesario para funcionalidades activas:
-
-- Chat/EventSub chat: `chat:read`, `chat:edit`, `user:read:chat`, `user:write:chat`, `user:bot`, `channel:bot`
-- Metricas/comandos: `bits:read`, `channel:read:subscriptions`, `moderator:read:followers`, `moderator:read:chatters`, `channel:read:vips`
-- Moderacion de stream: `channel:manage:broadcast`
-- Clips: `clips:edit`
-- EventSub ban/unban: `channel:moderate`
-
-## Funcionalidades destacadas
-
-### Metricas de viewers por chat real
-
-`Helpers/helpers_bot.py` realiza polling de chatters cada 5 segundos y persiste en `stream_data`:
-
-- `stream_actual_viewers`
-- `stream_max_viewers`
-- `stream_avg_viewers`
-
-El comando `!viewers` usa chatters reales, no `viewer_count` del stream.
-
-### Followage con cache
-
-`!followage` usa Helix + cache SQLite (`followage_cache`) para reducir llamadas y mantener fecha original de follow.
-
-### Cumpleanos flexible
-
-`!bd` soporta parseo de fecha flexible (formatos comunes y lenguaje natural con fallback).
-
-### Moderacion de stream
-
-- `!titulo`: actualiza titulo y agrega sufijo ` [ !redes !discord !sr ]`.
-- `!categoria`: seleccion tolerante por similitud con sugerencias.
-- `!mark`: crea stream marker para ubicar momentos en VOD.
-- `!clip` (general): crea clip directo por Helix.
-
-## Reporte de fin de stream por correo
-
-Al ejecutar `!end`, se procesa el stream y se envia correo con:
-
-- Resumen principal (visitantes, follows, mensajes, tiempo, donaciones aproximadas).
-- Peak/avg viewers.
-- Lista de participantes unicos.
-- Grafica unica comparativa (3 streams) con eje X/Y:
-  - Serie 1: usuarios unicos
-  - Serie 2: mensajes
-
-Implementacion:
-
-- Plantilla base: `Html/mails/end_stream.html`
-- Logica de armado/reemplazos: `Helpers/helpers_admin.py`
-- Envio SMTP + guardado de copia HTML en `Reportes/`: `Helpers/mailer.py`
-
-Robustez agregada:
-
-- Manejo de division por cero en porcentajes.
-- Tolerancia a tablas mensuales de chat faltantes (`chat_YYYYMM`).
-- Evita uso de cursor cerrado en consultas complementarias.
-
-## Seguridad y versionado
-
-`.gitignore` esta configurado para excluir secretos y artefactos locales, incluyendo:
-
-- `.env`
-- `Credentials/*` sensibles
-- `token.json`
-- bases locales (`*.db`, `*.sqlite`, `*.sqbpro`)
-- `Logs/`, `Reportes/`, `Gpt/`, caches y entornos virtuales
-
-### Eliminar `token.json` del repo de forma segura
-
-Si quieres sacar `Credentials/token.json` por completo sin romper el proyecto:
-
-1. Rotar secretos primero (obligatorio):
-  - Regenera/revoca `access_token` y `refresh_token`.
-  - Si hubo exposicion, rota tambien `client_secret` en tu app de Twitch.
-
-2. Mantener archivo local pero no versionado:
-  - `Credentials/token.json` debe quedar solo en tu maquina.
-  - El repo incluye `Credentials/token.example.json` como plantilla segura.
-
-3. Si alguna vez estuvo en historial Git y quieres purgarlo:
-  - Requiere reescritura de historial y forzar push.
-  - Con `git filter-repo` (recomendado):
-
-```bash
-git filter-repo --path Credentials/token.json --invert-paths
-git push --force --all
-git push --force --tags
-```
-
-4. Despues de purgar historial:
-  - Invalidar tokens anteriores nuevamente por seguridad.
-  - Pedir al equipo que vuelva a clonar o haga hard reset a ramas compartidas.
+4. Si agregas integraciones HTTP:
+- Usar `aiohttp` async.
+- Manejar status y timeouts.
+- Loggear errores sin romper el loop principal.
 
 ## Troubleshooting rapido
 
-- Error OAuth/cancelacion: vuelve a ejecutar `python bot.py`; el cierre ya es limpio.
-- Error de correo: verifica `DANNBOT_MAIL_USER` y `DANNBOT_MAIL_PASS` en `.env`.
-- Problemas de scopes: reautoriza OAuth para refrescar token con scopes actuales.
-- Problemas de import en VS Code: revisa que el interprete seleccionado sea el del entorno con dependencias instaladas.
+- `!comandos` muy largo:
+  - Verifica que el listado use nombres canonicos (sin aliases repetidos).
 
-## Desarrollo
+- Alias no responde:
+  - Revisa columna `aliases` en tabla `commands`.
+  - Reinicia bot para re-ejecutar seed y consolidacion.
 
-Para extender el bot:
+- Error de permisos en comandos de gestion:
+  - Verifica `is_authorized` y rol moderador en Twitch.
 
-1. Agrega/modifica componentes en `Commands/`.
-2. Agrega helpers en `Helpers/` separados por dominio.
-3. Manten `token.json` para datos de Twitch y `.env` para secretos operativos (SMTP/otros).
-4. Si agregas funcionalidades nuevas de Twitch, actualiza `Helpers/required_scopes.py` y reautoriza OAuth.
-
-## Comandos rapidos por rol
-
-| Rol | Comandos | Uso principal |
-|---|---|---|
-| Admin autorizado | `!ini`, `!end`, `!restart`, `!status` | Iniciar/cerrar stream en DB, reinicio y salud del bot |
-| Moderador autorizado | `!titulo`, `!categoria`, `!mark` | Gestion de metadata del stream y markers en VOD |
-| General chat | `!clip`, `!viewers`, `!followage`, `!bd`, `!cumple` | Utilidades de chat, clips, viewers y datos de usuario |
-
-Notas:
-
-- `!titulo`, `!categoria` y `!mark` validan tanto `is_authorized` como `is_mod`.
-- `!clip` crea clip por Helix (`clips:edit`) y responde con URL de clip/edicion.
-- `!viewers` usa chatters reales (`fetch_chatters`), no el `viewer_count` del stream.
-
-## Flujo recomendado para mod en vivo
-
-Secuencia sugerida al iniciar o ajustar un directo:
-
-1. `!categoria <nombre aproximado>`
-2. `!titulo <titulo del stream>`
-3. `!mark inicio`
-
-Durante momentos importantes:
-
-1. `!mark <momento clave>`
-2. `!clip`
-
-Antes de cerrar:
-
-1. Confirmar estado con `!status` (admin)
-2. Cerrar stream con `!end` (admin)
+- No aparece comando seed:
+  - Confirma que `bot.py` importa y ejecuta `ensure_seed_basic_commands()` en `setup_hook`.

@@ -68,9 +68,14 @@ class dynamic_commands(commands.Component):
     async def comandos(self, ctx):
         """
         Muestra una lista de todos los comandos disponibles en el bot.
-        Si se utiliza un filtro (!comandos -<filtro>), muestra solo los comandos que contienen esa palabra.
+        Soporta filtro opcional por texto: !comandos <filtro>.
         """
         await update_global_stats("xp_Astucia", ctx.chatter.id, 0.15)
+
+        parts = ctx.message.text.strip().split(' ', 1)
+        raw_filter = parts[1].strip().lower() if len(parts) > 1 else ""
+        if raw_filter.startswith('-'):
+            raw_filter = raw_filter[1:].strip()
 
         excluded_commands = {
             cmd.strip().lower().lstrip('!')
@@ -86,7 +91,14 @@ class dynamic_commands(commands.Component):
             if getattr(cmd, "name", None)
         }
         db_commands = list_basic_command_names()
-        command_names = hardcoded_commands | db_commands
+        all_command_names = hardcoded_commands | db_commands
+        command_names = set(all_command_names)
+
+        hidden_for_regular = {
+            cmd_name
+            for cmd_name in all_command_names
+            if cmd_name in excluded_commands
+        }
 
         if not can_see_all:
             command_names = {
@@ -95,13 +107,43 @@ class dynamic_commands(commands.Component):
                 if cmd_name not in excluded_commands
             }
 
+        if raw_filter:
+            command_names = {
+                cmd_name
+                for cmd_name in command_names
+                if raw_filter in cmd_name
+            }
+
         # Construir el string
         sorted_commands = sorted(command_names)
+        if not sorted_commands:
+            if raw_filter:
+                await ctx.send(f"[BOT] - No encontre comandos con el filtro '{raw_filter}'.")
+            else:
+                await ctx.send("[BOT] - No hay comandos para mostrar ahora mismo.")
+            return
+
         command_string = "[BOT] - 🤖 𝗧𝗼𝗱𝗼𝘀 𝗹𝗼𝘀 𝗰𝗼𝗺𝗮𝗻𝗱𝗼𝘀: "
         command_string += " ".join(f"!{command_name}" for command_name in sorted_commands)
 
         # Responder con la lista de comandos
         await send_large_message(ctx, command_string)
+
+        visible_count = len(sorted_commands)
+        hardcoded_total = len(hardcoded_commands)
+        db_total = len(db_commands)
+        hidden_count = 0 if can_see_all else len(hidden_for_regular)
+
+        details = (
+            f"[BOT] - Mostrando {visible_count} comando{'s' if visible_count != 1 else ''}"
+            f" | hardcodeados: {hardcoded_total}"
+            f" | bd: {db_total}"
+        )
+        if raw_filter:
+            details += f" | filtro: '{raw_filter}'"
+        if not can_see_all and hidden_count > 0:
+            details += f" | ocultos por rol: {hidden_count}"
+        await ctx.send(details)
 
 
 

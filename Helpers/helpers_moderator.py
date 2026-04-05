@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import unicodedata
 import difflib
@@ -27,9 +28,71 @@ def _ensure_basic_commands_table() -> None:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS commands (
                 command TEXT PRIMARY KEY,
-                response TEXT NOT NULL
+                response TEXT NOT NULL,
+                aliases TEXT DEFAULT '[]'
             )
         ''')
+        cursor.execute('PRAGMA table_info(commands)')
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'aliases' not in columns:
+            cursor.execute("ALTER TABLE commands ADD COLUMN aliases TEXT DEFAULT '[]'")
+
+
+def _parse_aliases(raw_aliases: str | None) -> list[str]:
+    if not raw_aliases:
+        return []
+
+    try:
+        parsed = json.loads(raw_aliases)
+        if isinstance(parsed, list):
+            return [
+                _normalize_custom_command_name(alias)
+                for alias in parsed
+                if _normalize_custom_command_name(alias)
+            ]
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback por compatibilidad si alguna vez se guarda CSV.
+    return [
+        _normalize_custom_command_name(alias)
+        for alias in str(raw_aliases).split(',')
+        if _normalize_custom_command_name(alias)
+    ]
+
+
+def _serialize_aliases(aliases: list[str]) -> str:
+    normalized_unique = sorted({
+        _normalize_custom_command_name(alias)
+        for alias in aliases
+        if _normalize_custom_command_name(alias)
+    })
+    return json.dumps(normalized_unique, ensure_ascii=True)
+
+
+def _resolve_stored_command_name(raw_command: str) -> str | None:
+    command_name = _normalize_custom_command_name(raw_command)
+    if not command_name:
+        return None
+
+    try:
+        _ensure_basic_commands_table()
+        with db_cursor(DB_PATH) as (_, cursor):
+            cursor.execute('SELECT command FROM commands WHERE command = ? LIMIT 1', (command_name,))
+            exact = cursor.fetchone()
+            if exact:
+                return str(exact[0])
+
+            cursor.execute('SELECT command, aliases FROM commands')
+            rows = cursor.fetchall()
+            for stored_command, raw_aliases in rows:
+                aliases = _parse_aliases(raw_aliases)
+                if command_name in aliases:
+                    return str(stored_command)
+    except sqlite3.Error as e:
+        printlog(f'Error resolviendo comando basico {command_name}: {e}', 'ERROR')
+
+    return None
 
 
 async def save_basic_command(raw_command: str, raw_response: str) -> tuple[bool, str]:
@@ -50,12 +113,12 @@ async def save_basic_command(raw_command: str, raw_response: str) -> tuple[bool,
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
             cursor.execute(
                 '''
-                INSERT INTO commands (command, response)
-                VALUES (?, ?)
+                INSERT INTO commands (command, response, aliases)
+                VALUES (?, ?, ?)
                 ON CONFLICT(command)
                 DO UPDATE SET response = excluded.response
                 ''',
-                (command_name, response)
+                (command_name, response, '[]')
             )
         return True, command_name
     except sqlite3.Error as e:
@@ -77,19 +140,17 @@ async def edit_basic_command(raw_command: str, raw_response: str) -> tuple[bool,
         return False, 'La nueva respuesta no puede estar vacia.'
 
     try:
-        _ensure_basic_commands_table()
-        with db_cursor(DB_PATH, commit=True) as (_, cursor):
-            cursor.execute('SELECT 1 FROM commands WHERE command = ? LIMIT 1', (command_name,))
-            exists = cursor.fetchone() is not None
-            if not exists:
-                return False, 'Ese comando personalizado no existe. Crea uno con !newcmd.'
+        resolved_name = _resolve_stored_command_name(command_name)
+        if not resolved_name:
+            return False, 'Ese comando personalizado no existe. Crea uno con !newcmd.'
 
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
             cursor.execute(
                 'UPDATE commands SET response = ? WHERE command = ?',
-                (response, command_name)
+                (response, resolved_name)
             )
 
-        return True, command_name
+        return True, resolved_name
     except sqlite3.Error as e:
         printlog(f'Error editando comando basico {command_name}: {e}', 'ERROR')
         return False, 'No pude editar el comando en la base de datos.'
@@ -106,13 +167,16 @@ async def delete_basic_command(raw_command: str) -> tuple[bool, str]:
         return False, 'El comando no es valido.'
 
     try:
-        _ensure_basic_commands_table()
+        resolved_name = _resolve_stored_command_name(command_name)
+        if not resolved_name:
+            return False, 'Ese comando personalizado no existe.'
+
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
-            cursor.execute('DELETE FROM commands WHERE command = ?', (command_name,))
+            cursor.execute('DELETE FROM commands WHERE command = ?', (resolved_name,))
             if cursor.rowcount <= 0:
                 return False, 'Ese comando personalizado no existe.'
 
-        return True, command_name
+        return True, resolved_name
     except sqlite3.Error as e:
         printlog(f'Error eliminando comando basico {command_name}: {e}', 'ERROR')
         return False, 'No pude eliminar el comando de la base de datos.'
@@ -128,39 +192,51 @@ def get_basic_command_response(raw_command: str) -> str | None:
         with db_cursor(DB_PATH) as (_, cursor):
             cursor.execute('SELECT response FROM commands WHERE command = ? LIMIT 1', (command_name,))
             result = cursor.fetchone()
-            return result[0] if result else None
+            if result:
+                return result[0]
+
+            cursor.execute('SELECT response, aliases FROM commands')
+            rows = cursor.fetchall()
+            for response, raw_aliases in rows:
+                aliases = _parse_aliases(raw_aliases)
+                if command_name in aliases:
+                    return response
+            return None
     except sqlite3.Error as e:
         printlog(f'Error leyendo comando basico {command_name}: {e}', 'ERROR')
         return None
 
 
 def custom_command_exists(raw_command: str) -> bool:
-    command_name = _normalize_custom_command_name(raw_command)
-    if not command_name:
-        return False
+    return _resolve_stored_command_name(raw_command) is not None
 
+
+def list_basic_command_names(include_aliases: bool = False) -> set[str]:
+    """Retorna nombres de comandos en BD sin prefijo !.
+
+    - include_aliases=False: solo comandos principales.
+    - include_aliases=True: incluye aliases definidos en la columna aliases.
+    """
     try:
         _ensure_basic_commands_table()
         with db_cursor(DB_PATH) as (_, cursor):
-            cursor.execute('SELECT 1 FROM commands WHERE command = ? LIMIT 1', (command_name,))
-            return cursor.fetchone() is not None
-    except sqlite3.Error as e:
-        printlog(f'Error validando existencia de comando basico {command_name}: {e}', 'ERROR')
-        return False
-
-
-def list_basic_command_names() -> set[str]:
-    """Retorna los nombres de comandos guardados en BD sin prefijo !."""
-    try:
-        _ensure_basic_commands_table()
-        with db_cursor(DB_PATH) as (_, cursor):
-            cursor.execute('SELECT command FROM commands')
+            cursor.execute('SELECT command, aliases FROM commands')
             rows = cursor.fetchall()
-            return {
-                str(row[0]).strip().lower().lstrip('!')
-                for row in rows
-                if row and str(row[0]).strip()
-            }
+            names: set[str] = set()
+            for row in rows:
+                if not row:
+                    continue
+
+                command_name = _normalize_custom_command_name(str(row[0]))
+                if command_name:
+                    names.add(command_name.lstrip('!'))
+
+                if include_aliases:
+                    aliases = _parse_aliases(row[1] if len(row) > 1 else None)
+                    for alias in aliases:
+                        names.add(alias.lstrip('!'))
+
+            return names
     except sqlite3.Error as e:
         printlog(f'Error listando comandos basicos: {e}', 'ERROR')
         return set()
