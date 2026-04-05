@@ -82,10 +82,10 @@ Aliases soportados:
 
 - `access_token`, `refresh_token`
 - `client_id`, `client_secret`
-- `bot_id`, `owner_id`, `channel_name`, `initial_channels`
-- `scopes`, `expires_in`, etc.
+- `bot_id`, `owner_id`, `channel_name`
+- `scopes`, `token_type`, `expires_in`, `token_obtained_at`
 
-Nota: credenciales SMTP ya no dependen de `token.json`; se leen de `.env`.
+Nota: credenciales SMTP/OpenAI/Steam no dependen de `token.json`; se leen de `.env`.
 
 ### Flujo OAuth
 

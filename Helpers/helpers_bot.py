@@ -21,31 +21,10 @@ from Helpers.required_scopes import required_scopes
 from Helpers.colors import white, resetColor, colorConvert
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
-token_data = load_token_file()
-OPENAI_API_KEY = token_data.get("openai_api_key")
 
-# Scopes recomendados para maximo acceso
-REQUIRED_SCOPES = [
-    "chat:read",
-    "chat:edit",
-    "channel:read:redemptions",
-    "channel:read:subscriptions",
-    "channel:read:goals",
-    "channel:read:polls",
-    "channel:read:predictions",
-    "channel:manage:redemptions",
-    "channel:manage:polls",
-    "channel:manage:predictions",
-    "channel:read:hype_train",
-    "channel:read:charity",
-    "channel:read:vips",
-    "channel:read:editors",
-    "moderator:read:followers",
-    "moderation:read",
-    "bits:read",
-    "whispers:read",
-    "whispers:edit"
-]
+# Mantener sincronizado con OAuth principal.
+# Evita divergencias con Helpers/required_scopes.py.
+REQUIRED_SCOPES = list(required_scopes)
 
 OAUTH_BASE_URL = "https://id.twitch.tv/oauth2/authorize"
 REDIRECT_URI = "http://localhost:8080"
@@ -56,8 +35,7 @@ TOKEN_FIELDS = [
     "client_secret",
     "channel_name",
     "owner_id",
-    "BOT_ID",
-    "bot_name"
+    "bot_id",
 ]
 
 HEADERS_TEMPLATE = lambda token, client_id: {
@@ -66,7 +44,7 @@ HEADERS_TEMPLATE = lambda token, client_id: {
 }
 
 API_USERS_ENDPOINT = "https://api.twitch.tv/helix/users"
-TOKEN_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..\Credentials', 'token.json'))
+TOKEN_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Credentials', 'token.json'))
 
 
 
@@ -144,11 +122,9 @@ async def resolve_user_ids_and_update_token(token_path=TOKEN_PATH):
                 data = await resp.json()
                 if "data" in data and data["data"]:
                     user_data = data["data"][0]
-                    token_data["bot_name"] = user_data["login"]
                     token_data["bot_id"] = user_data["id"]
-                    token_data["channel_id"] = user_data["id"]
-                    token_data["OWNER_ID"] = user_data["id"]
-                    token_data["initial_channels"] = [user_data["login"]]
+                    token_data["owner_id"] = user_data["id"]
+                    token_data["channel_name"] = user_data["login"]
                 else:
                     printlog(f"Error al obtener datos del canal: {data}","ERROR")
                     sys.exit(1)
@@ -200,7 +176,6 @@ def check_credentials_or_generate():
             "client_id": client_id,
             "client_secret": client_secret,
             "channel_name": channel_name,
-            "initial_channels": [channel_name]
         }
 
         os.makedirs(os.path.dirname(token_path), exist_ok=True)
@@ -509,8 +484,7 @@ async def save_current_data():
     token_data = load_token_file()
     access_token = token_data.get("access_token")
     client_id = token_data.get("client_id")
-    initial_channels = token_data.get("initial_channels", [])
-    broadcaster_id = token_data.get("broadcaster_id")
+    broadcaster_id = token_data.get("owner_id") or token_data.get("bot_id")
     
     # while True: 
     #     # Aqui se pondria el codigo de la obtención de estadísticas...

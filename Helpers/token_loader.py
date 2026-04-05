@@ -12,8 +12,12 @@ _TOKEN_CACHE = None
 def _has_required_token_fields(token_data):
     return bool(
         token_data.get('access_token')
+        and token_data.get('refresh_token')
         and token_data.get('client_id')
         and token_data.get('client_secret')
+        and token_data.get('bot_id')
+        and token_data.get('owner_id')
+        and token_data.get('channel_name')
     )
 
 

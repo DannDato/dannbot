@@ -17,17 +17,14 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 #asignacion de credenciales
 token_data = load_token()
 CLIENT_ID = token_data.get("client_id")
-CLIENT_SECRET = token_data.get("client_secret")
 BOT_ID = token_data.get("bot_id")
-# Canal objetivo real del bot (puede ser distinto a bot_id si se usa cuenta bot separada).
-OWNER_ID = token_data.get("owner_id") or token_data.get("channel_id") or BOT_ID
+# Canal objetivo real del bot.
+OWNER_ID = token_data.get("owner_id") or BOT_ID
 ACCESS_TOKEN = token_data.get("access_token")
-BOT_NAME = token_data.get("bot_name")
 CHANNEL_NAME = token_data.get("channel_name")
-INITIAL_CHANNELS = token_data.get("initial_channels", [])
 
-steam_api = token_data.get("steam_api")
-steamid = token_data.get("steamID")
+steam_api = os.environ.get("DANNBOT_STEAM_API") or token_data.get("steam_api")
+steamid = os.environ.get("DANNBOT_STEAM_ID") or token_data.get("steamID")
 
 
 async def analisis(message, userid):
@@ -97,7 +94,7 @@ async def get_vips():
         'Authorization': f'Bearer {ACCESS_TOKEN}',
     }
 
-    channel_login = CHANNEL_NAME or (INITIAL_CHANNELS[0] if INITIAL_CHANNELS else None)
+    channel_login = CHANNEL_NAME
     if not channel_login:
         printlog('No hay channel_name configurado para consultar VIPs.', "WARNING")
         return []

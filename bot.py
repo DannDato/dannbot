@@ -48,11 +48,9 @@ token_data = load_token(ensure_valid=True)
 CLIENT_ID = token_data.get("client_id")
 CLIENT_SECRET = token_data.get("client_secret")
 BOT_ID = token_data.get("bot_id")
-OWNER_ID = token_data.get("bot_id")  # canal objetivo del bot
+OWNER_ID = token_data.get("owner_id") or BOT_ID  # canal objetivo del bot
 ACCESS_TOKEN = token_data.get("access_token")
-BOT_NAME = token_data.get("bot_name")
 CHANNEL_NAME = token_data.get("channel_name")
-INITIAL_CHANNELS = token_data.get("initial_channels", [])
 
 animated_message("Token cargado correctamente...", azul)
 

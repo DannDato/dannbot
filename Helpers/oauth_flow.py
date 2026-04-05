@@ -41,12 +41,11 @@ SERVER_SCRIPT = os.path.join(REPO_ROOT, 'server.py')
 ENV_PATH = os.path.join(REPO_ROOT, '.env')
 TOKEN_FIELDS = (
     'access_token',
+    'refresh_token',
     'client_id',
     'client_secret',
     'bot_id',
-    'bot_name',
     'channel_name',
-    'initial_channels',
     'owner_id',
 )
 
@@ -224,12 +223,9 @@ def _build_token_data(existing_data, token_payload, user_payload, validated_payl
             'refresh_token': token_payload.get('refresh_token', merged.get('refresh_token')),
             'client_id': merged['client_id'],
             'client_secret': merged['client_secret'],
-            'bot_name': user_payload['login'],
             'bot_id': user_payload['id'],
             'owner_id': user_payload['id'],
-            'channel_id': user_payload['id'],
             'channel_name': user_payload['login'],
-            'initial_channels': [user_payload['login']],
             'scopes': token_payload.get('scope') or (validated_payload or {}).get('scopes') or merged.get('scopes', []),
             'token_type': token_payload.get('token_type', merged.get('token_type', 'bearer')),
             'expires_in': token_payload.get('expires_in', (validated_payload or {}).get('expires_in')),
