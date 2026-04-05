@@ -88,6 +88,7 @@ async def handle_message(self, payload):
             if not self.get_command(command_lookup):
                 custom_response = get_basic_command_response(command_name)
                 if custom_response:
+                    custom_response = custom_response.replace('{user}', CHATTER_NAME)
                     channel_user = self.create_partialuser(BROADCASTER_ID)
                     await channel_user.send_message(sender=self.user, message=custom_response)
                     custom_command_handled = True

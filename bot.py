@@ -36,6 +36,7 @@ from Handlers.handlers_subs import handle_sub, handle_sub_gift
 from Handlers.console_handler import console_control
 from Helpers.health_check import monitor_bot_health
 from Helpers.helpers_admin import start_stream
+from Helpers.helpers_moderator import ensure_seed_basic_commands
 
 from Helpers.colors import (
     azul, white, resetColor,
@@ -157,6 +158,8 @@ class Bot(commands.AutoBot):
     #Setup inicial del bot, carga dinámica de archivos py para modulos de comandos
     async def setup_hook(self) -> None:
         animated_message("Cargando comandos...", white)
+        inserted, total = ensure_seed_basic_commands()
+        printlog(f"Comandos base en BD: {total} (nuevos insertados: {inserted})", "DEBUG")
         self.command_modules_loaded = True
         self.command_module_issues = []
         commands_dir = "Commands"
