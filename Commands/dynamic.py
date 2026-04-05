@@ -124,28 +124,11 @@ class dynamic_commands(commands.Component):
             return
 
         command_string = "[BOT] - 🤖 𝗧𝗼𝗱𝗼𝘀 𝗹𝗼𝘀 𝗰𝗼𝗺𝗮𝗻𝗱𝗼𝘀: "
-        command_string += " ".join(f"!{command_name}" for command_name in sorted_commands)
+        forced_separator = " ⠀⠀⠀"
+        command_string += forced_separator.join(f"!{command_name}" for command_name in sorted_commands)
 
         # Responder con la lista de comandos
         await send_large_message(ctx, command_string)
-
-        visible_count = len(sorted_commands)
-        hardcoded_total = len(hardcoded_commands)
-        db_total = len(db_commands)
-        hidden_count = 0 if can_see_all else len(hidden_for_regular)
-
-        details = (
-            f"[BOT] - Mostrando {visible_count} comando{'s' if visible_count != 1 else ''}"
-            f" | hardcodeados: {hardcoded_total}"
-            f" | bd: {db_total}"
-        )
-        if raw_filter:
-            details += f" | filtro: '{raw_filter}'"
-        if not can_see_all and hidden_count > 0:
-            details += f" | ocultos por rol: {hidden_count}"
-        await ctx.send(details)
-
-
 
     @commands.command(name='followers', aliases=["seguidores"])
     async def followers(self, ctx):

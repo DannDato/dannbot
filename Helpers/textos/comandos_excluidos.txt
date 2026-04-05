@@ -8,3 +8,9 @@ dejarclan
 vuser
 restart
 botsatus
+dejarclan
+delcmd
+editcmd
+liderclan
+newcmd
+

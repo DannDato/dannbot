@@ -132,7 +132,7 @@ async def send_large_message(ctx, message):
             if end == -1:  # Si no hay espacio en el rango, corta directamente en el límite
                 end = start + max
         # Enviar el segmento del mensaje
-        await ctx.send(f'{message[start:end].strip()}')
+        await ctx.send(f'[BOT] - {message[start:end].strip()}')
         start = end + 1  # Continuar desde el carácter siguiente
 
 
