@@ -20,6 +20,7 @@ required_scopes = [
 
     # Subs (EventSub subs/gift subs)
     'channel:read:subscriptions',
+    'channel:manage:broadcast',
 
     # Chatters (Helix fetch_chatters para !viewers y polling)
     'moderator:read:chatters',
