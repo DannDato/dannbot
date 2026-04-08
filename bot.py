@@ -43,6 +43,22 @@ from Helpers.colors import (
     channelColor, colorConvert,
     userColors, rosa, red, green
 )
+
+
+async def keep_token_fresh(stop_check, interval_seconds=900):
+    """Refresca token periodicamente sin bloquear el loop principal del bot."""
+    while not stop_check():
+        try:
+            await asyncio.to_thread(load_token, ensure_valid=True, force_refresh=True)
+        except Exception as exc:
+            printlog(f"[Auth] No se pudo refrescar/validar el token en background: {exc}", "WARNING")
+
+        try:
+            await asyncio.sleep(interval_seconds)
+        except asyncio.CancelledError:
+            break
+
+
 init_console()
 animated_message(" Iniciando DannBot", resetColor)
 
@@ -99,6 +115,7 @@ class Bot(commands.AutoBot):
         self.timed_messages_task = None
         self.monitor_task = None
         self.chatters_poll_task = None
+        self.token_refresh_task = None
         self._bot_closing = False
         self.command_modules_loaded = True
         self.command_module_issues = []
@@ -125,6 +142,7 @@ class Bot(commands.AutoBot):
             self.monitor_task,
             self.console_task,
             self.chatters_poll_task,
+            self.token_refresh_task,
         ):
             await self._cancel_task(task)
 
@@ -195,6 +213,8 @@ class Bot(commands.AutoBot):
             self.monitor_task = asyncio.create_task(monitor_bot_health(self))
         if self.chatters_poll_task is None or self.chatters_poll_task.done():
             self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
+        if self.token_refresh_task is None or self.token_refresh_task.done():
+            self.token_refresh_task = asyncio.create_task(keep_token_fresh(lambda: self._bot_closing))
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
         if not self.command_modules_loaded:
             await user.send_message(sender=self.user, message="[BOT] - Se me olvidaron los comandooos! ayudame datooo")

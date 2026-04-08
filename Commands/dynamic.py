@@ -16,6 +16,7 @@ from Helpers.helpers_dynamic import (
 )
 from Helpers.helpers_stats import update_global_stats, save_user_bd, get_user_bd, get_twitch_id
 from Helpers.printlog import printlog
+from Helpers.token_loader import delete_token_file
 
 class dynamic_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
@@ -599,7 +600,7 @@ class dynamic_commands(commands.Component):
 
         partes = []
         if years > 0:
-            partes.append(f"{years} ano{'s' if years != 1 else ''}")
+            partes.append(f"{years} año{'s' if years != 1 else ''}")
         if months > 0:
             partes.append(f"{months} mes{'es' if months != 1 else ''}")
         if rem_days > 0 or not partes:
@@ -614,3 +615,18 @@ class dynamic_commands(commands.Component):
     async def viewers(self, ctx):
         total = await get_chatters_total(self.bot, force_refresh=True)
         await ctx.send(f'[BOT] - Ahora mismo hay {total} personas en el chat 😎!')
+
+    @commands.command(name='logout')
+    async def logout(self, ctx):
+        if not is_authorized(ctx):
+            await ctx.send(f'[BOT] - @{ctx.chatter.name}, este comando es solo para usuarios autorizados.')
+            return
+
+        deleted, token_path = delete_token_file()
+        if deleted:
+            await ctx.send('[BOT] - token.json eliminado. Debes volver a autorizar OAuth para iniciar el bot de nuevo.')
+            printlog(f"[Logout] token eliminado por @{ctx.chatter.name}: {token_path}", "WARNING")
+            return
+
+        await ctx.send('[BOT] - No encontre token.json para eliminar. Ya estaba cerrado o no existe.')
+        printlog(f"[Logout] Solicitud de @{ctx.chatter.name}, pero no existia token.json: {token_path}", "INFO")

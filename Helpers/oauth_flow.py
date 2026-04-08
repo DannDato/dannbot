@@ -57,6 +57,11 @@ class OAuthFlowCancelled(Exception):
     """Se lanza cuando el usuario cancela/deniega la autorización OAuth."""
 
 
+def clear_token_cache():
+    global _TOKEN_CACHE
+    _TOKEN_CACHE = None
+
+
 def get_token_path():
     return TOKEN_PATH
 
@@ -249,6 +254,26 @@ def _build_token_data(existing_data, token_payload, user_payload, validated_payl
 
 def _token_is_usable(token_data):
     return all(token_data.get(field) for field in TOKEN_FIELDS)
+
+
+def _token_is_expiring_soon(token_data, buffer_seconds=180):
+    """True cuando el token ya expiró o está por expirar pronto."""
+    if not token_data:
+        return True
+
+    expires_in = token_data.get('expires_in')
+    obtained_at = token_data.get('token_obtained_at')
+    if not expires_in or not obtained_at:
+        return True
+
+    try:
+        expires_in = int(expires_in)
+        obtained_at = int(obtained_at)
+    except (TypeError, ValueError):
+        return True
+
+    expires_at = obtained_at + expires_in
+    return time.time() >= (expires_at - max(30, buffer_seconds))
 
 
 def _authorization_url(client_id, state):
@@ -661,7 +686,8 @@ def ensure_token_data(force_reauth=False):
     _load_env_file()
 
     if _TOKEN_CACHE and not force_reauth:
-        return dict(_TOKEN_CACHE)
+        if _token_is_usable(_TOKEN_CACHE) and not _token_is_expiring_soon(_TOKEN_CACHE):
+            return dict(_TOKEN_CACHE)
 
     existing_data = _load_token_file()
     env_client_id = os.environ.get('DANNBOT_CLIENT_ID') or os.environ.get('TWITCH_CLIENT_ID')

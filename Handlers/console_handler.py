@@ -6,6 +6,7 @@ import sys
 from Helpers.console_log import clear_console, animated_message
 from Helpers.colors import resetColor, white, red, green, dorado
 from Helpers.printlog import printlog
+from Helpers.token_loader import delete_token_file
 
 # Variables globales para monitoreo
 BOT_START_TIME = datetime.datetime.now()
@@ -22,7 +23,8 @@ async def console_control(bot):
             "status",
             "clear",
             "stats",
-            "uptime"
+            "uptime",
+            "logout"
         ]
 
         command = await asyncio.to_thread(input, ">> ")
@@ -78,6 +80,15 @@ async def console_control(bot):
         elif command.lower() == "clear" or command.lower()=="cls" :
             clear_console()
             animated_message("DannDato en linea","\033[38;5;51m")
+
+        #______________________________________________________________________________________
+        elif command.lower() == "logout" or command.lower() == "!logout":
+            deleted, token_path = delete_token_file()
+            if deleted:
+                printlog(f"[Console] - token.json eliminado en: {token_path}", "WARNING")
+                printlog("[Console] - Reinicia el bot para volver a ejecutar OAuth.", "WARNING")
+            else:
+                printlog(f"[Console] - No existe token.json en: {token_path}", "INFO")
 
 
         #_______________________________________________________________________________________

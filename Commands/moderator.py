@@ -35,7 +35,7 @@ class moderator_commands(commands.Component):
         ok, result = await set_stream_title(parts[1].strip())
         await ctx.send(f'[BOT] - {"Titulo actualizado: " + result if ok else result}')
 
-    @commands.command(name='categoria', aliases=['cat', 'game', 'category'])
+    @commands.command(name='categoria', aliases=['cat', 'game', 'category','categoría'])
     async def categoria(self, ctx):
         if not self._can_manage_stream(ctx):
             await ctx.send("[BOT] - Hey, este comando es solo para usuarios autorizados y moderadores 😑")
