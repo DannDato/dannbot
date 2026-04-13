@@ -333,10 +333,8 @@ async def end_mail():
     printlog("Generando reporte de stream...")
     with open(HTML_PATH, "r", encoding="utf-8") as archivo:
         contenido_html = archivo.read()
-        printlog("Leyendo HTML de reporte")
     try:
         with db_cursor(DB_PATH) as (_, cursor):
-            printlog("Iniciando lectura de base de datos")
             # Verificar si hay un stream iniciado y no cerrado
             cursor.execute('''
             WITH StreamPeriods AS (
@@ -365,12 +363,10 @@ async def end_mail():
         ORDER BY sp.stream_number, s.date;
             ''')
             result = cursor.fetchall()
-            printlog("Datos obtenidos en cursor")
             # Estructura para almacenar los datos
             streams = {}
 
         # Procesar los resultados
-            printlog("Recoriendo DATA del cursor")
             for row in result:
                 id, accion, value, date, stream_number = row
                 if stream_number not in streams:
@@ -386,7 +382,6 @@ async def end_mail():
                 else:
                     streams[stream_number][accion] = {"id": id, "value": value, "date": date}
 
-        printlog("Asignando variables del Stream mas reciente")
         # Stream más reciente (1)
         start_time_1 = streams[1]["start_stream"]["date"]
         end_time_1 = streams[1]["end_stream"]["date"]
@@ -403,12 +398,10 @@ async def end_mail():
 
 
         # Stream segundo más reciente (2)
-        printlog("Asignacion de variables del stream anterior")
         total_messages_2 = streams[2]["total_messages"][0] if "total_messages" in streams[2] else None
         total_users_2 = streams[2]["total_users"][0] if "total_users" in streams[2] else None
 
         # Stream tercer más reciente (3)
-        printlog("Asignacion de variables del stream previo al anterior")
         total_messages_3 = streams[3]["total_messages"][0] if "total_messages" in streams[3] else None
         total_users_3 = streams[3]["total_users"][0] if "total_users" in streams[3] else None
 
@@ -424,7 +417,6 @@ async def end_mail():
         else:
             contenido_html =contenido_html.replace('var(--pViewers-color)','gray')
 
-        printlog("Realizando conversiones de data y colores")
         incremento_messages = safe_int(total_messages_1) - safe_int(total_messages_2)
         base_messages = safe_int(total_messages_2)
         pMensajes = (incremento_messages / base_messages) * 100 if base_messages > 0 else 0
@@ -454,8 +446,6 @@ async def end_mail():
         criterio, criterio_valor = next(iter(criterios_ordenados.items()))
         segundo_criterio, segundo_criterio_valor = list(criterios_ordenados.items())[1]
 
-        printlog("Ordenando criterios de conclusión")
-
         if criterio_valor > 0: rasunto = f'''Incremento del {criterio_valor}% en {criterio} '''
         if criterio_valor == 0: rasunto = f'''Todo igual en {criterio} '''
         if criterio_valor < 0: rasunto = f'''Disminución del {criterio_valor}% en {criterio} '''
@@ -473,7 +463,6 @@ async def end_mail():
         pyear = year if pmonth != 12 else year - 1
         ptable_name = f"chat_{pyear}{pmonth:02}"
 
-        printlog("Ejecutando consultas complementarias")
         with db_cursor(DB_PATH) as (_, cursor):
             cursor.execute('''
                 SELECT username FROM users WHERE twitch_id=?
@@ -558,7 +547,6 @@ async def end_mail():
             bUsers = "No users"
             cUsers = "No users"
 
-        printlog("Reemplazando datos en HTML")
         comparison_chart_html = _build_streams_comparison_chart(
             total_users_1, total_users_2, total_users_3,
             total_messages_1, total_messages_2, total_messages_3
@@ -615,7 +603,6 @@ async def end_mail():
         # Verificar el resultado
         # print(f'\n\n\n\n\n{contenido_html}\n\n')
 
-        printlog("Inicializando SMTP")
         return await enviar_correo("danieltova97@gmail.com", rasunto, contenido_html)
 
     except sqlite3.Error as e:
