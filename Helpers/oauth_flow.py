@@ -276,6 +276,66 @@ def _token_is_expiring_soon(token_data, buffer_seconds=180):
     return time.time() >= (expires_at - max(30, buffer_seconds))
 
 
+def silent_refresh_token():
+    """
+        Intenta refrescar el token de forma silenciosa, sin disparar flujo OAuth interactivo.
+        Retorna un dict con estado:
+            {"ok": bool, "code": str, "detail": str}
+    
+    Diseñado para ser llamado desde background tasks en producción.
+    Si falla, solo loguea advertencia y retorna estado no-ok (sin excepciones).
+    """
+    try:
+        existing_data = _load_token_file()
+        
+        if not existing_data:
+            detail = 'No hay token guardado para refrescar'
+            printlog(f'[Auth-Silent] {detail}', 'WARNING')
+            return {"ok": False, "code": "no_token", "detail": detail}
+        
+        if not all(existing_data.get(k) for k in ('refresh_token', 'client_id', 'client_secret')):
+            detail = 'Token incompleto (falta refresh_token o credenciales)'
+            printlog(f'[Auth-Silent] {detail}', 'WARNING')
+            return {"ok": False, "code": "missing_fields", "detail": detail}
+        
+        # Intentar refresh directo
+        refreshed = _refresh_access_token(existing_data)
+        if not refreshed or not refreshed.get('access_token'):
+            detail = 'Refresh fallo: Twitch no devolvio access_token'
+            printlog(f'[Auth-Silent] {detail}', 'WARNING')
+            return {"ok": False, "code": "refresh_failed", "detail": detail}
+        
+        # Validar que el token refrescado sea válido
+        validated = _validate_token(refreshed['access_token'], existing_data.get('client_id'))
+        if not validated:
+            detail = 'Refresh fallo: el token refrescado no valido con Twitch'
+            printlog(f'[Auth-Silent] {detail}', 'WARNING')
+            return {"ok": False, "code": "invalid_after_refresh", "detail": detail}
+        
+        # Construir nuevo token (preservando campos de usuario)
+        try:
+            user_payload = _fetch_authenticated_user(refreshed['access_token'], existing_data['client_id'])
+        except Exception as exc:
+            detail = f'No se pudo obtener perfil del usuario: {exc}'
+            printlog(f'[Auth-Silent] {detail}', 'WARNING')
+            return {"ok": False, "code": "user_fetch_failed", "detail": detail}
+        
+        updated_token = _build_token_data(existing_data, refreshed, user_payload, validated)
+        _save_token_file(updated_token)
+        
+        printlog('[Auth-Silent] Token refrescado exitosamente', 'INFO')
+        # Actualizar cache global
+        from Helpers.token_loader import clear_token_cache as clear_loader_cache
+        clear_loader_cache()
+        
+        return {"ok": True, "code": "ok", "detail": 'Token refrescado exitosamente'}
+        
+    except Exception as exc:
+        detail = f'Error inesperado en refresco silencioso: {exc}'
+        printlog(f'[Auth-Silent] {detail}', 'WARNING')
+        return {"ok": False, "code": "unexpected_error", "detail": detail}
+
+
 def _authorization_url(client_id, state):
     query = {
         'client_id': client_id,

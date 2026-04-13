@@ -3,7 +3,7 @@ import os
 import sys
 
 from Helpers.printlog import printlog
-from Helpers.oauth_flow import ensure_token_data, get_token_path, OAuthFlowCancelled, clear_token_cache
+from Helpers.oauth_flow import ensure_token_data, get_token_path, OAuthFlowCancelled, clear_token_cache, silent_refresh_token
 
 
 _TOKEN_CACHE = None
@@ -68,6 +68,26 @@ def load_token(*, ensure_valid=False, force_refresh=False):
         printlog(f"Error cargando token.json: {e}", "ERROR")
         raise SystemExit(1)
 
+def refresh_token_silent():
+    """
+        Refresca el token de forma silenciosa (sin OAuth interactivo).
+
+        Retorna un dict con estado:
+            {"ok": bool, "code": str, "detail": str}
+        Pensado para background refresh tasks en producción.
+
+        Si falla, solo loguea y retorna estado no-ok; no dispara excepciones.
+    """
+    global _TOKEN_CACHE, _TOKEN_CACHE_MTIME
+    
+        status = silent_refresh_token()
+    
+        if status.get("ok"):
+        # Limpiar cache para forzar recarga del token actualizado
+        _TOKEN_CACHE = None
+        _TOKEN_CACHE_MTIME = None
+    
+        return status
 
 def delete_token_file():
     """Elimina token.json y limpia caches en memoria."""

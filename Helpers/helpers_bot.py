@@ -440,15 +440,24 @@ async def happy_birthday(self, user):
         maxT=2400
         sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar antes del mensaje
+
+        channel_online = await is_channel_online()
+        if not channel_online:
+            continue
+
         birthdays = await today_birthdays()
-        if await is_channel_online() and birthdays[0]==True:
+        if birthdays[0]==True:
             users = format_usernames(birthdays[1])
             await user.send_message(sender=self.user, message=f'[BOT] - 🥳 HOY ESTAMOS DE FIESTA, es el cumpleaños de {users} 🎉')
 
         nBirthdays = await week_birthdays()
-        if await is_channel_online() and nBirthdays[0]==True:
-            nusers = format_usernames(nBirthdays[1])
-            await user.send_message(sender=self.user, message=f'[BOT] - Recuerden que esta semana tenemos el cumpleaños de {nusers} 🎉')
+        if nBirthdays[0]==True:
+            nusers = ", ".join([f"@{username} ({day_label})" for username, day_label in nBirthdays[1]])
+            if len(nBirthdays[1]) == 1:
+                message = f'[BOT] - Recuerden que esta semana tenemos el cumpleaños de {nusers} 🎉'
+            else:
+                message = f'[BOT] - Recuerden que esta semana tenemos los cumpleaños de {nusers} 🎉'
+            await user.send_message(sender=self.user, message=message)
                 
 
 

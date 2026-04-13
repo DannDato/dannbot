@@ -22,7 +22,7 @@ from twitchio import eventsub
 from twitchio.ext import commands
 
                     # Importar configuraciones
-from Helpers.token_loader import load_token
+from Helpers.token_loader import load_token, refresh_token_silent
 from Helpers.console_log import init_console, clear_console, animated_message
 from Helpers.printlog import printlog
 from Helpers.helpers import safe_int
@@ -45,13 +45,41 @@ from Helpers.colors import (
 )
 
 
-async def keep_token_fresh(stop_check, interval_seconds=900):
-    """Refresca token periodicamente sin bloquear el loop principal del bot."""
+async def keep_token_fresh(bot, channel_user, stop_check, interval_seconds=900):
+    """
+    Refresca token periodicamente de forma SILENCIOSA (sin OAuth interactivo).
+
+    Se ejecuta cada `interval_seconds` segundos (default 15min).
+    Intenta refresco silencioso; si falla, solo loguea advertencia.
+    NO dispara OAuth interactivo en background.
+    """
+    attention_alert_sent = False
+
     while not stop_check():
         try:
-            await asyncio.to_thread(load_token, ensure_valid=True, force_refresh=True)
+            # Refresco silencioso: solo intenta renovar via Twitch, sin flujo interactivo
+            status = await asyncio.to_thread(refresh_token_silent)
+            if status.get("ok"):
+                if attention_alert_sent:
+                    printlog("[Auth] Token recuperado nuevamente tras fallo previo.", "INFO")
+                attention_alert_sent = False
+            else:
+                code = status.get("code", "unknown")
+                detail = status.get("detail", "Fallo desconocido durante refresco silencioso")
+                printlog(f"[Auth] Refresco silencioso falló ({code}): {detail}", "WARNING")
+
+                # Aviso visible para intervención manual cuando el token deja de ser usable.
+                if not attention_alert_sent:
+                    await channel_user.send_message(
+                        sender=bot.user,
+                        message=(
+                            "[BOT] - ALERTA: el token OAuth expiró o quedó inválido y requiere atención manual. "
+                            "Reautoriza/reinicia el bot para recuperar conexión estable."
+                        )
+                    )
+                    attention_alert_sent = True
         except Exception as exc:
-            printlog(f"[Auth] No se pudo refrescar/validar el token en background: {exc}", "WARNING")
+            printlog(f"[Auth] Error inesperado en refresco de token: {exc}", "ERROR")
 
         try:
             await asyncio.sleep(interval_seconds)
@@ -214,7 +242,7 @@ class Bot(commands.AutoBot):
         if self.chatters_poll_task is None or self.chatters_poll_task.done():
             self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
         if self.token_refresh_task is None or self.token_refresh_task.done():
-            self.token_refresh_task = asyncio.create_task(keep_token_fresh(lambda: self._bot_closing))
+            self.token_refresh_task = asyncio.create_task(keep_token_fresh(self, user, lambda: self._bot_closing))
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
         if not self.command_modules_loaded:
             await user.send_message(sender=self.user, message="[BOT] - Se me olvidaron los comandooos! ayudame datooo")
