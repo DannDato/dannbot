@@ -740,7 +740,7 @@ def _reuse_existing_token(existing_data):
     return _build_token_data(existing_data, refreshed, user_payload, validated)
 
 
-def ensure_token_data(force_reauth=False):
+def ensure_token_data(force_reauth=False, allow_interactive=True):
     global _TOKEN_CACHE
 
     _load_env_file()
@@ -758,13 +758,23 @@ def ensure_token_data(force_reauth=False):
     if env_client_secret:
         existing_data['client_secret'] = env_client_secret
 
-    existing_data = _prompt_for_client_credentials(existing_data)
+    if allow_interactive:
+        existing_data = _prompt_for_client_credentials(existing_data)
+    elif not (existing_data.get('client_id') and existing_data.get('client_secret')):
+        raise RuntimeError(
+            'Faltan credenciales client_id/client_secret y el entorno no permite OAuth interactivo.'
+        )
 
     token_data = None
     if not force_reauth and existing_data.get('access_token'):
         token_data = _reuse_existing_token(existing_data)
 
     if token_data is None:
+        if not allow_interactive:
+            raise RuntimeError(
+                'No se pudo reutilizar/refrescar el token en modo no interactivo. '
+                'Ejecuta OAuth manualmente para regenerar Credentials/token.json.'
+            )
         token_data = _run_browser_oauth(existing_data)
 
     if not _token_is_usable(token_data):

@@ -29,7 +29,7 @@ def _has_required_token_fields(token_data):
     )
 
 
-def load_token(*, ensure_valid=False, force_refresh=False):
+def load_token(*, ensure_valid=False, force_refresh=False, allow_interactive=True):
     """
     Carga token.json.
 
@@ -52,7 +52,7 @@ def load_token(*, ensure_valid=False, force_refresh=False):
 
         needs_oauth = ensure_valid or not _has_required_token_fields(token_data)
         if needs_oauth:
-            token_data = ensure_token_data()
+            token_data = ensure_token_data(allow_interactive=allow_interactive)
             current_mtime = _get_token_mtime(token_path)
 
         _TOKEN_CACHE = dict(token_data)

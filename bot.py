@@ -6,6 +6,7 @@ import os
 import sys
 import asyncio
 import contextlib
+import socket
 
 try:
     import certifi
@@ -43,6 +44,53 @@ from Helpers.colors import (
     channelColor, colorConvert,
     userColors, rosa, red, green
 )
+
+IS_TTY = sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _systemd_notify(payload: str) -> bool:
+    """Envía notificaciones al socket de systemd si está disponible."""
+    notify_socket = os.getenv("NOTIFY_SOCKET")
+    if not notify_socket:
+        return False
+
+    # Socket abstracto en Linux: systemd usa prefijo '@'
+    if notify_socket.startswith("@"):
+        notify_socket = "\0" + notify_socket[1:]
+
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
+            sock.connect(notify_socket)
+            sock.sendall(payload.encode("utf-8"))
+        return True
+    except OSError as exc:
+        printlog(f"[Systemd] No se pudo notificar a systemd: {exc}", "WARNING")
+        return False
+
+
+def _systemd_watchdog_interval_seconds(default_seconds: int = 30) -> int:
+    """Calcula intervalo de ping basado en WATCHDOG_USEC (mitad del valor)."""
+    watchdog_usec = os.getenv("WATCHDOG_USEC")
+    if not watchdog_usec:
+        return default_seconds
+
+    try:
+        usec = int(watchdog_usec)
+        if usec <= 0:
+            return default_seconds
+        return max(1, usec // 2_000_000)
+    except ValueError:
+        return default_seconds
+
+
+async def keep_systemd_watchdog(stop_check, interval_seconds=30):
+    """Envía pulsos WATCHDOG=1 para que systemd supervise salud del proceso."""
+    while not stop_check():
+        _systemd_notify("WATCHDOG=1\nSTATUS=DannBot running")
+        try:
+            await asyncio.sleep(interval_seconds)
+        except asyncio.CancelledError:
+            break
 
 
 async def keep_token_fresh(bot, channel_user, stop_check, interval_seconds=900):
@@ -87,10 +135,13 @@ async def keep_token_fresh(bot, channel_user, stop_check, interval_seconds=900):
             break
 
 
-init_console()
-animated_message(" Iniciando DannBot", resetColor)
+if IS_TTY:
+    init_console()
+    animated_message(" Iniciando DannBot", resetColor)
+else:
+    printlog("Iniciando DannBot en modo servicio (sin TTY)", "INFO")
 
-token_data = load_token(ensure_valid=True)
+token_data = load_token(ensure_valid=True, allow_interactive=IS_TTY)
 CLIENT_ID = token_data.get("client_id")
 CLIENT_SECRET = token_data.get("client_secret")
 BOT_ID = token_data.get("bot_id")
@@ -98,7 +149,10 @@ OWNER_ID = token_data.get("owner_id") or BOT_ID  # canal objetivo del bot
 ACCESS_TOKEN = token_data.get("access_token")
 CHANNEL_NAME = token_data.get("channel_name")
 
-animated_message("Token cargado correctamente...", azul)
+if IS_TTY:
+    animated_message("Token cargado correctamente...", azul)
+else:
+    printlog("Token cargado correctamente", "INFO")
 
 async def main():
     subs = [
@@ -144,10 +198,13 @@ class Bot(commands.AutoBot):
         self.monitor_task = None
         self.chatters_poll_task = None
         self.token_refresh_task = None
+        self.systemd_watchdog_task = None
         self._bot_closing = False
         self.command_modules_loaded = True
         self.command_module_issues = []
-        animated_message("Credenciales aplicadas", rosa)
+        self._systemd_notify_enabled = bool(os.getenv("NOTIFY_SOCKET"))
+        if IS_TTY:
+            animated_message("Credenciales aplicadas", rosa)
 
     async def _cancel_task(self, task: asyncio.Task | None) -> None:
         if not task or task.done() or task is asyncio.current_task():
@@ -164,6 +221,9 @@ class Bot(commands.AutoBot):
         self._bot_closing = True
         self.connected = False
 
+        if self._systemd_notify_enabled:
+            _systemd_notify("STOPPING=1\nSTATUS=DannBot stopping")
+
         for task in (
             self.happy_birthday_task,
             self.timed_messages_task,
@@ -171,6 +231,7 @@ class Bot(commands.AutoBot):
             self.console_task,
             self.chatters_poll_task,
             self.token_refresh_task,
+            self.systemd_watchdog_task,
         ):
             await self._cancel_task(task)
 
@@ -185,12 +246,13 @@ class Bot(commands.AutoBot):
 
     #Setup inicial del bot, carga dinámica de archivos py para modulos de comandos
     async def setup_hook(self) -> None:
-        animated_message("Cargando comandos...", white)
+        if IS_TTY:
+            animated_message("Cargando comandos...", white)
         inserted, total = ensure_seed_basic_commands()
         printlog(f"Comandos base en BD: {total} (nuevos insertados: {inserted})", "DEBUG")
         self.command_modules_loaded = True
         self.command_module_issues = []
-        commands_dir = "Commands"
+        commands_dir = os.path.join(os.path.dirname(__file__), "Commands")
         command_files = [
             filename for filename in os.listdir(commands_dir)
             if filename.endswith(".py") and not filename.startswith("__")
@@ -199,7 +261,7 @@ class Bot(commands.AutoBot):
 
         for filename in command_files:
             if filename.endswith(".py") and not filename.startswith("__"):
-                module_name = f"{commands_dir}.{filename[:-3]}"
+                module_name = f"Commands.{filename[:-3]}"
                 printlog(f"Cargando modulo: {module_name}", "DEBUG")
                 try:
                     module = importlib.import_module(module_name)
@@ -223,7 +285,8 @@ class Bot(commands.AutoBot):
         if not self.command_modules_loaded:
             printlog("No se pudieron cargar todos los modulos, se necesita atencion", "ERROR")
             printlog(f"Modulos con problemas: {', '.join(self.command_module_issues)}", "WARNING")
-            animated_message("Carga incompleta de modulos", red)
+            if IS_TTY:
+                animated_message("Carga incompleta de modulos", red)
         await asyncio.sleep(1)
     #______________________________________________________________________
 
@@ -231,7 +294,8 @@ class Bot(commands.AutoBot):
     async def event_ready(self) -> None:
         printlog(f"Bot en linea...")
         self.connected = True  # Bandera de estado para analizis de status
-        clear_console()
+        if IS_TTY:
+            clear_console()
         user = self.create_partialuser(BOT_ID)
         if self.happy_birthday_task is None or self.happy_birthday_task.done():
             self.happy_birthday_task = asyncio.create_task(happy_birthday(self, user))
@@ -243,10 +307,20 @@ class Bot(commands.AutoBot):
             self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
         if self.token_refresh_task is None or self.token_refresh_task.done():
             self.token_refresh_task = asyncio.create_task(keep_token_fresh(self, user, lambda: self._bot_closing))
+        if self._systemd_notify_enabled and (self.systemd_watchdog_task is None or self.systemd_watchdog_task.done()):
+            watchdog_interval = _systemd_watchdog_interval_seconds(default_seconds=30)
+            self.systemd_watchdog_task = asyncio.create_task(
+                keep_systemd_watchdog(lambda: self._bot_closing, interval_seconds=watchdog_interval)
+            )
+
+        if self._systemd_notify_enabled:
+            _systemd_notify("READY=1\nSTATUS=DannBot conectado a Twitch")
+
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
         if not self.command_modules_loaded:
             await user.send_message(sender=self.user, message="[BOT] - Se me olvidaron los comandooos! ayudame datooo")
-        animated_message("DannBot en linea", green)
+        if IS_TTY:
+            animated_message("DannBot en linea", green)
 
     # Listener para mensajes
     async def event_message(self, message: twitchio.ChatMessage) -> None:
@@ -310,7 +384,8 @@ class Bot(commands.AutoBot):
     async def event_disconnect(self):
         self.connected = False  # Bandera de estado
         printlog(f"Desconectando bot...", "WARNING")
-        animated_message("Bot desconectado", red)
+        if IS_TTY:
+            animated_message("Bot desconectado", red)
 
 
 #______________________________________________________________________

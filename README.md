@@ -259,6 +259,43 @@ Archivos locales importantes:
 
 No versionar secretos.
 
+## Ejecutar como servicio en Debian (systemd)
+
+1. Ajusta rutas y usuario en `Tools/dannbot.service`.
+2. Copia el archivo a systemd:
+
+```bash
+sudo cp Tools/dannbot.service /etc/systemd/system/dannbot.service
+```
+
+3. Recarga systemd y habilita el servicio:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable dannbot
+sudo systemctl start dannbot
+```
+
+4. Verifica estado y logs:
+
+```bash
+sudo systemctl status dannbot
+sudo journalctl -u dannbot -f
+```
+
+Notas de funcionamiento en modo servicio:
+- El bot detecta entorno sin TTY y desactiva UI interactiva de consola.
+- No dispara OAuth interactivo automáticamente en modo no interactivo.
+- Si el token no puede refrescarse/reutilizarse, falla con mensaje claro para intervención manual.
+- El servicio usa `Type=notify` + `WatchdogSec`, y el bot envia pulsos `WATCHDOG=1` para supervision activa.
+
+Comandos utiles de watchdog:
+
+```bash
+sudo systemctl show dannbot -p Type -p WatchdogUSec -p MainPID
+sudo journalctl -u dannbot -f
+```
+
 ## Notas de mantenimiento
 
 1. Si modificas seed:

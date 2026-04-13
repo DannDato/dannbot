@@ -1,0 +1,42 @@
+[Unit]
+Description=DannBot Twitch Service
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=dann
+Group=dann
+WorkingDirectory=/home/dann/Documents/dannbot
+
+# Usa el Python del venv del proyecto
+ExecStart=/home/dann/Documents/dannbot/dannbot/bin/python /home/dann/Documents/dannbot/bot.py
+
+# Reinicio resiliente para caidas transitorias
+Restart=always
+RestartSec=10
+WatchdogSec=90
+TimeoutStartSec=180
+TimeoutStopSec=30
+
+# Variables opcionales (descomenta si las usas)
+Environment="PYTHONUNBUFFERED=1"
+# EnvironmentFile=/home/dann/Documents/dannbot/.env
+
+# Permisos y hardening basico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+LimitNOFILE=4096
+
+# Logs en journalctl
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
