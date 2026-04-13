@@ -142,6 +142,29 @@ def normalize_username(username):
     username = username.split(' ')[0] # Eliminar todo después de un espacio (si lo hay)
     return username.strip().lower()
 
+
+def extract_mentioned_username(message_text):
+    """Extrae de forma segura el usuario mencionado con @ en un mensaje.
+
+    Retorna username normalizado o None si no hay mención válida.
+    """
+    if not message_text:
+        return None
+
+    at_index = message_text.find('@')
+    if at_index < 0:
+        return None
+
+    candidate = message_text[at_index + 1 :].strip()
+    if not candidate:
+        return None
+
+    username = candidate.split()[0].lstrip('@').strip('.,;:!?)(')
+    if not username:
+        return None
+
+    return normalize_username(username)
+
 #Revisión de si el canal se encuentra en vivo
 async def is_channel_online():
     """

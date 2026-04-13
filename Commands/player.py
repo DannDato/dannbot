@@ -5,7 +5,7 @@ from Helpers.helpers_xp import (
     left_clan, join_to_clan, admin_clan, 
     get_clan_user, get_clan_members
 )
-from Helpers.helpers import send_large_message, safe_int
+from Helpers.helpers import send_large_message, safe_int, extract_mentioned_username
 from Helpers.helpers_stats import update_global_stats, get_twitch_id, get_stats
 from Helpers.printlog import printlog
 
@@ -41,7 +41,10 @@ class player_commands(commands.Component):
             oPlayer[X][1] = xp_categoria
         """
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !player @usuario")
+                return
             user = await get_twitch_id(mentioned_user)
             if user is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
@@ -74,7 +77,10 @@ class player_commands(commands.Component):
     @commands.command(name='xp')
     async def xp(self, ctx):
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !xp @usuario")
+                return
             user = await get_twitch_id(mentioned_user)
             if user is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
@@ -97,7 +103,10 @@ class player_commands(commands.Component):
     async def nivel(self, ctx):        
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !nivel @usuario")
+                return
             user = await get_twitch_id(mentioned_user)
             if user is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
@@ -181,7 +190,10 @@ class player_commands(commands.Component):
     async def clan(self, ctx):
          #______________Get mentioned user____________________
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !clan @usuario")
+                return
             user = await get_twitch_id(mentioned_user)
             if user is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
@@ -234,7 +246,10 @@ class player_commands(commands.Component):
         
         # variante del comando para unir un usuario a un clan
         elif ctx.message.text.strip().startswith('!liderclan -u @'):
-                mentioned_user = ctx.message.text.strip().split('@')[1].strip()  # Obtener el usuario a unir
+                mentioned_user = extract_mentioned_username(ctx.message.text)
+                if not mentioned_user:
+                    await ctx.send("[BOT] - Formato inválido. Usa: !liderclan -u @usuario")
+                    return
                 nUser = await get_twitch_id(mentioned_user)
                 if nUser is None:
                     await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")

@@ -6,7 +6,7 @@ import random
 from datetime import datetime, date
 
 from Helpers.helpers import is_authorized
-from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
+from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist, extract_mentioned_username
 from Helpers.chatgpt import chatgpt
 from Helpers.helpers_bot import get_chatters_total
 from Helpers.helpers_moderator import create_stream_clip, list_basic_command_names
@@ -186,7 +186,10 @@ class dynamic_commands(commands.Component):
             if not ctx.message.text.strip().startswith('!so @'):
                 await ctx.send("[BOT] - Por favor, usa el comando en el formato: !so @usuario")
                 return
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !so @usuario")
+                return
             await ctx.send(f'/shutout @{mentioned_user}')
             await ctx.send(f'[BOT] - Amigos! Vamos a seguir a @{mentioned_user} en su canal www.twitch.tv/{mentioned_user}')
         else:
@@ -233,7 +236,10 @@ class dynamic_commands(commands.Component):
     async def cumpleaños(self,ctx):
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !cumpleaños @usuario")
+                return
             user = await get_twitch_id(mentioned_user)
             if user is None:
                 await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
@@ -306,7 +312,10 @@ class dynamic_commands(commands.Component):
         if '@' not in ctx.message.text:
             await ctx.send("[BOT] - Si andas de grocero minimo etiqueta a alquien qlo: !insultar @usuario o a ti solito con !insultame")
             return
-        mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+        mentioned_user = extract_mentioned_username(ctx.message.text)
+        if not mentioned_user:
+            await ctx.send("[BOT] - Si andas de grocero minimo etiqueta a alquien qlo: !insultar @usuario o a ti solito con !insultame")
+            return
         lcRespuesta = gen_response("insultos.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
@@ -325,7 +334,10 @@ class dynamic_commands(commands.Component):
         if not ctx.message.text.strip().startswith('!halago @'):
             await ctx.send("[BOT] - Por favor, usa el comando en el formato: !halago @usuario")
             return
-        mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+        mentioned_user = extract_mentioned_username(ctx.message.text)
+        if not mentioned_user:
+            await ctx.send("[BOT] - Por favor, usa el comando en el formato: !halago @usuario")
+            return
         lcRespuesta = gen_response("halagos.txt")
         await ctx.send(f'[BOT] - {lcRespuesta} @{mentioned_user}')
         await update_global_stats("xp_Carisma",ctx.chatter.id,0.15)
@@ -358,7 +370,10 @@ class dynamic_commands(commands.Component):
         if not ctx.message.text.strip().startswith('!nalgada @'):
             await ctx.send("[BOT] - ¿A quien? al aire o que?: !nalgada @usuario")
             return
-        mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+        mentioned_user = extract_mentioned_username(ctx.message.text)
+        if not mentioned_user:
+            await ctx.send("[BOT] - ¿A quien? al aire o que?: !nalgada @usuario")
+            return
         lcRespuesta = gen_response("nalgadas.txt")
         await ctx.send(f'[BOT] - {ctx.chatter.name} Le ha dado una nalgada a @{mentioned_user}... y le dijo: {lcRespuesta}')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
@@ -374,7 +389,10 @@ class dynamic_commands(commands.Component):
     async def abrazo(self,ctx):
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !abrazo @usuario")
+                return
         else:
             mentioned_user = ctx.chatter.name
             user=ctx.chatter.id
@@ -388,7 +406,10 @@ class dynamic_commands(commands.Component):
     async def duelo(self,ctx):
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !duelo @usuario")
+                return
         else:
             mentioned_user = ctx.chatter.name
         #______________Get mentioned user____________________
@@ -480,7 +501,9 @@ class dynamic_commands(commands.Component):
         lnBits = random.randint(1,100)
         #______________Get mentioned user____________________
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                mentioned_user = ctx.chatter.name
         else:
             mentioned_user = ctx.chatter.name
         #______________Get mentioned user____________________
@@ -504,7 +527,10 @@ class dynamic_commands(commands.Component):
         if not ctx.message.text.strip().startswith('!setso @'):
             await ctx.send("[BOT] - Por favor si vas a andar de lepero, usa el comando en el formato: !setso @usuario")
             return
-        mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+        mentioned_user = extract_mentioned_username(ctx.message.text)
+        if not mentioned_user:
+            await ctx.send("[BOT] - Por favor si vas a andar de lepero, usa el comando en el formato: !setso @usuario")
+            return
         await ctx.send(f'[BOT] - 😈 @{ctx.chatter.name} quiere llevarse a @{mentioned_user} a hacer cositas...🥵 ¿será que acepta?')
         await update_global_stats("xp_Oscuridad",ctx.chatter.id,0.15)
         await update_global_stats("xp_Bromista",ctx.chatter.id,0.15)
@@ -566,7 +592,10 @@ class dynamic_commands(commands.Component):
     @commands.command(name='followage', aliases=["siguiendo","fa"])
     async def followage(self, ctx):
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip().split()[0]
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !followage @usuario")
+                return
             user_id = await get_twitch_id(mentioned_user)
             if user_id is None:
                 # Fallback a Helix por login si aun no está registrado en la BD local.
