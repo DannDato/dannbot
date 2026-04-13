@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 import emoji
 import asyncio
-import random 
+import random
 import json
 import sys
 import urllib.parse
@@ -14,6 +14,7 @@ from Helpers.printlog import printlog
 from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_channel_online, format_usernames, get_app_access_token, get_broadcaster_id_async, db_cursor
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
 from Helpers.helpers_stats import update_global_stats, today_birthdays, week_birthdays
+from Helpers.discord_notifier import notify_daily_birthdays
 
 from Helpers.token_loader import load_token as load_token_file
 from Helpers.required_scopes import required_scopes
@@ -225,18 +226,18 @@ def check_credentials_or_generate():
 def delete_token():
     # Ruta del archivo token.json
     token_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Credentials', 'token.json'))
-    
+
     # Comprobar si el archivo existe
     if os.path.exists(token_path):
         # Abrir el archivo y cargar su contenido
         with open(token_path, 'r') as token_file:
             token_data = json.load(token_file)
-        
+
         # Eliminar la clave del token
         if 'access_token' in token_data:
             del token_data['access_token']
             print("Token eliminado exitosamente.")
-        
+
         # Guardar el archivo actualizado (vacío o sin el token)
         with open(token_path, 'w') as token_file:
             json.dump(token_data, token_file, indent=4)
@@ -264,7 +265,7 @@ async def user_joined(self, user):
             except sqlite3.Error as e:
                 printlog(f'{username} se ha unido')
                 printlog(f"Error al insertar el usuario en la base de datos: {e}","ERROR")
-        
+
 
 async def read_save_chat(self, message):
     if message.author:
@@ -287,7 +288,7 @@ async def read_save_chat(self, message):
         try:
             username = normalize_username(message.author.name)
             userid=message.author.id
-            
+
             #Nuevo usuario del canal
             await new_user(message.author)
 
@@ -300,8 +301,8 @@ async def read_save_chat(self, message):
 
             with db_cursor(DB_PATH, commit=True) as (_, cursor):
                 cursor.execute('''
-                    SELECT name 
-                    FROM sqlite_master 
+                    SELECT name
+                    FROM sqlite_master
                     WHERE type='table' AND name=?;
                 ''', (table_name,))
                 table_exists = cursor.fetchone() is not None
@@ -326,13 +327,13 @@ async def read_save_chat(self, message):
             await update_global_stats("messages",userid,1)
 
             printlog(f'\033[38;5;141m{username}\033[38;5;255m {message} \033[0m')
-            
+
         except sqlite3.Error as e:
             printlog(f"Error al gestionar la tabla de chat: {e}","ERROR")
         finally:
             if userid is not None:
                 await update_global_stats("xp_Voluntad",userid,0.15)
-  
+
 
 async def update_stream_data(stat_category, value):
 
@@ -340,7 +341,7 @@ async def update_stream_data(stat_category, value):
         current_date = datetime.now().strftime('%Y-%m-%d')
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
             cursor.execute('''
-                SELECT date 
+                SELECT date
                 FROM stream_data
                 WHERE accion = "start_stream"
                 AND NOT EXISTS (
@@ -381,14 +382,14 @@ async def update_stream_data(stat_category, value):
     except sqlite3.Error as e:
         printlog(f"Error al registrar conteo de mensajes del stream en la base de datos: {e}","ERROR")
         return None
-    
+
 async def count_user_joined(user):
     try:
         current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with db_cursor(DB_PATH) as (_, cursor):
             cursor.execute('''
-                SELECT date 
-                FROM stream_data    
+                SELECT date
+                FROM stream_data
                 WHERE accion = "start_stream"
                 AND NOT EXISTS (
                     SELECT 1
@@ -419,7 +420,7 @@ async def count_user_joined(user):
     except sqlite3.Error as e:
         printlog(f"Error al registrar conteo de Usuarios del stream en la base de datos: {e}","ERROR")
         return None
-    
+
 #Timers para mensajes aleatorios
 async def send_timed_messages(self, user):
     """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
@@ -431,18 +432,29 @@ async def send_timed_messages(self, user):
         if await is_channel_online(): # Verificar si el canal está en vivo
             await user.send_message(sender=self.user, message=f'[BOT] {gen_response("mensajes_twitch.txt")}')
             sleep_time = random.randint(minT, maxT)
-            
+
 #Timers para mensajes aleatorios
 async def happy_birthday(self, user):
     """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
+    last_offline_birthday_check = None
+
     while True:
         minT=1800
         maxT=2400
+        # minT=1
+        # maxT=2
         sleep_time = random.randint(minT, maxT)
         await asyncio.sleep(sleep_time)  # Esperar antes del mensaje
 
         channel_online = await is_channel_online()
         if not channel_online:
+            today_key = datetime.now().strftime('%Y-%m-%d')
+            if last_offline_birthday_check != today_key:
+                last_offline_birthday_check = today_key
+                birthdays = await today_birthdays()
+                if birthdays and birthdays[0] == True:
+                    await notify_daily_birthdays(birthdays[1], offline=True)
+                    printlog("[Cumpleaños] Felicitación diaria enviada por webhook estando offline.", "INFO")
             continue
 
         birthdays = await today_birthdays()
@@ -458,7 +470,7 @@ async def happy_birthday(self, user):
             else:
                 message = f'[BOT] - Recuerden que esta semana tenemos los cumpleaños de {nusers} 🎉'
             await user.send_message(sender=self.user, message=message)
-                
+
 
 
 async def new_user(uid, uname):
@@ -490,7 +502,7 @@ async def new_user(uid, uname):
 async def save_current_data():
     """
         Obtiene los numeros actuales del stream como:
-        Viewers, Followers, subs 
+        Viewers, Followers, subs
         y los registra en las tablas para las estadísticas
     """
     # Datos de la API
@@ -498,8 +510,8 @@ async def save_current_data():
     access_token = token_data.get("access_token")
     client_id = token_data.get("client_id")
     broadcaster_id = token_data.get("owner_id") or token_data.get("bot_id")
-    
-    # while True: 
+
+    # while True:
     #     # Aqui se pondria el codigo de la obtención de estadísticas...
     #           # SI TUVIERA UNO!!!!!
 
@@ -710,4 +722,4 @@ async def poll_chatters(bot):
             printlog(f"Error en poll_chatters: {e}", "WARNING")
 
         await asyncio.sleep(5)
-    
+

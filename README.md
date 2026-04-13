@@ -257,6 +257,11 @@ Archivos locales importantes:
 - `Credentials/token.json` (token Twitch runtime)
 - `.env` (secretos de entorno como SMTP/OpenAI/Steam)
 
+Variables utiles para Discord (webhooks):
+- `DISCORD_WEBHOOK`: webhook principal para eventos del stream (canal publico/general).
+- `DISCORD_PRIVATE_WEBHOOK`: webhook privado para alertas criticas y datos sensibles.
+- `DISCORD_SUBS_ROLE_ID`: rol de Discord a mencionar en nuevas subs (opcional).
+
 No versionar secretos.
 
 ## Ejecutar como servicio en Debian (systemd)
@@ -288,6 +293,32 @@ Notas de funcionamiento en modo servicio:
 - No dispara OAuth interactivo automáticamente en modo no interactivo.
 - Si el token no puede refrescarse/reutilizarse, falla con mensaje claro para intervención manual.
 - El servicio usa `Type=notify` + `WatchdogSec`, y el bot envia pulsos `WATCHDOG=1` para supervision activa.
+
+## Integracion con Discord (MVP)
+
+Eventos notificados por webhook:
+- Inicio de directo (`stream_online`).
+- Nuevos follows.
+- Donaciones de bits.
+- Nuevas subs y subs regaladas.
+- Errores criticos del bot.
+- Resumen post-stream (followers, bits, subs, mensajes, usuarios, estimado USD, top chatter).
+
+### Roadmap recomendado (3 fases)
+
+Fase 1 - Rapida (1 semana):
+- Webhooks (ya implementado): inicio, follows, bits, subs, errores criticos, resumen post-stream.
+- Separar webhook principal vs webhook de alertas.
+
+Fase 2 - Media (1 mes):
+- Bot de Discord con slash commands (`/status`, `/stream`, `/errores`).
+- Canal de auditoria (quien ejecuto `!end`, `!restart`, `!logout`).
+- Cola anti-spam para eventos explosivos (raids/regalos masivos).
+
+Fase 3 - Avanzada (2-3 meses):
+- Vinculacion Twitch<->Discord para asignacion automatica de rol por sub real.
+- Job de reconciliacion periodica para revocar rol cuando termina la sub.
+- Dashboard de comunidad (leaderboard, milestones y alertas inteligentes).
 
 Comandos utiles de watchdog:
 

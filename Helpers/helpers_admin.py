@@ -8,9 +8,11 @@ from datetime import datetime
 from Helpers.helpers_stats import update_global_stats, get_top_chatter_day
 from Helpers.helpers_xp import update_xp
 from Helpers.helpers_bot import update_stream_data
+from Helpers.discord_notifier import notify_post_stream_summary, notify_stream_online
 from Helpers.mailer import enviar_correo
 from Helpers.helpers import safe_int, db_cursor
 from Helpers.printlog import printlog
+from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -149,14 +151,17 @@ async def end_stream():
             cursor.execute(
                 '''
                 SELECT
+                    COALESCE(MAX(CASE WHEN accion = "new_followers" THEN value END), 0) AS followers,
                     COALESCE(MAX(CASE WHEN accion = "new_bits" THEN value END), 0) AS bits,
-                    COALESCE(MAX(CASE WHEN accion = "new_subs" THEN value END), 0) AS subs
+                    COALESCE(MAX(CASE WHEN accion = "new_subs" THEN value END), 0) AS subs,
+                    COALESCE(MAX(CASE WHEN accion = "total_messages" THEN value END), 0) AS messages,
+                    COALESCE(MAX(CASE WHEN accion = "total_users" THEN value END), 0) AS users
                 FROM stream_data
                 WHERE DATE(date) = DATE(?)
                 ''',
                 (current_date,)
             )
-            bits, subs = cursor.fetchone()
+            followers, bits, subs, total_messages, total_users = cursor.fetchone()
             mSubs = (safe_int(subs) * 1.52) * dollar
             mBits = (safe_int(bits) / 100) * dollar
             total_money = safe_int(mSubs + mBits)
@@ -167,12 +172,92 @@ async def end_stream():
             ''', (total_money, current_date, current_date))
 
         top_chatter_day = await get_top_chatter_day()
+        top_chatter_name = None
         if top_chatter_day is not None:
             await update_global_stats("xp_Fuerza", top_chatter_day, 3)
             await update_global_stats("top_chatter_day", top_chatter_day, 1)
+            try:
+                with db_cursor(DB_PATH) as (_, cursor):
+                    cursor.execute('SELECT username FROM users WHERE twitch_id = ?', (str(top_chatter_day),))
+                    result = cursor.fetchone()
+                    top_chatter_name = result[0] if result else None
+            except sqlite3.Error:
+                top_chatter_name = None
 
         await update_xp()
         await end_mail()
+
+        previous_summary = None
+        try:
+            with db_cursor(DB_PATH) as (_, cursor):
+                cursor.execute(
+                    '''
+                    WITH periods AS (
+                        SELECT
+                            s.date AS start_date,
+                            (
+                                SELECT MIN(e.date)
+                                FROM stream_data e
+                                WHERE e.accion = 'end_stream'
+                                AND datetime(e.date) >= datetime(s.date)
+                            ) AS end_date
+                        FROM stream_data s
+                        WHERE s.accion = 'start_stream'
+                    ),
+                    closed AS (
+                        SELECT start_date, end_date
+                        FROM periods
+                        WHERE end_date IS NOT NULL
+                        ORDER BY datetime(end_date) DESC
+                    )
+                    SELECT start_date, end_date
+                    FROM closed
+                    LIMIT 1 OFFSET 1;
+                    '''
+                )
+                prev_period = cursor.fetchone()
+
+                if prev_period:
+                    prev_start, prev_end = prev_period
+                    cursor.execute(
+                        '''
+                        SELECT
+                            COALESCE(MAX(CASE WHEN accion = 'new_followers' THEN value END), 0) AS followers,
+                            COALESCE(MAX(CASE WHEN accion = 'new_bits' THEN value END), 0) AS bits,
+                            COALESCE(MAX(CASE WHEN accion = 'new_subs' THEN value END), 0) AS subs,
+                            COALESCE(MAX(CASE WHEN accion = 'total_messages' THEN value END), 0) AS messages,
+                            COALESCE(MAX(CASE WHEN accion = 'total_users' THEN value END), 0) AS users,
+                            COALESCE(MAX(CASE WHEN accion = 'total_money' THEN value END), 0) AS money
+                        FROM stream_data
+                        WHERE datetime(date) >= datetime(?)
+                        AND datetime(date) <= datetime(?)
+                        ''',
+                        (prev_start, prev_end),
+                    )
+                    prev_metrics = cursor.fetchone()
+                    previous_summary = {
+                        "followers": safe_int(prev_metrics[0]),
+                        "bits": safe_int(prev_metrics[1]),
+                        "subs": safe_int(prev_metrics[2]),
+                        "messages": safe_int(prev_metrics[3]),
+                        "users": safe_int(prev_metrics[4]),
+                        "money": safe_int(prev_metrics[5]),
+                    }
+        except sqlite3.Error:
+            previous_summary = None
+
+        await notify_post_stream_summary(
+            {
+                "followers": safe_int(followers),
+                "bits": safe_int(bits),
+                "subs": safe_int(subs),
+                "messages": safe_int(total_messages),
+                "users": safe_int(total_users),
+                "money": safe_int(total_money),
+                "top_chatter": top_chatter_name,
+                "previous": previous_summary,
+            }
+        )
         printlog(f"Stream finalizado correctamente: {current_date}.")
         return True
 
@@ -233,6 +318,8 @@ async def start_stream():
 
         await update_stream_data("total_users", 1)
         await update_stream_data("total_messages", 1)
+        token_data = load_token()
+        await notify_stream_online(token_data.get("channel_name") or "danndato")
         printlog(f"Nuevo stream iniciado correctamente a las {current_date}.")
         return True
 

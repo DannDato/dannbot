@@ -13,4 +13,7 @@ delcmd
 editcmd
 liderclan
 newcmd
+testsub
+testfollow
+testcheer
 

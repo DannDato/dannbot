@@ -8,12 +8,13 @@ from Helpers.helpers_stats import update_global_stats
 from Helpers.colors import colorConvert, white, resetColor, userColors, channelColor, morado
 from Helpers.helpers_bot import new_user, update_stream_data
 from Helpers.helpers_dynamic import cache_follow_from_event
+from Helpers.discord_notifier import notify_new_follow
 from Helpers.printlog import printlog
 
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
-#Función para manejar las donaciones de bits 
+#Función para manejar las donaciones de bits
 async def handle_follow(self, payload):
     """Guardar en la base de datos las donaciones realizadas
         Para estadísticas
@@ -30,8 +31,8 @@ async def handle_follow(self, payload):
         now = datetime.now()
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
             cursor.execute('''
-                SELECT name 
-                FROM sqlite_master 
+                SELECT name
+                FROM sqlite_master
                 WHERE type='table' AND name='followers';
             ''')
             table_exists = cursor.fetchone() is not None
@@ -71,6 +72,7 @@ async def handle_follow(self, payload):
 
         await update_stream_data("new_followers", 1)
         printlog(f"{morado} N U E V O    S E G U I D O R {white}  [ {channelColor}{CHATTER_NAME}{white} ({CHATTER_ID}) ]")
+        await notify_new_follow(CHATTER_NAME)
         user = self.create_partialuser(BROADCASTER_ID)
         await user.send_message(sender=self.user, message=f"¡Gracias por seguirme, {payload.user.name}! 🎉")
 
@@ -79,4 +81,4 @@ async def handle_follow(self, payload):
         printlog(f"Ha ocurrido un error al guardar el mensaje recibido {e}","ERROR")
     finally:
         await update_global_stats("xp_Carisma",CHATTER_ID,5)
-            
+

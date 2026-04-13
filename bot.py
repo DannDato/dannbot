@@ -21,6 +21,7 @@ import twitchio
 import importlib
 from twitchio import eventsub
 from twitchio.ext import commands
+from twitchio.ext.commands import CommandNotFound
 
                     # Importar configuraciones
 from Helpers.token_loader import load_token, refresh_token_silent
@@ -37,6 +38,7 @@ from Handlers.handlers_subs import handle_sub, handle_sub_gift
 from Handlers.console_handler import console_control
 from Helpers.health_check import monitor_bot_health
 from Helpers.helpers_admin import start_stream
+from Helpers.discord_notifier import notify_critical_error
 from Seed.basic_commands import ensure_seed_basic_commands
 
 from Helpers.colors import (
@@ -374,10 +376,40 @@ class Bot(commands.AutoBot):
     #______________________________________________________________________
     #Eventos de error
     async def event_command_error(self, payload: twitchio.ext.commands.CommandErrorPayload) -> None:
-        printlog(f"Se ha presentado un error de comando o comando desconocido {payload}", "WARNING")
+        error = getattr(payload, "error", None)
+        exception = getattr(payload, "exception", None)
+        detail = error or exception
+
+        # Evita ruido por comandos desconocidos escritos en chat.
+        if isinstance(detail, CommandNotFound):
+            return
+
+        context = getattr(payload, "context", None)
+        command_name = "unknown"
+        chatter_name = "unknown"
+        message_text = ""
+
+        if context is not None:
+            command_obj = getattr(context, "command", None)
+            command_name = getattr(command_obj, "name", "unknown") if command_obj else "unknown"
+            chatter = getattr(context, "chatter", None)
+            chatter_name = getattr(chatter, "name", "unknown") if chatter else "unknown"
+            message = getattr(context, "message", None)
+            message_text = getattr(message, "text", "") if message else ""
+
+        detail_text = str(detail) if detail else "Error de comando sin detalle"
+        printlog(
+            f"Error en comando '{command_name}' de @{chatter_name}: {detail_text} | mensaje: {message_text}",
+            "ERROR",
+        )
+        await notify_critical_error(
+            "event_command_error",
+            f"command={command_name} user={chatter_name} detail={detail_text} msg={message_text}",
+        )
 
     async def event_error(self, payload: twitchio.EventErrorPayload) -> None:
         printlog(f"Se ha capturado un error de evento {safe_int(payload.error)}", "ERROR")
+        await notify_critical_error("event_error", str(payload.error))
 
 
     # Evento de desconexión

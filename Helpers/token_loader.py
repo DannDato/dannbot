@@ -79,15 +79,15 @@ def refresh_token_silent():
         Si falla, solo loguea y retorna estado no-ok; no dispara excepciones.
     """
     global _TOKEN_CACHE, _TOKEN_CACHE_MTIME
-    
-        status = silent_refresh_token()
-    
-        if status.get("ok"):
+
+    status = silent_refresh_token()
+
+    if status.get("ok"):
         # Limpiar cache para forzar recarga del token actualizado
         _TOKEN_CACHE = None
         _TOKEN_CACHE_MTIME = None
-    
-        return status
+
+    return status
 
 def delete_token_file():
     """Elimina token.json y limpia caches en memoria."""
