@@ -424,7 +424,11 @@ class ddpyBot(commands.Bot):
         if not ctx.message.content.strip().startswith('!duelo @'):
             await ctx.send("Por favor, usa el comando en el formato: !duelo @usuario")
             return
-        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        parts = ctx.message.content.strip().split('@', 1)
+        mentioned_user = parts[1].strip().split()[0] if len(parts) > 1 and parts[1].strip() else ""
+        if not mentioned_user:
+            await ctx.send("Por favor, usa el comando en el formato: !duelo @usuario")
+            return
         await ctx.send(f'@{ctx.author.name} ha retado a @{mentioned_user} a un duelo de cuchillos...')
         lnResp = random.randint(1, 3)
         lnGanador = ctx.author.name if random.randint(0,1) else mentioned_user
@@ -443,7 +447,11 @@ class ddpyBot(commands.Bot):
         if not ctx.message.content.strip().startswith('!amor @'):
             await ctx.send("Por favor, usa el comando en el formato: !amor @usuario")
             return
-        mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+        parts = ctx.message.content.strip().split('@', 1)
+        mentioned_user = parts[1].strip().split()[0] if len(parts) > 1 and parts[1].strip() else ""
+        if not mentioned_user:
+            await ctx.send("Por favor, usa el comando en el formato: !amor @usuario")
+            return
         lnAmor = random.randint(1, 100)
         if lnAmor <= 33: 
             lcExtra  ="❤️"
@@ -475,7 +483,11 @@ class ddpyBot(commands.Bot):
                 await ctx.send("Por favor, usa el comando en el formato: !ganadorw @usuario")
                 return
             # Obtener el nombre del usuario mencionado
-            mentioned_user = ctx.message.content.strip().split('@')[1].strip()
+            parts = ctx.message.content.strip().split('@', 1)
+            mentioned_user = parts[1].strip().split()[0] if len(parts) > 1 and parts[1].strip() else ""
+            if not mentioned_user:
+                await ctx.send("Por favor, usa el comando en el formato: !ganadorw @usuario")
+                return
             # Actualizar las estadísticas de Wordle
             has_won_subscription = update_wordle_winner(mentioned_user)
 
