@@ -15,6 +15,7 @@ from Helpers.helpers import normalize_username, clean_text, cerrar_conexion, is_
 from Helpers.helpers_dynamic import gen_response, interactuar, desafiar, analisis
 from Helpers.helpers_stats import update_global_stats, today_birthdays, week_birthdays
 from Helpers.discord_notifier import notify_daily_birthdays
+from Helpers.feature_flags import is_feature_enabled
 
 from Helpers.token_loader import load_token as load_token_file
 from Helpers.required_scopes import required_scopes
@@ -92,7 +93,7 @@ async def resolve_user_ids_and_update_token(token_path=TOKEN_PATH):
 
     if not client_id or not client_secret:
         printlog("Faltan 'client_id' o 'client_secret' en token.json","ERROR")
-        sys.exit("Debes volver a generar el token.json con client_id y client_secret")
+        raise RuntimeError("Debes volver a generar el token.json con client_id y client_secret")
 
     access_token = token_data.get("access_token")
     if not access_token:
@@ -127,10 +128,10 @@ async def resolve_user_ids_and_update_token(token_path=TOKEN_PATH):
                     token_data["channel_name"] = user_data["login"]
                 else:
                     printlog(f"Error al obtener datos del canal: {data}","ERROR")
-                    sys.exit(1)
+                    raise RuntimeError(f"No se pudieron resolver datos del canal: {data}")
     except Exception as e:
         printlog(f"Error al obtener datos del canal: {e}","ERROR")
-        sys.exit(1)
+        raise RuntimeError("No se pudieron resolver los IDs del canal en Twitch") from e
 
     with open(token_path, "w") as f:
         json.dump(token_data, f, indent=4)
@@ -217,7 +218,7 @@ def check_credentials_or_generate():
         return
     elif response_status != 200:
         printlog(f"{white}Error inesperado verificando token: {response_status} - {response_text}","ERROR")
-        sys.exit(1)
+        raise RuntimeError(f"Error verificando token: {response_status} - {response_text}")
 
     printlog(f"{white}✅ Token validado correctamente.")
 
@@ -438,6 +439,9 @@ async def happy_birthday(self, user):
     """Envía mensajes aleatorios desde un archivo de texto en intervalos de tiempo."""
     last_offline_birthday_check = None
 
+    if not is_feature_enabled("FEATURE_BIRTHDAYS", True):
+        return
+
     while True:
         minT=1800
         maxT=2400
@@ -458,12 +462,12 @@ async def happy_birthday(self, user):
             continue
 
         birthdays = await today_birthdays()
-        if birthdays[0]==True:
+        if birthdays[0]==True and is_feature_enabled("FEATURE_BIRTHDAYS_CHAT", True):
             users = format_usernames(birthdays[1])
             await user.send_message(sender=self.user, message=f'[BOT] - 🥳 HOY ESTAMOS DE FIESTA, es el cumpleaños de {users} 🎉')
 
         nBirthdays = await week_birthdays()
-        if nBirthdays[0]==True:
+        if nBirthdays[0]==True and is_feature_enabled("FEATURE_BIRTHDAYS_CHAT", True):
             nusers = ", ".join([f"@{username} ({day_label})" for username, day_label in nBirthdays[1]])
             if len(nBirthdays[1]) == 1:
                 message = f'[BOT] - Recuerden que esta semana tenemos el cumpleaños de {nusers} 🎉'

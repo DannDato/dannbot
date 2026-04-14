@@ -35,10 +35,12 @@ from Handlers.handlers_message import handle_message
 from Handlers.handlers_follow import handle_follow
 from Handlers.handlers_cheer import handle_cheer
 from Handlers.handlers_subs import handle_sub, handle_sub_gift
+from Handlers.handlers_youtube import poll_youtube_uploads
 from Handlers.console_handler import console_control
 from Helpers.health_check import monitor_bot_health
 from Helpers.helpers_admin import start_stream
 from Helpers.discord_notifier import notify_critical_error
+from Helpers.feature_flags import is_feature_enabled
 from Seed.basic_commands import ensure_seed_basic_commands
 
 from Helpers.colors import (
@@ -176,7 +178,8 @@ async def main():
     if sys.stdin.isatty():
         bot.console_task = asyncio.create_task(console_control(bot))
 
-    await bot.start()
+    # El adapter web local no es necesario para este flujo y puede chocar con puertos ya ocupados (ej. 4343).
+    await bot.start(with_adapter=False)
 
 
 class Bot(commands.AutoBot):
@@ -201,6 +204,7 @@ class Bot(commands.AutoBot):
         self.chatters_poll_task = None
         self.token_refresh_task = None
         self.systemd_watchdog_task = None
+        self.youtube_poll_task = None
         self._bot_closing = False
         self.command_modules_loaded = True
         self.command_module_issues = []
@@ -234,6 +238,7 @@ class Bot(commands.AutoBot):
             self.chatters_poll_task,
             self.token_refresh_task,
             self.systemd_watchdog_task,
+            self.youtube_poll_task,
         ):
             await self._cancel_task(task)
 
@@ -299,8 +304,10 @@ class Bot(commands.AutoBot):
         if IS_TTY:
             clear_console()
         user = self.create_partialuser(BOT_ID)
-        if self.happy_birthday_task is None or self.happy_birthday_task.done():
+        if is_feature_enabled("FEATURE_BIRTHDAYS", True) and (self.happy_birthday_task is None or self.happy_birthday_task.done()):
             self.happy_birthday_task = asyncio.create_task(happy_birthday(self, user))
+        elif not is_feature_enabled("FEATURE_BIRTHDAYS", True):
+            printlog("[Features] FEATURE_BIRTHDAYS deshabilitado: se omite tarea de cumpleaños.", "INFO")
         if self.timed_messages_task is None or self.timed_messages_task.done():
             self.timed_messages_task = asyncio.create_task(send_timed_messages(self, user))
         if self.monitor_task is None or self.monitor_task.done():
@@ -309,6 +316,10 @@ class Bot(commands.AutoBot):
             self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
         if self.token_refresh_task is None or self.token_refresh_task.done():
             self.token_refresh_task = asyncio.create_task(keep_token_fresh(self, user, lambda: self._bot_closing))
+        if is_feature_enabled("FEATURE_YOUTUBE", True) and (self.youtube_poll_task is None or self.youtube_poll_task.done()):
+            self.youtube_poll_task = asyncio.create_task(poll_youtube_uploads(lambda: self._bot_closing))
+        elif not is_feature_enabled("FEATURE_YOUTUBE", True):
+            printlog("[Features] FEATURE_YOUTUBE deshabilitado: se omite monitor de YouTube.", "INFO")
         if self._systemd_notify_enabled and (self.systemd_watchdog_task is None or self.systemd_watchdog_task.done()):
             watchdog_interval = _systemd_watchdog_interval_seconds(default_seconds=30)
             self.systemd_watchdog_task = asyncio.create_task(

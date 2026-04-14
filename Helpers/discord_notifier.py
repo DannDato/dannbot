@@ -6,6 +6,7 @@ import aiohttp
 
 from Helpers.printlog import printlog
 from Helpers.token_loader import load_token
+from Helpers.feature_flags import is_feature_enabled
 
 
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
@@ -33,7 +34,7 @@ def _load_env_file() -> None:
                 ):
                     value = value[1:-1]
 
-                os.environ.setdefault(key, value)
+                os.environ[key] = value
     except Exception as exc:
         printlog(f"[Discord] No se pudo cargar .env para webhooks: {exc}", "WARNING")
 
@@ -63,7 +64,15 @@ def _role_mention(role_id: str) -> str:
 
 
 async def _send_webhook(payload: dict, *, public: bool = False) -> bool:
+    if not is_feature_enabled("FEATURE_DISCORD", True):
+        return False
+
     url = _get_public_webhook_url() if public else _get_private_webhook_url()
+    if public and not is_feature_enabled("FEATURE_DISCORD_PUBLIC", True):
+        return False
+    if not public and not is_feature_enabled("FEATURE_DISCORD_PRIVATE", True):
+        return False
+
     if not url:
         if public:
             printlog("[Discord] DISCORD_WEBHOOK no configurado; se omite envio publico.", "WARNING")
@@ -170,6 +179,9 @@ async def send_discord_embed(title: str, description: str, *, color: int = 0x586
 
 
 async def notify_stream_online(channel_name: str, channel_url: str | None = None):
+    if not is_feature_enabled("FEATURE_STREAM_ONLINE_NOTIFY", True):
+        return
+
     channel_url = (channel_url or _get_twitch_channel_url(channel_name)).strip()
     metadata = await _fetch_twitch_live_metadata(channel_name)
     display_name = metadata.get("display_name") or channel_name
@@ -200,6 +212,9 @@ async def notify_stream_online(channel_name: str, channel_url: str | None = None
 
 
 async def notify_new_follow(username: str):
+    if not is_feature_enabled("FEATURE_NOTIFY_FOLLOW", True):
+        return
+
     await send_discord_embed(
         title="[Twitch] Nuevo seguidor",
         description=f"@{username} comenzo a seguir el canal de twitch!.",
@@ -208,6 +223,9 @@ async def notify_new_follow(username: str):
 
 
 async def notify_bits(username: str, bits: int, message: str = ""):
+    if not is_feature_enabled("FEATURE_NOTIFY_BITS", True):
+        return
+
     fields = [{"name": "Bits", "value": str(bits), "inline": True}]
     if message:
         fields.append({"name": "Mensaje", "value": message[:400], "inline": False})
@@ -221,6 +239,9 @@ async def notify_bits(username: str, bits: int, message: str = ""):
 
 
 async def notify_sub(username: str, tier: str, gift: bool = False, total_gifted: int | None = None):
+    if not is_feature_enabled("FEATURE_NOTIFY_SUBS", True):
+        return
+
     role_ping = _role_mention(_get_subs_role_id())
     fields = [
         {"name": "Tier", "value": tier or "Desconocido", "inline": True},
@@ -240,6 +261,9 @@ async def notify_sub(username: str, tier: str, gift: bool = False, total_gifted:
 
 
 async def notify_critical_error(source: str, detail: str):
+    if not is_feature_enabled("FEATURE_NOTIFY_CRITICAL", True):
+        return
+
     await send_discord_embed(
         title="Error critico DannBot",
         description=f"Fuente: {source}\nDetalle: {detail[:800]}",
@@ -248,6 +272,9 @@ async def notify_critical_error(source: str, detail: str):
 
 
 async def notify_post_stream_summary(summary: dict):
+    if not is_feature_enabled("FEATURE_STREAM_SUMMARY", True):
+        return
+
     followers = int(summary.get("followers", 0) or 0)
     bits = int(summary.get("bits", 0) or 0)
     subs = int(summary.get("subs", 0) or 0)
@@ -328,6 +355,9 @@ async def notify_post_stream_summary(summary: dict):
 
 
 async def notify_daily_birthdays(usernames: list[str], *, offline: bool = False):
+    if not is_feature_enabled("FEATURE_BIRTHDAYS_DISCORD", True):
+        return
+
     if not usernames:
         return
 
@@ -344,5 +374,34 @@ async def notify_daily_birthdays(usernames: list[str], *, offline: bool = False)
         title="🎊 Cumpleaños del día 🎂",
         description=description,
         color=0xF1C40F,
+        public=True,
+    )
+
+
+async def notify_youtube_video(
+    *,
+    title: str,
+    video_url: str,
+    channel_url: str | None = None,
+    published_at: str | None = None,
+    thumbnail_url: str | None = None,
+)-> bool:
+    if not is_feature_enabled("FEATURE_YOUTUBE", True):
+        return False
+
+    fields = [{"name": "Ver video", "value": video_url, "inline": False}]
+    if channel_url:
+        fields.append({"name": "Canal", "value": channel_url, "inline": False})
+    if published_at:
+        fields.append({"name": "Publicado", "value": published_at.replace("T", " ").replace("Z", " UTC")[:1024], "inline": True})
+
+    return await send_discord_embed(
+        title="📺 Nuevo video en YouTube",
+        description=title[:1024],
+        color=0xFF0000,
+        fields=fields,
+        url=video_url,
+        image_url=thumbnail_url,
+        content=f"🎬 Video nuevo publicado: {video_url}",
         public=True,
     )
