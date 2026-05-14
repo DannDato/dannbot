@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -113,18 +114,61 @@ def _save_last_video(channel_id: str, video_id: str, published_at: str | None) -
         )
 
 
+async def _resolve_channel_id_from_url(session: aiohttp.ClientSession, channel_url: str) -> str | None:
+    """Intenta obtener el channel_id real parseando la página del canal de YouTube."""
+    try:
+        async with session.get(channel_url) as resp:
+            if resp.status != 200:
+                return None
+            html = await resp.text()
+        match = re.search(r'"channelId"\s*:\s*"(UC[\w-]{22})"', html)
+        if not match:
+            match = re.search(r'"externalId"\s*:\s*"(UC[\w-]{22})"', html)
+        return match.group(1) if match else None
+    except Exception:
+        return None
+
+
 async def _fetch_latest_video(channel_id: str) -> dict | None:
-    feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
-    timeout = aiohttp.ClientTimeout(total=15)
+    timeout = aiohttp.ClientTimeout(total=20)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
 
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+            feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
             async with session.get(feed_url) as response:
-                if response.status != 200:
+                if response.status == 404:
+                    # channel_id incorrecto — intentar resolverlo desde la URL del canal configurada
+                    channel_url = _get_youtube_channel_url()
+                    if channel_url:
+                        printlog(f"[YouTube] Feed 404 para {channel_id}. Intentando resolver ID desde {channel_url} ...", "WARNING")
+                        resolved_id = await _resolve_channel_id_from_url(session, channel_url)
+                        if resolved_id and resolved_id != channel_id:
+                            printlog(f"[YouTube] Channel ID resuelto: {resolved_id} (era {channel_id}). Actualiza YOUTUBE_CHANNEL_ID en .env.", "WARNING")
+                            # Reintentar con el ID correcto
+                            feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={resolved_id}"
+                            async with session.get(feed_url) as retry_resp:
+                                if retry_resp.status != 200:
+                                    body = await retry_resp.text()
+                                    printlog(f"[YouTube] Error al consultar feed con ID resuelto ({retry_resp.status}): {body[:220]}", "WARNING")
+                                    return None
+                                xml_text = await retry_resp.text()
+                        else:
+                            printlog(f"[YouTube] No se pudo resolver el channel_id desde la página del canal.", "WARNING")
+                            return None
+                    else:
+                        printlog(f"[YouTube] Feed 404. YOUTUBE_CHANNEL_URL no configurado; no se puede resolver el ID.", "WARNING")
+                        return None
+                elif response.status != 200:
                     body = await response.text()
                     printlog(f"[YouTube] Error al consultar feed ({response.status}): {body[:220]}", "WARNING")
                     return None
-                xml_text = await response.text()
+                else:
+                    xml_text = await response.text()
     except aiohttp.ClientError as exc:
         printlog(f"[YouTube] Error de red consultando feed: {exc}", "WARNING")
         return None
@@ -175,16 +219,26 @@ async def _fetch_latest_video(channel_id: str) -> dict | None:
 
 async def poll_youtube_uploads(stop_check):
     """Monitorea el feed de YouTube y notifica a Discord cuando detecta un video nuevo."""
-    if not is_feature_enabled("FEATURE_YOUTUBE", True):
-        printlog("[YouTube] Monitoreo deshabilitado por FEATURE_YOUTUBE=0.", "INFO")
-        return
-
     _ensure_youtube_state_table()
     missing_config_warned = False
     monitor_started_logged = False
     first_probe_logged = False
+    feature_disabled_logged = False
 
     while not stop_check():
+        if not is_feature_enabled("FEATURE_YOUTUBE", True):
+            if not feature_disabled_logged:
+                printlog("[YouTube] Monitoreo deshabilitado por FEATURE_YOUTUBE=0.", "INFO")
+                feature_disabled_logged = True
+                monitor_started_logged = False
+                first_probe_logged = False
+            try:
+                await asyncio.sleep(60)
+            except asyncio.CancelledError:
+                break
+            continue
+
+        feature_disabled_logged = False
         channel_id = _get_youtube_channel_id()
         interval = _get_youtube_poll_interval(default_seconds=600)
 

@@ -561,7 +561,7 @@ class dynamic_commands(commands.Component):
     async def vips(self,ctx):
         lcVips = await get_vips()
         await ctx.send("[BOT] - Los 💎VIP's del canal son:")
-        await ctx.send(lcVips)
+        await ctx.send(f'[BOT] - {lcVips}')
         await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)
 
     @commands.command(name='joteria')

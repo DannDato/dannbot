@@ -340,8 +340,12 @@ class Bot(commands.AutoBot):
         custom_command_handled = await handle_message(self, message)
         if custom_command_handled:
             return
-        # Procesar los comandos recibidos dentro del mensaje despues del hanlder personalizado
-        message.text=message.text.lower() #Bajamos a minusculas por si el comando está capitalizado
+        # Procesar comandos de forma case-insensitive sin modificar los argumentos.
+        original_text = message.text or ""
+        if original_text.startswith("!"):
+            parts = original_text.split(" ", 1)
+            command_token = parts[0].lower()
+            message.text = f"{command_token} {parts[1]}" if len(parts) > 1 else command_token
         await self.process_commands(message)
 
     # Listener para seguidores

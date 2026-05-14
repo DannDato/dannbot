@@ -59,7 +59,7 @@ class player_commands(commands.Component):
         oPlayer[5][1]=oPlayer[5][1].split(".")[0]
         oPlayer[0][1]=oPlayer[0][1].split(".")[0]
         if oPlayer != False:
-            response=f"⠀⠀🇯🇺🇬🇦🇩🇴🇷 ⠀⠀@{mentioned_user} ⠀ "
+            response=f"[BOT] - ⠀⠀🇯🇺🇬🇦🇩🇴🇷 ⠀⠀@{mentioned_user} ⠀ "
             if(int(oPlayer[1][1])>=5):
                 response = response + f"⠀ {oPlayer[2][1]} ⠀ "
             
@@ -291,9 +291,9 @@ class player_commands(commands.Component):
         
         await update_global_stats("xp_Voluntad",ctx.chatter.name,0.25)
         await ctx.send("[BOT] - Las recompensas de nivel en el canal... 🔥")
-        await ctx.send("Nivel [ 5] 🏅 Titulo de jugador  ")
-        await ctx.send("Nivel [10] 🥷 Crear Skin (25)  ")
-        await ctx.send("Nivel [15] 🧩 Crear clan  ")
-        await ctx.send("Nivel [20] 🤖 Tu propio comando ")
-        await ctx.send("Nivel [25] 🐕 Adoptar mascota ")
-        await ctx.send("Nivel [50] 💎 VIP  ")
+        await ctx.send("[BOT] - Nivel [ 5] 🏅 Titulo de jugador  ")
+        await ctx.send("[BOT] - Nivel [10] 🥷 Crear Skin (25)  ")
+        await ctx.send("[BOT] - Nivel [15] 🧩 Crear clan  ")
+        await ctx.send("[BOT] - Nivel [20] 🤖 Tu propio comando ")
+        await ctx.send("[BOT] - Nivel [25] 🐕 Adoptar mascota ")
+        await ctx.send("[BOT] - Nivel [50] 💎 VIP  ")

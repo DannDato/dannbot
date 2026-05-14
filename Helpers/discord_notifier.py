@@ -73,6 +73,14 @@ async def _send_webhook(payload: dict, *, public: bool = False) -> bool:
     if not public and not is_feature_enabled("FEATURE_DISCORD_PRIVATE", True):
         return False
 
+    # Fallback: si falta webhook privado, intenta enviar al webhook publico.
+    # Esto evita perder notificaciones cuando solo se configura DISCORD_WEBHOOK.
+    if not public and not url:
+        fallback_url = _get_public_webhook_url()
+        if fallback_url:
+            printlog("[Discord] DISCORD_PRIVATE_WEBHOOK no configurado; usando DISCORD_WEBHOOK como fallback.", "WARNING")
+            url = fallback_url
+
     if not url:
         if public:
             printlog("[Discord] DISCORD_WEBHOOK no configurado; se omite envio publico.", "WARNING")
@@ -82,7 +90,7 @@ async def _send_webhook(payload: dict, *, public: bool = False) -> bool:
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=15) as resp:
+            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status in (200, 204):
                     return True
 
@@ -112,7 +120,7 @@ async def _fetch_twitch_live_metadata(channel_name: str) -> dict:
                 "https://api.twitch.tv/helix/streams",
                 headers=headers,
                 params={"user_login": channel_name},
-                timeout=15,
+                timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 stream_payload = await resp.json(content_type=None) if resp.status == 200 else {}
 
@@ -120,7 +128,7 @@ async def _fetch_twitch_live_metadata(channel_name: str) -> dict:
                 "https://api.twitch.tv/helix/users",
                 headers=headers,
                 params={"login": channel_name},
-                timeout=15,
+                timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 user_payload = await resp.json(content_type=None) if resp.status == 200 else {}
 

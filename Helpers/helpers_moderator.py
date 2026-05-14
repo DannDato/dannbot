@@ -13,6 +13,16 @@ from Helpers.token_loader import load_token
 from Helpers.printlog import printlog
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+BOT_RESPONSE_PREFIX = '[BOT] - '
+_BOT_PREFIX_PATTERN = re.compile(r'^\s*(?:\[BOT\]\s*-\s*)+', re.IGNORECASE)
+
+
+def sanitize_bot_response_prefix(raw_response: str) -> str:
+    response = (raw_response or '').strip()
+    if not response:
+        return ''
+    response = _BOT_PREFIX_PATTERN.sub('', response).strip()
+    return f'{BOT_RESPONSE_PREFIX}{response}' if response else ''
 
 def _normalize_custom_command_name(raw_command: str) -> str:
     command_name = (raw_command or '').strip().lower()
@@ -97,7 +107,7 @@ def _resolve_stored_command_name(raw_command: str) -> str | None:
 
 async def save_basic_command(raw_command: str, raw_response: str) -> tuple[bool, str]:
     command_name = _normalize_custom_command_name(raw_command)
-    response = (raw_response or '').strip()
+    response = sanitize_bot_response_prefix(raw_response)
 
     if not command_name:
         return False, 'El comando no puede estar vacio.'
@@ -128,7 +138,7 @@ async def save_basic_command(raw_command: str, raw_response: str) -> tuple[bool,
 
 async def edit_basic_command(raw_command: str, raw_response: str) -> tuple[bool, str]:
     command_name = _normalize_custom_command_name(raw_command)
-    response = (raw_response or '').strip()
+    response = sanitize_bot_response_prefix(raw_response)
 
     if not command_name:
         return False, 'El comando no puede estar vacio.'
@@ -193,14 +203,14 @@ def get_basic_command_response(raw_command: str) -> str | None:
             cursor.execute('SELECT response FROM commands WHERE command = ? LIMIT 1', (command_name,))
             result = cursor.fetchone()
             if result:
-                return result[0]
+                return sanitize_bot_response_prefix(result[0])
 
             cursor.execute('SELECT response, aliases FROM commands')
             rows = cursor.fetchall()
             for response, raw_aliases in rows:
                 aliases = _parse_aliases(raw_aliases)
                 if command_name in aliases:
-                    return response
+                    return sanitize_bot_response_prefix(response)
             return None
     except sqlite3.Error as e:
         printlog(f'Error leyendo comando basico {command_name}: {e}', 'ERROR')

@@ -54,7 +54,7 @@ class stats_commands(commands.Component):
     async def primero(self, ctx):
         check_online = await is_channel_online()
         if check_online is False:
-            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            await ctx.send("[BOT] - Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
             return
         handle=await check_primero(ctx.chatter)
         if  handle is None:
@@ -99,7 +99,7 @@ class stats_commands(commands.Component):
     async def primerotop(self, ctx):
         ranking = await get_stats("first_user",None)
         await ctx.send(f'[BOT] - Los mas camperos del canal [🔥TOP 5]:')
-        await ctx.send(f'{ranking}')
+        await ctx.send(f'[BOT] - {ranking}')
 
 
     # Comando para registrar el ganador del Wordle
@@ -204,7 +204,7 @@ class stats_commands(commands.Component):
     async def wordletop(self, ctx):
         ranking = await get_stats("wordle_wins",None)
         await ctx.send(f'[BOT] - Las estadísticas de Wordle [🔥TOP 5]:')
-        await ctx.send(f'{ranking}')
+        await ctx.send(f'[BOT] - {ranking}')
 
 
     # Comando para registrar el ganador de un reto random
