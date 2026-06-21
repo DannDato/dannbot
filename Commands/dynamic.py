@@ -6,14 +6,14 @@ import random
 from datetime import datetime, date
 
 from Helpers.helpers import is_authorized
-from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
+from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist, extract_mentioned_username
 from Helpers.chatgpt import chatgpt
 from Helpers.decision import resolve_bot_route
 from Helpers.helpers_bot import get_chatters_total
 from Helpers.helpers_moderator import create_stream_clip, list_basic_command_names
 from Helpers.helpers_dynamic import (
     gen_response, get_steam_library, get_vips, get_followers_count, get_follow_age,
-    get_viewers
+    get_viewers, search_user
 )
 from Helpers.helpers_stats import update_global_stats, save_user_bd, get_user_bd, get_twitch_id
 from Helpers.printlog import printlog
@@ -49,7 +49,7 @@ class dynamic_commands(commands.Component):
         finally:
             ctx.message.text = old_text
 
-    async def _dispatch_internal_command_with_args(self, ctx, command_name, arg_mode):
+    async def _dispatch_internal_command_with_args(self, ctx, command_name, arg_mode, original_prompt=""):
         target_cmd = self.bot.commands.get(command_name)
         if target_cmd is None:
             return False
@@ -60,7 +60,11 @@ class dynamic_commands(commands.Component):
         old_text = ctx.message.text
         try:
             if arg_mode == "SELF":
-                simulated_text = f"!{command_name} @{ctx.chatter.name}"
+                mentioned_user = extract_mentioned_username(original_prompt) if original_prompt else None
+                if mentioned_user:
+                    simulated_text = f"!{command_name} @{mentioned_user}"
+                else:
+                    simulated_text = f"!{command_name} @{ctx.chatter.name}"
             else:
                 simulated_text = f"!{command_name}"
             ctx.message.text = simulated_text
@@ -109,6 +113,7 @@ class dynamic_commands(commands.Component):
         -ban?
         -vips
         -joteria
+        -quien
     """
     @commands.command(name='comandos', aliases=["help", "commands", "ayuda"])
     async def comandos(self, ctx):
@@ -230,7 +235,7 @@ class dynamic_commands(commands.Component):
             return
 
         if action == "execute" and target_command:
-            executed = await self._dispatch_internal_command_with_args(ctx, target_command, args_mode)
+            executed = await self._dispatch_internal_command_with_args(ctx, target_command, args_mode, prompt)
             await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)
             if executed:
                 return
@@ -704,6 +709,21 @@ class dynamic_commands(commands.Component):
         await ctx.send(
             f"[BOT] - @{target_name} lleva siguiendo el canal aproximadamente {' '.join(partes)} (desde {follow_since}) 😎"
         )
+
+    @commands.command(name='quien', aliases=["whois","user", "usuario", "search"])
+    async def quien(self, ctx):
+        text_to_search = ctx.message.text.strip().split(' ', 1)
+        if len(text_to_search) < 2:
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} Por favor, proporciona un nombre de usuario para buscar. Uso: !quien <nombre>')
+            return
+        
+        user_to_search = text_to_search[1].split()[0] 
+        response = await search_user(user_to_search)  
+        if response:
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} Te refieres a.... {response}')  
+        else:
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} No pude encontrar a nadie con ese nombre 😢')
+
 
     @commands.command(name='viewers')
     async def viewers(self, ctx):

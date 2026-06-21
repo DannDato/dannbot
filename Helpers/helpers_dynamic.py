@@ -354,3 +354,16 @@ async def get_steam_library():
 
 #___________________________________________________________________________________________
 
+async def search_user(username):
+    try:
+         with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                SELECT GROUP_CONCAT(username, ', ')
+                FROM users
+                WHERE username LIKE ?
+            ''', (f'%{username}%',))
+            result = cursor.fetchone()
+            return result[0] if result else None
+    except Exception as e:
+        printlog(f"Error al buscar usuario: {e}", "ERROR")
+        return None
