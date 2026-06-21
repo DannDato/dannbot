@@ -7,7 +7,8 @@ from datetime import datetime, date
 
 from Helpers.helpers import is_authorized
 from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
-from Helpers.chatgpt import chatgpt, decide_bot_route
+from Helpers.chatgpt import chatgpt
+from Helpers.decision import resolve_bot_route
 from Helpers.helpers_bot import get_chatters_total
 from Helpers.helpers_moderator import create_stream_clip, list_basic_command_names
 from Helpers.helpers_dynamic import (
@@ -218,14 +219,7 @@ class dynamic_commands(commands.Component):
             await ctx.send(f"[BotGPT] - @{ctx.chatter.name} dime que necesitas y te ayudo 😎")
             return
 
-        command_names = sorted({
-            name.strip().lower()
-            for cmd in self.bot.commands.values()
-            for name in ([getattr(cmd, "name", "")] + list(getattr(cmd, "aliases", []) or []))
-            if name
-        })
-
-        route = await decide_bot_route(prompt, command_names)
+        route = await resolve_bot_route(prompt, self.bot.commands)
         action = route.get("action")
         target_command = route.get("command")
         args_mode = route.get("args", "NONE")
