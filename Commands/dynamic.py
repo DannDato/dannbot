@@ -7,7 +7,7 @@ from datetime import datetime, date
 
 from Helpers.helpers import is_authorized
 from Helpers.helpers import send_large_message, validar_fecha, parse_flexible_date, normalize_username, wordslist
-from Helpers.chatgpt import chatgpt
+from Helpers.chatgpt import chatgpt, decide_bot_route
 from Helpers.helpers_bot import get_chatters_total
 from Helpers.helpers_moderator import create_stream_clip, list_basic_command_names
 from Helpers.helpers_dynamic import (
@@ -26,6 +26,27 @@ class dynamic_commands(commands.Component):
         self._clip_global_cooldown_seconds = 12
         self._clip_last_global_ts = 0.0
         self._clip_last_by_user = {}
+
+    async def _dispatch_internal_command(self, ctx, command_name, original_prompt):
+        target_cmd = self.bot.commands.get(command_name)
+        if target_cmd is None:
+            return False
+
+        # Evitar recursion con el propio comando bot.
+        if command_name in {"bot", "gpt", "b", "r"}:
+            return False
+
+        old_text = ctx.message.text
+        try:
+            simulated_text = f"!{command_name} {original_prompt}".strip()
+            ctx.message.text = simulated_text
+            await target_cmd.invoke(ctx)
+            return True
+        except Exception as exc:
+            printlog(f"Error ejecutando comando interno desde !bot ({command_name}): {exc}", "ERROR")
+            return False
+        finally:
+            ctx.message.text = old_text
     """
                     COMANDOS DINAMICOS
 
@@ -166,10 +187,27 @@ class dynamic_commands(commands.Component):
             await ctx.send(f"[BOT] - {result}")
         printlog(f"{ctx.chatter.name} uso clip -> {'ok' if ok else 'fail'}")
 
-    @commands.command(name='bot',)
+    @commands.command(name='bot', aliases=["gpt", "b", "r"])
     async def botgpt(self,ctx):
-        texto = ctx.message.text.strip().split('!bot')[1].strip()
-        prompt = texto.replace('!bot', '').strip()
+        parts = ctx.message.text.strip().split(' ', 1)
+        prompt = parts[1].strip() if len(parts) > 1 else ""
+        if not prompt:
+            await ctx.send(f"[BotGPT] - @{ctx.chatter.name} dime que necesitas y te ayudo 😎")
+            return
+
+        command_names = sorted({
+            cmd.name.strip().lower()
+            for cmd in self.bot.commands.values()
+            if getattr(cmd, "name", None)
+        })
+
+        route = await decide_bot_route(prompt, command_names)
+        if route != "CHAT":
+            executed = await self._dispatch_internal_command(ctx, route, prompt)
+            await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)
+            if executed:
+                return
+
         printlog("Consultando con OpenAI","WARNING")
         response = await chatgpt(prompt,ctx.chatter.name)
         await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)

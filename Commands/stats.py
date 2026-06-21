@@ -1,9 +1,18 @@
 from datetime import datetime
 from twitchio.ext import commands
 from Helpers.helpers import  is_channel_online, safe_int, normalize_username
-from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, count_user_messages, get_twitch_id
+from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, check_segundo, check_tercero, count_user_messages, get_twitch_id
 from twitchio.ext import commands
 from Helpers.printlog import printlog
+
+
+def _rank_action_to_label(action):
+    mapping = {
+        "first_user": "primero",
+        "second_user": "segundo",
+        "third_user": "tercero",
+    }
+    return mapping.get(action, "otro nivel")
 
 class stats_commands(commands.Component):
     def __init__(self, bot: commands.AutoBot):
@@ -53,19 +62,125 @@ class stats_commands(commands.Component):
         if check_online is False:
             await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
             return
-        handle=await check_primero(ctx.chatter)
-        if  handle is None:
+
+        status, winner_username = await check_primero(ctx.chatter)
+
+        if status == "won":
             actualiza = await update_global_stats("first_user",ctx.chatter.id,1)
             await update_global_stats("xp_Resistencia",ctx.chatter.id,3)
             await update_global_stats("xp_voluntad",ctx.chatter.id,0.15)
             if actualiza is not None:
-                ranking =await get_stats("first_user",ctx.chatter.id)
-                await ctx.send(f'[BOT] - Esoo! 🔥 Parece que si has llegado primero! tus puntos actualmente {ranking[1]}: 🏆')
-        else:
-            if ctx.chatter.id==handle:
-                await ctx.send(f'[BOT] -Que si @{handle}  ya sabemos que tu llegaste primero 😒')
-            else:
-                await ctx.send(f'[BOT] -Sorry, pero @{handle} llegó primero')
+                ranking = await get_stats("first_user",ctx.chatter.id)
+                puntos = ranking[1] if ranking else actualiza
+                await ctx.send(f'[BOT] - Esoo! 🔥 @{winner_username} Parece que si has llegado primero! tus puntos actualmente: {puntos} 🏆')
+            return
+
+        if status == "already_you":
+            await ctx.send(f'[BOT] - Que si @{winner_username} ya sabemos que tu llegaste primero 😒')
+            return
+
+        if status == "already_ranked":
+            level = _rank_action_to_label(winner_username)
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} ya ganaste el {level} en este stream. Solo puedes reclamar un nivel.')
+            return
+
+        if status == "already_other":
+            await ctx.send(f'[BOT] - Sorry, pero @{winner_username} llegó primero')
+            return
+
+        if status == "offline":
+            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            return
+
+        await ctx.send("[BOT] - No pude validar el primero por un problema temporal. Intenta de nuevo en un momento.")
+
+    @commands.command(name='segundo')
+    async def segundo(self, ctx):
+        check_online = await is_channel_online()
+        if check_online is False:
+            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            return
+
+        status, winner_username = await check_segundo(ctx.chatter)
+
+        if status == "won":
+            actualiza = await update_global_stats("second_user",ctx.chatter.id,1)
+            await update_global_stats("xp_Resistencia",ctx.chatter.id,3)
+            await update_global_stats("xp_voluntad",ctx.chatter.id,0.15)
+            if actualiza is not None:
+                ranking = await get_stats("second_user",ctx.chatter.id)
+                puntos = ranking[1] if ranking else actualiza
+                await ctx.send(f'[BOT] - Bien ahii 😎 @{winner_username} llegaste segundo! tus puntos actualmente: {puntos} 🥈')
+            return
+
+        if status == "needs_first":
+            await ctx.send("[BOT] - Aun no hay primer lugar reclamado en este stream. Primero reclamen !primero.")
+            return
+
+        if status == "already_you":
+            await ctx.send(f'[BOT] - Que si @{winner_username} ya sabemos que tu llegaste segundo 😒')
+            return
+
+        if status == "already_ranked":
+            level = _rank_action_to_label(winner_username)
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} ya ganaste el {level} en este stream. Solo puedes reclamar un nivel.')
+            return
+
+        if status == "already_other":
+            await ctx.send(f'[BOT] - Sorry, pero @{winner_username} llegó segundo')
+            return
+
+        if status == "offline":
+            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            return
+
+        await ctx.send("[BOT] - No pude validar el segundo por un problema temporal. Intenta de nuevo en un momento.")
+
+    @commands.command(name='tercero')
+    async def tercero(self, ctx):
+        check_online = await is_channel_online()
+        if check_online is False:
+            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            return
+
+        status, winner_username = await check_tercero(ctx.chatter)
+
+        if status == "won":
+            actualiza = await update_global_stats("third_user",ctx.chatter.id,1)
+            await update_global_stats("xp_Resistencia",ctx.chatter.id,3)
+            await update_global_stats("xp_voluntad",ctx.chatter.id,0.15)
+            if actualiza is not None:
+                ranking = await get_stats("third_user",ctx.chatter.id)
+                puntos = ranking[1] if ranking else actualiza
+                await ctx.send(f'[BOT] - Bien jugado 😎 @{winner_username} llegaste tercero! tus puntos actualmente: {puntos} 🥉')
+            return
+
+        if status == "needs_first":
+            await ctx.send("[BOT] - Aun no hay primer lugar reclamado en este stream. Primero reclamen !primero.")
+            return
+
+        if status == "needs_second":
+            await ctx.send("[BOT] - Aun no hay segundo lugar reclamado en este stream. Primero reclamen !segundo.")
+            return
+
+        if status == "already_you":
+            await ctx.send(f'[BOT] - Que si @{winner_username} ya sabemos que tu llegaste tercero 😒')
+            return
+
+        if status == "already_ranked":
+            level = _rank_action_to_label(winner_username)
+            await ctx.send(f'[BOT] - @{ctx.chatter.name} ya ganaste el {level} en este stream. Solo puedes reclamar un nivel.')
+            return
+
+        if status == "already_other":
+            await ctx.send(f'[BOT] - Sorry, pero @{winner_username} llegó tercero')
+            return
+
+        if status == "offline":
+            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            return
+
+        await ctx.send("[BOT] - No pude validar el tercero por un problema temporal. Intenta de nuevo en un momento.")
 
     
     @commands.command(name='primeropuntos',aliases=["ps","pscore","primeroscore"])
@@ -93,6 +208,31 @@ class stats_commands(commands.Component):
     async def primerotop(self, ctx):
         ranking = await get_stats("first_user",None)
         await ctx.send(f'[BOT] - Los mas camperos del canal [🔥TOP 5]:')
+        await ctx.send(f'{ranking}')
+
+    @commands.command(name='segundopuntos', aliases=["s2p", "s2score", "segundoscore"])
+    async def segundopuntos(self, ctx):
+        if '@' in ctx.message.text:
+            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            user = await get_twitch_id(mentioned_user)
+            if user is None:
+                await ctx.send(f"[BOT] - No conozco el ID de @{mentioned_user}, quizás cambió su nombre o nunca lo registré 😢")
+                return
+        else:
+            mentioned_user = ctx.chatter.name
+            user = ctx.chatter.id
+
+        ranking = await get_stats("second_user", user)
+        if ranking is not None:
+            await ctx.send(f'[BOT] - 🥈@{mentioned_user} En Llegar segundo: ({ranking[1]}) punto{"s" if ranking[1] != "1" else ""}')
+        else:
+            await ctx.send(f'[BOT] - Creo que @{mentioned_user} nunca ha llegado segundo')
+
+
+    @commands.command(name='segundotop', aliases=["s2t", "seg2top"])
+    async def segundotop(self, ctx):
+        ranking = await get_stats("second_user", None)
+        await ctx.send(f'[BOT] - Los subcampeones del canal [🔥TOP 5]:')
         await ctx.send(f'{ranking}')
 
 

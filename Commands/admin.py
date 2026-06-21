@@ -1,7 +1,7 @@
 from twitchio.ext import commands
 
 from Helpers.helpers import is_authorized
-from Helpers.helpers_admin import end_stream, start_stream
+from Helpers.helpers_admin import end_stream, start_stream, reset_current_stream_stats
 from Helpers.printlog import printlog
 
 
@@ -33,6 +33,42 @@ class admin_commands(commands.Component):
             await ctx.send(' [BOT] - 🤖 Listo, se ha terminado el stream. Gracias por todo! nos vemos en el siguiente directo... Chao ❤️')
         else:
             await ctx.send(' [BOT] - 🔴 No se puede finalizar un stream que no se ha iniciado...')
+
+    @commands.command(name='streamtest', aliases=["st"])
+    async def streamtest(self, ctx):
+        if not is_authorized(ctx):
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+
+        stream_started = await start_stream()
+        if stream_started:
+            await ctx.send("[BOT] - 🧪 Stream de prueba iniciado en base de datos. Ya puedes testear comandos.")
+        else:
+            await ctx.send("[BOT] - 🟡 Ya hay un stream activo en la base de datos, no pude crear uno de prueba.")
+
+    @commands.command(name='streamtestend', aliases=["stend"])
+    async def streamtestend(self, ctx):
+        if not is_authorized(ctx):
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+
+        stream_ended = await end_stream()
+        if stream_ended:
+            await ctx.send("[BOT] - 🧪 Stream de prueba finalizado en base de datos.")
+        else:
+            await ctx.send("[BOT] - 🔴 No hay stream activo para finalizar.")
+
+    @commands.command(name='resetstream', aliases=["rst"])
+    async def resetstream(self, ctx):
+        if not is_authorized(ctx):
+            await ctx.send("[BOT] - Hey, ese comando es solo para usuarios autorizados 😑")
+            return
+
+        ok, deleted_rows = await reset_current_stream_stats()
+        if ok:
+            await ctx.send(f"[BOT] - 🧪 Stream de prueba reseteado. Registros limpiados: {deleted_rows}.")
+        else:
+            await ctx.send("[BOT] - 🔴 No hay stream activo para resetear.")
 
     @commands.command(name='restart')
     async def restart(self, ctx):

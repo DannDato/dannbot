@@ -34,8 +34,8 @@ from Handlers.handlers_follow import handle_follow
 from Handlers.handlers_cheer import handle_cheer
 from Handlers.handlers_subs import handle_sub, handle_sub_gift
 from Handlers.console_handler import console_control
+from Handlers.handlers_stream import handle_stream_online, handle_stream_offline
 from Helpers.health_check import monitor_bot_health
-from Helpers.helpers_admin import start_stream
 from Seed.basic_commands import ensure_seed_basic_commands
 
 from Helpers.colors import (
@@ -116,6 +116,7 @@ class Bot(commands.AutoBot):
         self.monitor_task = None
         self.chatters_poll_task = None
         self.token_refresh_task = None
+        self.stream_offline_finalize_task = None
         self._bot_closing = False
         self.command_modules_loaded = True
         self.command_module_issues = []
@@ -143,6 +144,7 @@ class Bot(commands.AutoBot):
             self.console_task,
             self.chatters_poll_task,
             self.token_refresh_task,
+            self.stream_offline_finalize_task,
         ):
             await self._cancel_task(task)
 
@@ -260,13 +262,10 @@ class Bot(commands.AutoBot):
         printlog(f"Se ha actualizado la información del canal {payload.title} | {payload.category_name}")
 
     async def event_stream_online(self, payload: twitchio.StreamOnline) -> None:
-        printlog(f"Evento stream_online recibido para broadcaster {payload.broadcaster.id}")
+        await handle_stream_online(self, payload)
 
-        stream_started = await start_stream()
-        if stream_started:
-            printlog("Stream iniciado automaticamente desde EventSub stream_online.")
-        else:
-            printlog("Ya existia un stream activo en BD. Se ignora stream_online para evitar duplicados.", "WARNING")
+    async def event_stream_offline(self, payload: twitchio.StreamOffline) -> None:
+        await handle_stream_offline(self, payload)
 
 
     #______________________________________________________________________

@@ -240,6 +240,48 @@ async def start_stream():
         printlog(f"Error en la base de datos: {e}","ERROR")
         return False
 
+
+async def reset_current_stream_stats():
+    """
+    Limpia los registros de estadísticas del stream activo, manteniendo el marcador de inicio.
+
+    :return: tuple (ok: bool, deleted_rows: int)
+    """
+    try:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute('''
+                SELECT date
+                FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND subquery.date >= stream_data.date
+                )
+                ORDER BY date DESC
+                LIMIT 1;
+            ''')
+            active_stream = cursor.fetchone()
+
+            if not active_stream:
+                return False, 0
+
+            stream_start_date = active_stream[0]
+            cursor.execute('''
+                DELETE FROM stream_data
+                WHERE datetime(date) >= datetime(?)
+                AND accion != "start_stream"
+            ''', (stream_start_date,))
+
+            deleted_rows = cursor.rowcount if cursor.rowcount is not None else 0
+            printlog(f"Reset de stream activo completado. Registros eliminados: {deleted_rows}")
+            return True, deleted_rows
+
+    except sqlite3.Error as e:
+        printlog(f"Error en reset_current_stream_stats: {e}", "ERROR")
+        return False, 0
+
 async def end_mail():
     """Lee el contenido de un archivo HTML y lo devuelve como texto"""
     HTML_PATH = os.path.join(os.path.dirname(__file__), '..', 'Html', 'mails', 'end_stream.html')

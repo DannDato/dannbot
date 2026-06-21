@@ -86,31 +86,312 @@ async def get_stats(stat_category,user):
 
 async def check_primero(user):
     """
-        Verifica la aplicación del comando !primero para identificar si
-        existe algun registro previo de un primer usuario del día
+        Verifica y registra de forma atómica el comando !primero para el stream activo.
+
+        Retorna una tupla (status, username):
+        - ("won", username): el usuario ganó el primero en este stream
+        - ("already_you", username): ese mismo usuario ya era primero
+        - ("already_ranked", level): el usuario ya ganó otro nivel (first_user/second_user/third_user)
+        - ("already_other", username): otro usuario ya fue primero
+        - ("offline", None): no hay stream activo en curso
+        - ("error", None): error al consultar/guardar en base de datos
     """
-    userid=user.id
+    userid = str(user.id)
+    username = normalize_username(getattr(user, "name", "")) or str(user.id)
+
     try:
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            # Bloqueo de escritura para evitar doble ganador por concurrencia.
+            cursor.execute("BEGIN IMMEDIATE")
+
+            # Buscar stream activo (start_stream sin end_stream posterior).
             cursor.execute('''
-                SELECT (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username, DATE(date) as fecha
+                SELECT date
                 FROM stream_data
-                WHERE accion = 'first_user' and DATE(date)=DATE('now','localtime')
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND datetime(subquery.date) >= datetime(stream_data.date)
+                )
+                ORDER BY datetime(date) DESC
                 LIMIT 1;
             ''')
+            active_stream = cursor.fetchone()
+            if not active_stream:
+                return "offline", None
+
+            stream_start_date = active_stream[0]
+
+            # Un usuario solo puede ganar un nivel por stream.
+            cursor.execute('''
+                SELECT accion
+                FROM stream_data
+                WHERE accion IN ('first_user', 'second_user', 'third_user')
+                AND value = ?
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (userid, stream_start_date))
+            user_claim = cursor.fetchone()
+            if user_claim:
+                action = user_claim[0]
+                if action == 'first_user':
+                    return "already_you", username
+                return "already_ranked", action
+
+            # Verificar si ya existe first_user para este stream activo.
+            cursor.execute('''
+                SELECT
+                    value,
+                    (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username
+                FROM stream_data
+                WHERE accion = 'first_user'
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (stream_start_date,))
             result = cursor.fetchone()
+
             if result:
-                return result[0]
+                winner_id, winner_username = result
+                winner_username = winner_username or str(winner_id)
+                if str(winner_id) == userid:
+                    return "already_you", winner_username
+                return "already_other", winner_username
 
             current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cursor.execute('''
                 INSERT INTO stream_data (accion, value, date)
                 VALUES ('first_user', ?, ?)
             ''', (userid, current_date))
-            return None
+            return "won", username
+
     except sqlite3.Error as e:
         printlog(f"Error al obtener las estadísticas de la base de datos: {e}","ERROR")
-        return None
+        return "error", None
+
+
+async def check_segundo(user):
+    """
+        Verifica y registra de forma atómica el comando !segundo para el stream activo.
+
+        Retorna una tupla (status, username):
+        - ("won", username): el usuario ganó el segundo en este stream
+        - ("needs_first", first_username): no existe primer lugar aún
+        - ("already_you", username): ese mismo usuario ya era segundo
+        - ("already_ranked", level): el usuario ya ganó otro nivel (first_user/second_user/third_user)
+        - ("already_other", username): otro usuario ya fue segundo
+        - ("offline", None): no hay stream activo en curso
+        - ("error", None): error al consultar/guardar en base de datos
+    """
+    userid = str(user.id)
+    username = normalize_username(getattr(user, "name", "")) or str(user.id)
+
+    try:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            # Bloqueo de escritura para evitar doble ganador por concurrencia.
+            cursor.execute("BEGIN IMMEDIATE")
+
+            # Buscar stream activo (start_stream sin end_stream posterior).
+            cursor.execute('''
+                SELECT date
+                FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND datetime(subquery.date) >= datetime(stream_data.date)
+                )
+                ORDER BY datetime(date) DESC
+                LIMIT 1;
+            ''')
+            active_stream = cursor.fetchone()
+            if not active_stream:
+                return "offline", None
+
+            stream_start_date = active_stream[0]
+
+            # Un usuario solo puede ganar un nivel por stream.
+            cursor.execute('''
+                SELECT accion
+                FROM stream_data
+                WHERE accion IN ('first_user', 'second_user', 'third_user')
+                AND value = ?
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (userid, stream_start_date))
+            user_claim = cursor.fetchone()
+            if user_claim:
+                action = user_claim[0]
+                if action == 'second_user':
+                    return "already_you", username
+                return "already_ranked", action
+
+            # Regla principal: debe existir first_user en este stream antes de reclamar segundo.
+            cursor.execute('''
+                SELECT
+                    value,
+                    (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username
+                FROM stream_data
+                WHERE accion = 'first_user'
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (stream_start_date,))
+            first_result = cursor.fetchone()
+            if not first_result:
+                return "needs_first", None
+
+            first_id, first_username = first_result
+            first_username = first_username or str(first_id)
+
+            # Verificar si ya existe second_user para este stream activo.
+            cursor.execute('''
+                SELECT
+                    value,
+                    (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username
+                FROM stream_data
+                WHERE accion = 'second_user'
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (stream_start_date,))
+            second_result = cursor.fetchone()
+
+            if second_result:
+                winner_id, winner_username = second_result
+                winner_username = winner_username or str(winner_id)
+                if str(winner_id) == userid:
+                    return "already_you", winner_username
+                return "already_other", winner_username
+
+            current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute('''
+                INSERT INTO stream_data (accion, value, date)
+                VALUES ('second_user', ?, ?)
+            ''', (userid, current_date))
+            return "won", username
+
+    except sqlite3.Error as e:
+        printlog(f"Error al obtener las estadísticas de la base de datos: {e}","ERROR")
+        return "error", None
+
+
+async def check_tercero(user):
+    """
+        Verifica y registra de forma atómica el comando !tercero para el stream activo.
+
+        Retorna una tupla (status, username):
+        - ("won", username): el usuario ganó el tercero en este stream
+        - ("needs_first", None): no existe primer lugar aún
+        - ("needs_second", None): no existe segundo lugar aún
+        - ("already_you", username): ese mismo usuario ya era tercero
+        - ("already_ranked", level): el usuario ya ganó otro nivel (first_user/second_user/third_user)
+        - ("already_other", username): otro usuario ya fue tercero
+        - ("offline", None): no hay stream activo en curso
+        - ("error", None): error al consultar/guardar en base de datos
+    """
+    userid = str(user.id)
+    username = normalize_username(getattr(user, "name", "")) or str(user.id)
+
+    try:
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute("BEGIN IMMEDIATE")
+
+            cursor.execute('''
+                SELECT date
+                FROM stream_data
+                WHERE accion = "start_stream"
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM stream_data AS subquery
+                    WHERE subquery.accion = "end_stream"
+                    AND datetime(subquery.date) >= datetime(stream_data.date)
+                )
+                ORDER BY datetime(date) DESC
+                LIMIT 1;
+            ''')
+            active_stream = cursor.fetchone()
+            if not active_stream:
+                return "offline", None
+
+            stream_start_date = active_stream[0]
+
+            # Un usuario solo puede ganar un nivel por stream.
+            cursor.execute('''
+                SELECT accion
+                FROM stream_data
+                WHERE accion IN ('first_user', 'second_user', 'third_user')
+                AND value = ?
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (userid, stream_start_date))
+            user_claim = cursor.fetchone()
+            if user_claim:
+                action = user_claim[0]
+                if action == 'third_user':
+                    return "already_you", username
+                return "already_ranked", action
+
+            # Debe existir first_user en este stream.
+            cursor.execute('''
+                SELECT 1
+                FROM stream_data
+                WHERE accion = 'first_user'
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (stream_start_date,))
+            if not cursor.fetchone():
+                return "needs_first", None
+
+            # Debe existir second_user en este stream.
+            cursor.execute('''
+                SELECT 1
+                FROM stream_data
+                WHERE accion = 'second_user'
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (stream_start_date,))
+            if not cursor.fetchone():
+                return "needs_second", None
+
+            # Verificar si ya existe third_user para este stream activo.
+            cursor.execute('''
+                SELECT
+                    value,
+                    (SELECT u.username FROM users u WHERE u.twitch_id = stream_data.value) as username
+                FROM stream_data
+                WHERE accion = 'third_user'
+                AND datetime(date) >= datetime(?)
+                ORDER BY datetime(date) ASC
+                LIMIT 1;
+            ''', (stream_start_date,))
+            third_result = cursor.fetchone()
+
+            if third_result:
+                winner_id, winner_username = third_result
+                winner_username = winner_username or str(winner_id)
+                if str(winner_id) == userid:
+                    return "already_you", winner_username
+                return "already_other", winner_username
+
+            current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute('''
+                INSERT INTO stream_data (accion, value, date)
+                VALUES ('third_user', ?, ?)
+            ''', (userid, current_date))
+            return "won", username
+
+    except sqlite3.Error as e:
+        printlog(f"Error al obtener las estadísticas de la base de datos: {e}","ERROR")
+        return "error", None
         
 async def get_top_chatter_day():
     """
