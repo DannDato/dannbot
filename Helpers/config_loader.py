@@ -11,7 +11,7 @@ def load_config():
     # Verificar si el archivo existe
     if not os.path.exists(config_path):
         printlog(f"Error: No se encontró el archivo en la ruta especificada: {config_path}","ERROR")
-        exit()
+        raise SystemExit(1)
     try:
         # Abrir y cargar el archivo JSON
         with open(config_path, 'r', encoding='utf-8') as file:
@@ -19,7 +19,7 @@ def load_config():
             return config_data
     except json.JSONDecodeError as e:
         printlog(f"Error al decodificar el archivo JSON: {e}","ERROR")
-        exit()
+        raise SystemExit(1)
     except Exception as e:
         printlog(f"Error cargando config.json: {e}","ERROR")
-        exit()
+        raise SystemExit(1)

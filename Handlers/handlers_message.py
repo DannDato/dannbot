@@ -9,7 +9,7 @@ from Helpers.colors import colorConvert, white, resetColor, userColors, channelC
 from Helpers.helpers_bot import new_user, update_stream_data
 from Helpers.printlog import printlog
 from Helpers.helpers_dynamic import analisis, interactuar, desafiar
-from Helpers.helpers_moderator import get_basic_command_response
+from Helpers.helpers_moderator import get_basic_command_response, sanitize_bot_response_prefix
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -89,6 +89,7 @@ async def handle_message(self, payload):
                 custom_response = get_basic_command_response(command_name)
                 if custom_response:
                     custom_response = custom_response.replace('{user}', CHATTER_NAME)
+                    custom_response = sanitize_bot_response_prefix(custom_response)
                     channel_user = self.create_partialuser(BROADCASTER_ID)
                     await channel_user.send_message(sender=self.user, message=custom_response)
                     custom_command_handled = True

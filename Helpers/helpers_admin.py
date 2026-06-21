@@ -8,9 +8,11 @@ from datetime import datetime
 from Helpers.helpers_stats import update_global_stats, get_top_chatter_day
 from Helpers.helpers_xp import update_xp
 from Helpers.helpers_bot import update_stream_data
+from Helpers.discord_notifier import notify_post_stream_summary, notify_stream_online
 from Helpers.mailer import enviar_correo
 from Helpers.helpers import safe_int, db_cursor
 from Helpers.printlog import printlog
+from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -149,14 +151,17 @@ async def end_stream():
             cursor.execute(
                 '''
                 SELECT
+                    COALESCE(MAX(CASE WHEN accion = "new_followers" THEN value END), 0) AS followers,
                     COALESCE(MAX(CASE WHEN accion = "new_bits" THEN value END), 0) AS bits,
-                    COALESCE(MAX(CASE WHEN accion = "new_subs" THEN value END), 0) AS subs
+                    COALESCE(MAX(CASE WHEN accion = "new_subs" THEN value END), 0) AS subs,
+                    COALESCE(MAX(CASE WHEN accion = "total_messages" THEN value END), 0) AS messages,
+                    COALESCE(MAX(CASE WHEN accion = "total_users" THEN value END), 0) AS users
                 FROM stream_data
                 WHERE DATE(date) = DATE(?)
                 ''',
                 (current_date,)
             )
-            bits, subs = cursor.fetchone()
+            followers, bits, subs, total_messages, total_users = cursor.fetchone()
             mSubs = (safe_int(subs) * 1.52) * dollar
             mBits = (safe_int(bits) / 100) * dollar
             total_money = safe_int(mSubs + mBits)
@@ -167,12 +172,92 @@ async def end_stream():
             ''', (total_money, current_date, current_date))
 
         top_chatter_day = await get_top_chatter_day()
+        top_chatter_name = None
         if top_chatter_day is not None:
             await update_global_stats("xp_Fuerza", top_chatter_day, 3)
             await update_global_stats("top_chatter_day", top_chatter_day, 1)
+            try:
+                with db_cursor(DB_PATH) as (_, cursor):
+                    cursor.execute('SELECT username FROM users WHERE twitch_id = ?', (str(top_chatter_day),))
+                    result = cursor.fetchone()
+                    top_chatter_name = result[0] if result else None
+            except sqlite3.Error:
+                top_chatter_name = None
 
         await update_xp()
         await end_mail()
+
+        previous_summary = None
+        try:
+            with db_cursor(DB_PATH) as (_, cursor):
+                cursor.execute(
+                    '''
+                    WITH periods AS (
+                        SELECT
+                            s.date AS start_date,
+                            (
+                                SELECT MIN(e.date)
+                                FROM stream_data e
+                                WHERE e.accion = 'end_stream'
+                                AND datetime(e.date) >= datetime(s.date)
+                            ) AS end_date
+                        FROM stream_data s
+                        WHERE s.accion = 'start_stream'
+                    ),
+                    closed AS (
+                        SELECT start_date, end_date
+                        FROM periods
+                        WHERE end_date IS NOT NULL
+                        ORDER BY datetime(end_date) DESC
+                    )
+                    SELECT start_date, end_date
+                    FROM closed
+                    LIMIT 1 OFFSET 1;
+                    '''
+                )
+                prev_period = cursor.fetchone()
+
+                if prev_period:
+                    prev_start, prev_end = prev_period
+                    cursor.execute(
+                        '''
+                        SELECT
+                            COALESCE(MAX(CASE WHEN accion = 'new_followers' THEN value END), 0) AS followers,
+                            COALESCE(MAX(CASE WHEN accion = 'new_bits' THEN value END), 0) AS bits,
+                            COALESCE(MAX(CASE WHEN accion = 'new_subs' THEN value END), 0) AS subs,
+                            COALESCE(MAX(CASE WHEN accion = 'total_messages' THEN value END), 0) AS messages,
+                            COALESCE(MAX(CASE WHEN accion = 'total_users' THEN value END), 0) AS users,
+                            COALESCE(MAX(CASE WHEN accion = 'total_money' THEN value END), 0) AS money
+                        FROM stream_data
+                        WHERE datetime(date) >= datetime(?)
+                        AND datetime(date) <= datetime(?)
+                        ''',
+                        (prev_start, prev_end),
+                    )
+                    prev_metrics = cursor.fetchone()
+                    previous_summary = {
+                        "followers": safe_int(prev_metrics[0]),
+                        "bits": safe_int(prev_metrics[1]),
+                        "subs": safe_int(prev_metrics[2]),
+                        "messages": safe_int(prev_metrics[3]),
+                        "users": safe_int(prev_metrics[4]),
+                        "money": safe_int(prev_metrics[5]),
+                    }
+        except sqlite3.Error:
+            previous_summary = None
+
+        await notify_post_stream_summary(
+            {
+                "followers": safe_int(followers),
+                "bits": safe_int(bits),
+                "subs": safe_int(subs),
+                "messages": safe_int(total_messages),
+                "users": safe_int(total_users),
+                "money": safe_int(total_money),
+                "top_chatter": top_chatter_name,
+                "previous": previous_summary,
+            }
+        )
         printlog(f"Stream finalizado correctamente: {current_date}.")
         return True
 
@@ -233,6 +318,8 @@ async def start_stream():
 
         await update_stream_data("total_users", 1)
         await update_stream_data("total_messages", 1)
+        token_data = load_token()
+        await notify_stream_online(token_data.get("channel_name") or "danndato")
         printlog(f"Nuevo stream iniciado correctamente a las {current_date}.")
         return True
 
@@ -288,10 +375,8 @@ async def end_mail():
     printlog("Generando reporte de stream...")
     with open(HTML_PATH, "r", encoding="utf-8") as archivo:
         contenido_html = archivo.read()
-        printlog("Leyendo HTML de reporte")
     try:
         with db_cursor(DB_PATH) as (_, cursor):
-            printlog("Iniciando lectura de base de datos")
             # Verificar si hay un stream iniciado y no cerrado
             cursor.execute('''
             WITH StreamPeriods AS (
@@ -320,12 +405,10 @@ async def end_mail():
         ORDER BY sp.stream_number, s.date;
             ''')
             result = cursor.fetchall()
-            printlog("Datos obtenidos en cursor")
             # Estructura para almacenar los datos
             streams = {}
 
         # Procesar los resultados
-            printlog("Recoriendo DATA del cursor")
             for row in result:
                 id, accion, value, date, stream_number = row
                 if stream_number not in streams:
@@ -341,7 +424,6 @@ async def end_mail():
                 else:
                     streams[stream_number][accion] = {"id": id, "value": value, "date": date}
 
-        printlog("Asignando variables del Stream mas reciente")
         # Stream más reciente (1)
         start_time_1 = streams[1]["start_stream"]["date"]
         end_time_1 = streams[1]["end_stream"]["date"]
@@ -358,12 +440,10 @@ async def end_mail():
 
 
         # Stream segundo más reciente (2)
-        printlog("Asignacion de variables del stream anterior")
         total_messages_2 = streams[2]["total_messages"][0] if "total_messages" in streams[2] else None
         total_users_2 = streams[2]["total_users"][0] if "total_users" in streams[2] else None
 
         # Stream tercer más reciente (3)
-        printlog("Asignacion de variables del stream previo al anterior")
         total_messages_3 = streams[3]["total_messages"][0] if "total_messages" in streams[3] else None
         total_users_3 = streams[3]["total_users"][0] if "total_users" in streams[3] else None
 
@@ -379,7 +459,6 @@ async def end_mail():
         else:
             contenido_html =contenido_html.replace('var(--pViewers-color)','gray')
 
-        printlog("Realizando conversiones de data y colores")
         incremento_messages = safe_int(total_messages_1) - safe_int(total_messages_2)
         base_messages = safe_int(total_messages_2)
         pMensajes = (incremento_messages / base_messages) * 100 if base_messages > 0 else 0
@@ -409,8 +488,6 @@ async def end_mail():
         criterio, criterio_valor = next(iter(criterios_ordenados.items()))
         segundo_criterio, segundo_criterio_valor = list(criterios_ordenados.items())[1]
 
-        printlog("Ordenando criterios de conclusión")
-
         if criterio_valor > 0: rasunto = f'''Incremento del {criterio_valor}% en {criterio} '''
         if criterio_valor == 0: rasunto = f'''Todo igual en {criterio} '''
         if criterio_valor < 0: rasunto = f'''Disminución del {criterio_valor}% en {criterio} '''
@@ -428,7 +505,6 @@ async def end_mail():
         pyear = year if pmonth != 12 else year - 1
         ptable_name = f"chat_{pyear}{pmonth:02}"
 
-        printlog("Ejecutando consultas complementarias")
         with db_cursor(DB_PATH) as (_, cursor):
             cursor.execute('''
                 SELECT username FROM users WHERE twitch_id=?
@@ -513,7 +589,6 @@ async def end_mail():
             bUsers = "No users"
             cUsers = "No users"
 
-        printlog("Reemplazando datos en HTML")
         comparison_chart_html = _build_streams_comparison_chart(
             total_users_1, total_users_2, total_users_3,
             total_messages_1, total_messages_2, total_messages_3
@@ -570,7 +645,6 @@ async def end_mail():
         # Verificar el resultado
         # print(f'\n\n\n\n\n{contenido_html}\n\n')
 
-        printlog("Inicializando SMTP")
         return await enviar_correo("danieltova97@gmail.com", rasunto, contenido_html)
 
     except sqlite3.Error as e:

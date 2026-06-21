@@ -6,6 +6,7 @@ import os
 import sys
 import asyncio
 import contextlib
+import socket
 
 try:
     import certifi
@@ -20,9 +21,10 @@ import twitchio
 import importlib
 from twitchio import eventsub
 from twitchio.ext import commands
+from twitchio.ext.commands import CommandNotFound
 
                     # Importar configuraciones
-from Helpers.token_loader import load_token
+from Helpers.token_loader import load_token, refresh_token_silent
 from Helpers.console_log import init_console, clear_console, animated_message
 from Helpers.printlog import printlog
 from Helpers.helpers import safe_int
@@ -33,9 +35,13 @@ from Handlers.handlers_message import handle_message
 from Handlers.handlers_follow import handle_follow
 from Handlers.handlers_cheer import handle_cheer
 from Handlers.handlers_subs import handle_sub, handle_sub_gift
+from Handlers.handlers_youtube import poll_youtube_uploads
 from Handlers.console_handler import console_control
 from Handlers.handlers_stream import handle_stream_online, handle_stream_offline
 from Helpers.health_check import monitor_bot_health
+from Helpers.helpers_admin import start_stream
+from Helpers.discord_notifier import notify_critical_error
+from Helpers.feature_flags import is_feature_enabled
 from Seed.basic_commands import ensure_seed_basic_commands
 
 from Helpers.colors import (
@@ -44,14 +50,89 @@ from Helpers.colors import (
     userColors, rosa, red, green
 )
 
+IS_TTY = sys.stdin.isatty() and sys.stdout.isatty()
 
-async def keep_token_fresh(stop_check, interval_seconds=900):
-    """Refresca token periodicamente sin bloquear el loop principal del bot."""
+
+def _systemd_notify(payload: str) -> bool:
+    """Envía notificaciones al socket de systemd si está disponible."""
+    notify_socket = os.getenv("NOTIFY_SOCKET")
+    if not notify_socket:
+        return False
+
+    # Socket abstracto en Linux: systemd usa prefijo '@'
+    if notify_socket.startswith("@"):
+        notify_socket = "\0" + notify_socket[1:]
+
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
+            sock.connect(notify_socket)
+            sock.sendall(payload.encode("utf-8"))
+        return True
+    except OSError as exc:
+        printlog(f"[Systemd] No se pudo notificar a systemd: {exc}", "WARNING")
+        return False
+
+
+def _systemd_watchdog_interval_seconds(default_seconds: int = 30) -> int:
+    """Calcula intervalo de ping basado en WATCHDOG_USEC (mitad del valor)."""
+    watchdog_usec = os.getenv("WATCHDOG_USEC")
+    if not watchdog_usec:
+        return default_seconds
+
+    try:
+        usec = int(watchdog_usec)
+        if usec <= 0:
+            return default_seconds
+        return max(1, usec // 2_000_000)
+    except ValueError:
+        return default_seconds
+
+
+async def keep_systemd_watchdog(stop_check, interval_seconds=30):
+    """Envía pulsos WATCHDOG=1 para que systemd supervise salud del proceso."""
+    while not stop_check():
+        _systemd_notify("WATCHDOG=1\nSTATUS=DannBot running")
+        try:
+            await asyncio.sleep(interval_seconds)
+        except asyncio.CancelledError:
+            break
+
+
+async def keep_token_fresh(bot, channel_user, stop_check, interval_seconds=900):
+    """
+    Refresca token periodicamente de forma SILENCIOSA (sin OAuth interactivo).
+
+    Se ejecuta cada `interval_seconds` segundos (default 15min).
+    Intenta refresco silencioso; si falla, solo loguea advertencia.
+    NO dispara OAuth interactivo en background.
+    """
+    attention_alert_sent = False
+
     while not stop_check():
         try:
-            await asyncio.to_thread(load_token, ensure_valid=True, force_refresh=True)
+            # Refresco silencioso: solo intenta renovar via Twitch, sin flujo interactivo
+            status = await asyncio.to_thread(refresh_token_silent)
+            if status.get("ok"):
+                if attention_alert_sent:
+                    printlog("[Auth] Token recuperado nuevamente tras fallo previo.", "INFO")
+                attention_alert_sent = False
+            else:
+                code = status.get("code", "unknown")
+                detail = status.get("detail", "Fallo desconocido durante refresco silencioso")
+                printlog(f"[Auth] Refresco silencioso falló ({code}): {detail}", "WARNING")
+
+                # Aviso visible para intervención manual cuando el token deja de ser usable.
+                if not attention_alert_sent:
+                    await channel_user.send_message(
+                        sender=bot.user,
+                        message=(
+                            "[BOT] - ALERTA: el token OAuth expiró o quedó inválido y requiere atención manual. "
+                            "Reautoriza/reinicia el bot para recuperar conexión estable."
+                        )
+                    )
+                    attention_alert_sent = True
         except Exception as exc:
-            printlog(f"[Auth] No se pudo refrescar/validar el token en background: {exc}", "WARNING")
+            printlog(f"[Auth] Error inesperado en refresco de token: {exc}", "ERROR")
 
         try:
             await asyncio.sleep(interval_seconds)
@@ -59,10 +140,13 @@ async def keep_token_fresh(stop_check, interval_seconds=900):
             break
 
 
-init_console()
-animated_message(" Iniciando DannBot", resetColor)
+if IS_TTY:
+    init_console()
+    animated_message(" Iniciando DannBot", resetColor)
+else:
+    printlog("Iniciando DannBot en modo servicio (sin TTY)", "INFO")
 
-token_data = load_token(ensure_valid=True)
+token_data = load_token(ensure_valid=True, allow_interactive=IS_TTY)
 CLIENT_ID = token_data.get("client_id")
 CLIENT_SECRET = token_data.get("client_secret")
 BOT_ID = token_data.get("bot_id")
@@ -70,7 +154,10 @@ OWNER_ID = token_data.get("owner_id") or BOT_ID  # canal objetivo del bot
 ACCESS_TOKEN = token_data.get("access_token")
 CHANNEL_NAME = token_data.get("channel_name")
 
-animated_message("Token cargado correctamente...", azul)
+if IS_TTY:
+    animated_message("Token cargado correctamente...", azul)
+else:
+    printlog("Token cargado correctamente", "INFO")
 
 async def main():
     subs = [
@@ -92,7 +179,8 @@ async def main():
     if sys.stdin.isatty():
         bot.console_task = asyncio.create_task(console_control(bot))
 
-    await bot.start()
+    # El adapter web local no es necesario para este flujo y puede chocar con puertos ya ocupados (ej. 4343).
+    await bot.start(with_adapter=False)
 
 
 class Bot(commands.AutoBot):
@@ -117,10 +205,14 @@ class Bot(commands.AutoBot):
         self.chatters_poll_task = None
         self.token_refresh_task = None
         self.stream_offline_finalize_task = None
+        self.systemd_watchdog_task = None
+        self.youtube_poll_task = None
         self._bot_closing = False
         self.command_modules_loaded = True
         self.command_module_issues = []
-        animated_message("Credenciales aplicadas", rosa)
+        self._systemd_notify_enabled = bool(os.getenv("NOTIFY_SOCKET"))
+        if IS_TTY:
+            animated_message("Credenciales aplicadas", rosa)
 
     async def _cancel_task(self, task: asyncio.Task | None) -> None:
         if not task or task.done() or task is asyncio.current_task():
@@ -137,6 +229,9 @@ class Bot(commands.AutoBot):
         self._bot_closing = True
         self.connected = False
 
+        if self._systemd_notify_enabled:
+            _systemd_notify("STOPPING=1\nSTATUS=DannBot stopping")
+
         for task in (
             self.happy_birthday_task,
             self.timed_messages_task,
@@ -145,6 +240,8 @@ class Bot(commands.AutoBot):
             self.chatters_poll_task,
             self.token_refresh_task,
             self.stream_offline_finalize_task,
+            self.systemd_watchdog_task,
+            self.youtube_poll_task,
         ):
             await self._cancel_task(task)
 
@@ -159,12 +256,13 @@ class Bot(commands.AutoBot):
 
     #Setup inicial del bot, carga dinámica de archivos py para modulos de comandos
     async def setup_hook(self) -> None:
-        animated_message("Cargando comandos...", white)
+        if IS_TTY:
+            animated_message("Cargando comandos...", white)
         inserted, total = ensure_seed_basic_commands()
         printlog(f"Comandos base en BD: {total} (nuevos insertados: {inserted})", "DEBUG")
         self.command_modules_loaded = True
         self.command_module_issues = []
-        commands_dir = "Commands"
+        commands_dir = os.path.join(os.path.dirname(__file__), "Commands")
         command_files = [
             filename for filename in os.listdir(commands_dir)
             if filename.endswith(".py") and not filename.startswith("__")
@@ -173,7 +271,7 @@ class Bot(commands.AutoBot):
 
         for filename in command_files:
             if filename.endswith(".py") and not filename.startswith("__"):
-                module_name = f"{commands_dir}.{filename[:-3]}"
+                module_name = f"Commands.{filename[:-3]}"
                 printlog(f"Cargando modulo: {module_name}", "DEBUG")
                 try:
                     module = importlib.import_module(module_name)
@@ -197,7 +295,8 @@ class Bot(commands.AutoBot):
         if not self.command_modules_loaded:
             printlog("No se pudieron cargar todos los modulos, se necesita atencion", "ERROR")
             printlog(f"Modulos con problemas: {', '.join(self.command_module_issues)}", "WARNING")
-            animated_message("Carga incompleta de modulos", red)
+            if IS_TTY:
+                animated_message("Carga incompleta de modulos", red)
         await asyncio.sleep(1)
     #______________________________________________________________________
 
@@ -205,10 +304,13 @@ class Bot(commands.AutoBot):
     async def event_ready(self) -> None:
         printlog(f"Bot en linea...")
         self.connected = True  # Bandera de estado para analizis de status
-        clear_console()
+        if IS_TTY:
+            clear_console()
         user = self.create_partialuser(BOT_ID)
-        if self.happy_birthday_task is None or self.happy_birthday_task.done():
+        if is_feature_enabled("FEATURE_BIRTHDAYS", True) and (self.happy_birthday_task is None or self.happy_birthday_task.done()):
             self.happy_birthday_task = asyncio.create_task(happy_birthday(self, user))
+        elif not is_feature_enabled("FEATURE_BIRTHDAYS", True):
+            printlog("[Features] FEATURE_BIRTHDAYS deshabilitado: se omite tarea de cumpleaños.", "INFO")
         if self.timed_messages_task is None or self.timed_messages_task.done():
             self.timed_messages_task = asyncio.create_task(send_timed_messages(self, user))
         if self.monitor_task is None or self.monitor_task.done():
@@ -216,19 +318,37 @@ class Bot(commands.AutoBot):
         if self.chatters_poll_task is None or self.chatters_poll_task.done():
             self.chatters_poll_task = asyncio.create_task(poll_chatters(self))
         if self.token_refresh_task is None or self.token_refresh_task.done():
-            self.token_refresh_task = asyncio.create_task(keep_token_fresh(lambda: self._bot_closing))
+            self.token_refresh_task = asyncio.create_task(keep_token_fresh(self, user, lambda: self._bot_closing))
+        if is_feature_enabled("FEATURE_YOUTUBE", True) and (self.youtube_poll_task is None or self.youtube_poll_task.done()):
+            self.youtube_poll_task = asyncio.create_task(poll_youtube_uploads(lambda: self._bot_closing))
+        elif not is_feature_enabled("FEATURE_YOUTUBE", True):
+            printlog("[Features] FEATURE_YOUTUBE deshabilitado: se omite monitor de YouTube.", "INFO")
+        if self._systemd_notify_enabled and (self.systemd_watchdog_task is None or self.systemd_watchdog_task.done()):
+            watchdog_interval = _systemd_watchdog_interval_seconds(default_seconds=30)
+            self.systemd_watchdog_task = asyncio.create_task(
+                keep_systemd_watchdog(lambda: self._bot_closing, interval_seconds=watchdog_interval)
+            )
+
+        if self._systemd_notify_enabled:
+            _systemd_notify("READY=1\nSTATUS=DannBot conectado a Twitch")
+
         await user.send_message(sender=self.user, message=f"[BOT] - DannBot en linea 😎")
         if not self.command_modules_loaded:
             await user.send_message(sender=self.user, message="[BOT] - Se me olvidaron los comandooos! ayudame datooo")
-        animated_message("DannBot en linea", green)
+        if IS_TTY:
+            animated_message("DannBot en linea", green)
 
     # Listener para mensajes
     async def event_message(self, message: twitchio.ChatMessage) -> None:
         custom_command_handled = await handle_message(self, message)
         if custom_command_handled:
             return
-        # Procesar los comandos recibidos dentro del mensaje despues del hanlder personalizado
-        message.text=message.text.lower() #Bajamos a minusculas por si el comando está capitalizado
+        # Procesar comandos de forma case-insensitive sin modificar los argumentos.
+        original_text = message.text or ""
+        if original_text.startswith("!"):
+            parts = original_text.split(" ", 1)
+            command_token = parts[0].lower()
+            message.text = f"{command_token} {parts[1]}" if len(parts) > 1 else command_token
         await self.process_commands(message)
 
     # Listener para seguidores
@@ -271,17 +391,48 @@ class Bot(commands.AutoBot):
     #______________________________________________________________________
     #Eventos de error
     async def event_command_error(self, payload: twitchio.ext.commands.CommandErrorPayload) -> None:
-        printlog(f"Se ha presentado un error de comando o comando desconocido {payload}", "WARNING")
+        error = getattr(payload, "error", None)
+        exception = getattr(payload, "exception", None)
+        detail = error or exception
+
+        # Evita ruido por comandos desconocidos escritos en chat.
+        if isinstance(detail, CommandNotFound):
+            return
+
+        context = getattr(payload, "context", None)
+        command_name = "unknown"
+        chatter_name = "unknown"
+        message_text = ""
+
+        if context is not None:
+            command_obj = getattr(context, "command", None)
+            command_name = getattr(command_obj, "name", "unknown") if command_obj else "unknown"
+            chatter = getattr(context, "chatter", None)
+            chatter_name = getattr(chatter, "name", "unknown") if chatter else "unknown"
+            message = getattr(context, "message", None)
+            message_text = getattr(message, "text", "") if message else ""
+
+        detail_text = str(detail) if detail else "Error de comando sin detalle"
+        printlog(
+            f"Error en comando '{command_name}' de @{chatter_name}: {detail_text} | mensaje: {message_text}",
+            "ERROR",
+        )
+        await notify_critical_error(
+            "event_command_error",
+            f"command={command_name} user={chatter_name} detail={detail_text} msg={message_text}",
+        )
 
     async def event_error(self, payload: twitchio.EventErrorPayload) -> None:
         printlog(f"Se ha capturado un error de evento {safe_int(payload.error)}", "ERROR")
+        await notify_critical_error("event_error", str(payload.error))
 
 
     # Evento de desconexión
     async def event_disconnect(self):
         self.connected = False  # Bandera de estado
         printlog(f"Desconectando bot...", "WARNING")
-        animated_message("Bot desconectado", red)
+        if IS_TTY:
+            animated_message("Bot desconectado", red)
 
 
 #______________________________________________________________________

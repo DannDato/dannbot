@@ -4,6 +4,7 @@ import os
 
 from Helpers.helpers import db_cursor, clean_text, normalize_username, safe_int
 from Helpers.helpers_stats import update_global_stats
+from Helpers.discord_notifier import notify_bits
 from Helpers.colors import colorConvert, white, resetColor, userColors, channelColor, dorado
 from Helpers.helpers_bot import new_user, update_stream_data
 from Helpers.printlog import printlog
@@ -37,6 +38,7 @@ async def handle_cheer(self, payload):
 
         await update_stream_data("new_bits", AMMOUNT)
         printlog(f"{white}[{channelColor}{CHATTER_NAME}{white}]{dorado} Ha donado ({AMMOUNT}) bit{'s' if AMMOUNT > 1 else ''}")
+        await notify_bits(CHATTER_NAME, AMMOUNT, MESSAGE)
         user = self.create_partialuser(BROACASTER_ID)
         await user.send_message(sender=self.user, message=f"¡Gracias por donar {AMMOUNT} bit{'s' if AMMOUNT > 1 else ''}, {payload.user.name}! 🎉")
 

@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from Helpers.helpers import normalize_username, db_cursor
 from Helpers.printlog import printlog
@@ -554,25 +554,59 @@ async def today_birthdays():
 
 async def week_birthdays():
     try:
+        today = datetime.now().date()
+        week_days = [today + timedelta(days=offset) for offset in range(1, 8)]
+        week_days_mmdd = {d.strftime('%m-%d') for d in week_days}
+
         with db_cursor(DB_PATH) as (_, cursor):
-            cursor.execute('''
+            placeholders = ','.join('?' for _ in week_days_mmdd)
+            cursor.execute(f'''
                 SELECT username, birthday 
                 FROM users
-                WHERE strftime('%m-%d', birthday) 
-                BETWEEN strftime('%m-%d', date('now', '+1 day')) 
-                AND strftime('%m-%d', date('now', '+7 days'));
-            ''')
+                WHERE strftime('%m-%d', birthday) IN ({placeholders});
+            ''', tuple(week_days_mmdd))
             result = cursor.fetchall()
 
         if result:  # Si hay resultados
-            users_with_birthday = [user for user, _ in result]
-            return True, users_with_birthday
+            weekday_names = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
+            users_with_birthday = []
+
+            for username, birthday in result:
+                if not birthday:
+                    continue
+
+                bd_date = datetime.strptime(birthday, '%Y-%m-%d').date()
+                birthday_this_year = bd_date.replace(year=today.year)
+
+                if birthday_this_year < today:
+                    birthday_this_year = birthday_this_year.replace(year=today.year + 1)
+
+                delta_days = (birthday_this_year - today).days
+                if delta_days < 1 or delta_days > 7:
+                    continue
+
+                if delta_days == 1:
+                    day_label = 'Mañana'
+                elif delta_days == 2:
+                    day_label = 'Pasado mañana'
+                else:
+                    day_label = f"el {weekday_names[birthday_this_year.weekday()]}"
+                users_with_birthday.append((delta_days, username, day_label))
+
+            if users_with_birthday:
+                users_with_birthday.sort(key=lambda item: (item[0], item[1].lower()))
+                formatted_birthdays = [(username, day_label) for _, username, day_label in users_with_birthday]
+                return True, formatted_birthdays
+            return False, []
         else:
             return False, []
         
     except sqlite3.Error as e:
         printlog(f"Error al consultar cumpleaños de la semana: {e}","ERROR")
         return False
+    except ValueError as e:
+        printlog(f"Error al procesar fecha de cumpleaños semanal: {e}","ERROR")
+        return False, []
 
 async def get_twitch_id(username):
     try:

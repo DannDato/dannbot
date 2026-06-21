@@ -33,6 +33,7 @@ venv/
 Venv/
 .venv/
 dannbot/
+dannbot_broken_*/
 bot/
 
 # ---- Logs and runtime outputs ----

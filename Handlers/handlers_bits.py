@@ -24,8 +24,6 @@ async def handle_bits(self, payload):
     USERID = safe_int(event["user_id"].strip())
     AMMOUNT = safe_int(event["bits"])
     MESSAGE = clean_text(event["message"]).strip().lower().replace("cheer"+str(AMMOUNT),'').strip()
-    USER = SimpleNamespace(id=USERID, name=USERNAME)
-
     logging.info(f"[\033[38;5;221m D O N A C I O N {resetColor}] - {USERID} \033[38;5;221m[ {USERNAME} ]{resetColor} - {white}Ha donado {green}{AMMOUNT} Bitbit{'' if AMMOUNT == 1 else 's'}! Mensaje:{white}{MESSAGE} ")
 
     USER = SimpleNamespace(id=USERID, name=USERNAME)
@@ -33,11 +31,25 @@ async def handle_bits(self, payload):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with db_cursor(DB_PATH, commit=True) as (_, cursor):
             cursor.execute('''INSERT INTO donated_bits (amount, user, message, date)VALUES (?, ?, ?, ?)''', (AMMOUNT, USERID, MESSAGE, timestamp))
-        ctx = "danndato"
-        await ctx.send(f"Ehh! @{USER.name} Gracias por {'ese' if AMMOUNT == 1 else 'esos'} {AMMOUNT} bit{'' if AMMOUNT == 1 else 's'}!")
+
+        broadcaster_id = safe_int(
+            event.get("broadcaster_user_id")
+            or event.get("channel_id")
+            or getattr(self, "owner_id", 0)
+        )
+        if broadcaster_id > 0:
+            channel_user = self.create_partialuser(broadcaster_id)
+            await channel_user.send_message(
+                sender=self.user,
+                message=f"Ehh! @{USER.name} Gracias por {'ese' if AMMOUNT == 1 else 'esos'} {AMMOUNT} bit{'' if AMMOUNT == 1 else 's'}!"
+            )
+        else:
+            logging.warning("No se pudo determinar broadcaster_id para anunciar bits en chat")
 
 
     except sqlite3.Error as e:
-        logging.error("Ocurrió un error al capturar la donación de bits")
+        logging.error(f"Ocurrió un error al capturar la donación de bits: {e}")
+    except Exception as e:
+        logging.error(f"Ocurrió un error inesperado en handle_bits: {e}")
     finally:
         await update_global_stats("xp_Fuerza",USERID,0.15)

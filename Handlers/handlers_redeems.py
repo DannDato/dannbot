@@ -3,9 +3,8 @@ from datetime import datetime
 import logging
 import os
 
-from Helpers.helpers import  cerrar_conexion
+from Helpers.helpers import db_cursor
 from Helpers.helpers_stats import update_global_stats
-from Helpers.token_loader import load_token
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data.db')
 
@@ -15,24 +14,23 @@ async def handle_redeem(name, user, self):
         Para estadísticas
     """
     user_data = await self.fetch_users(names=[user.name])  # Obtiene información completa del usuario
-    if user_data:
-        user_info = user_data[0]  # La API devuelve una lista, tomamos el primer elemento
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            # Insertar el nuevo registro en la tabla
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            cursor.execute('''INSERT INTO redeems (redeem, user, date )VALUES (?, ?, ?)''', (name, user_info.id, timestamp))
-            # Confirmar los cambios y cerrar la conexión
-            conn.commit()
-            conn.close()
-            cerrar_conexion(conn, cursor)
-            logging.info(f"\033[1;34m{user.name} \033[38;5;255m ha canjeado \033[38;5;51m '{name}'")
+    if not user_data:
+        logging.warning(f"No se pudo resolver usuario para redeem de {user.name}")
+        return
 
-        except sqlite3.Error as e:
-            logging.error("Ocurrió un error al capturar la recompensa canjeada")
-        finally:
-                if conn:
-                    conn.close()
-                    cerrar_conexion(conn, cursor)
-                await update_global_stats("xp_Fuerza",user,0.15)
+    user_info = user_data[0]  # La API devuelve una lista, tomamos el primer elemento
+    user_id = user_info.id
+
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with db_cursor(DB_PATH, commit=True) as (_, cursor):
+            cursor.execute(
+                '''INSERT INTO redeems (redeem, user, date )VALUES (?, ?, ?)''',
+                (name, user_id, timestamp)
+            )
+
+        logging.info(f"\033[1;34m{user.name} \033[38;5;255m ha canjeado \033[38;5;51m '{name}'")
+    except sqlite3.Error as e:
+        logging.error(f"Ocurrió un error al capturar la recompensa canjeada: {e}")
+    finally:
+        await update_global_stats("xp_Fuerza", user_id, 0.15)

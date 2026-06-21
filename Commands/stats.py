@@ -2,6 +2,8 @@ from datetime import datetime
 from twitchio.ext import commands
 from Helpers.helpers import  is_channel_online, safe_int, normalize_username
 from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, check_segundo, check_tercero, count_user_messages, get_twitch_id
+from Helpers.helpers import  is_channel_online, safe_int, normalize_username, extract_mentioned_username
+from Helpers.helpers_stats import update_global_stats, get_stats, check_primero, count_user_messages, get_twitch_id
 from twitchio.ext import commands
 from Helpers.printlog import printlog
 
@@ -36,7 +38,10 @@ class stats_commands(commands.Component):
     @commands.command(name='mensajes')
     async def mensajes(self, ctx):
         if ctx.message.text.strip().startswith('!mensajes @'):
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !mensajes @usuario")
+                return
             # Buscar el ID en la base de datos
             user = await get_twitch_id(mentioned_user)
             if user is None:
@@ -60,7 +65,7 @@ class stats_commands(commands.Component):
     async def primero(self, ctx):
         check_online = await is_channel_online()
         if check_online is False:
-            await ctx.send("Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
+            await ctx.send("[BOT] - Tramposit@... 👀 este comando solo está disponible si @DannDato está en vivo.")
             return
 
         status, winner_username = await check_primero(ctx.chatter)
@@ -187,7 +192,10 @@ class stats_commands(commands.Component):
     async def primeropuntos(self, ctx):
         # Obtener estadísticas de Wordle
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !primeropuntos @usuario")
+                return
             # Buscar el ID en la base de datos
             user = await get_twitch_id(mentioned_user)
             if user is None:
@@ -208,7 +216,7 @@ class stats_commands(commands.Component):
     async def primerotop(self, ctx):
         ranking = await get_stats("first_user",None)
         await ctx.send(f'[BOT] - Los mas camperos del canal [🔥TOP 5]:')
-        await ctx.send(f'{ranking}')
+        await ctx.send(f'[BOT] - {ranking}')
 
     @commands.command(name='segundopuntos', aliases=["s2p", "s2score", "segundoscore"])
     async def segundopuntos(self, ctx):
@@ -247,7 +255,10 @@ class stats_commands(commands.Component):
                 return
             
             # Validar que no se otorgue el punto al propio usuario
-            mentioned_user = normalize_username(ctx.message.text.strip().split('@')[1].strip())
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !wordlewin @usuario")
+                return
             if mentioned_user == ctx.chatter.name:
                 await ctx.send("[BOT] - No puedes otorgarte el punto a ti mismo, pídele ayuda a otro moderador")
                 return
@@ -283,7 +294,10 @@ class stats_commands(commands.Component):
                 return
             
             # Validar que no se otorgue el punto al propio usuario
-            mentioned_user = normalize_username(ctx.message.text.strip().split('@')[1].strip())
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !wordlelose @usuario")
+                return
             if mentioned_user == ctx.chatter.name:
                 await ctx.send("[BOT] - No puedes quitarte el punto a ti mismo, pídele ayuda a otro moderador")
                 return
@@ -308,7 +322,10 @@ class stats_commands(commands.Component):
     async def wordlepuntos(self, ctx):
         # Obtener estadísticas 
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !wordlepuntos @usuario")
+                return
             # Buscar el ID en la base de datos
             user = await get_twitch_id(mentioned_user)
             if user is None:
@@ -329,7 +346,7 @@ class stats_commands(commands.Component):
     async def wordletop(self, ctx):
         ranking = await get_stats("wordle_wins",None)
         await ctx.send(f'[BOT] - Las estadísticas de Wordle [🔥TOP 5]:')
-        await ctx.send(f'{ranking}')
+        await ctx.send(f'[BOT] - {ranking}')
 
 
     # Comando para registrar el ganador de un reto random
@@ -343,7 +360,10 @@ class stats_commands(commands.Component):
                 return
             
             # Validar que no se otorgue el punto al propio usuario
-            mentioned_user = normalize_username(ctx.message.text.strip().split('@')[1].strip())
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !retowin @usuario")
+                return
             if mentioned_user == ctx.chatter.name:
                 await ctx.send("[BOT] - No puedes otorgarte el punto a ti mismo, pídele ayuda a otro moderador")
                 return
@@ -372,7 +392,10 @@ class stats_commands(commands.Component):
                 return
             
             # Validar que no se otorgue el punto al propio usuario
-            mentioned_user = normalize_username(ctx.message.text.strip().split('@')[1].strip())
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Por favor, usa el comando en el formato: !retolose @usuario")
+                return
             if mentioned_user == ctx.chatter.name:
                 await ctx.send("[BOT] - No puedes otorgarte el punto a ti mismo, pídele ayuda a otro moderador")
                 return
@@ -394,7 +417,10 @@ class stats_commands(commands.Component):
     async def retospuntos(self, ctx):
         # Obtener estadísticas 
         if '@' in ctx.message.text:
-            mentioned_user = ctx.message.text.strip().split('@')[1].strip()
+            mentioned_user = extract_mentioned_username(ctx.message.text)
+            if not mentioned_user:
+                await ctx.send("[BOT] - Formato inválido. Usa: !retospuntos @usuario")
+                return
             # Buscar el ID en la base de datos
             user = await get_twitch_id(mentioned_user)
             if user is None:

@@ -5,6 +5,7 @@ import os
 
 from Helpers.helpers import db_cursor, clean_text, normalize_username, safe_int
 from Helpers.helpers_stats import update_global_stats
+from Helpers.discord_notifier import notify_sub
 from Helpers.colors import colorConvert, white, resetColor, userColors, channelColor, dorado
 from Helpers.helpers_bot import new_user, update_stream_data
 from Helpers.printlog import printlog
@@ -65,6 +66,7 @@ async def handle_sub(self, payload):
         await update_stream_data("new_subs", 1)
 
         printlog(f"{dorado}{'Le han regalado una suscripción a ' if GIFT else 'Se ha suscrito '}{white}[{channelColor}{CHATTER_NAME}{white}]{dorado} Tier {TIER} ")
+        await notify_sub(CHATTER_NAME, TIER, GIFT)
         user = self.create_partialuser(BROACASTER_ID)
         await user.send_message(sender=self.user, message=f"[BOT] - ¡Gracias por suscribirte @{CHATTER_NAME}! 🎉" if not GIFT else f"[BOT] - ¡Agradece por esa suscripción  @{CHATTER_NAME}! 🎉")
 
@@ -127,6 +129,7 @@ async def handle_sub_gift(self, payload):
             ''', (CHATTER_ID, CHATTER_NAME, TIER, TOTAL, now.strftime('%Y-%m-%d'), now.strftime('%Y-%m-%d %H:%M:%S')))
 
         printlog(f"{dorado}{CHATTER_NAME}{white} ha regalado {white}{TOTAL}{dorado} suscripcion{'es' if TOTAL>1 else ''} de Tier {TIER} al canal {channelColor}{BROACASTER_NAME}{resetColor}.")
+        await notify_sub(CHATTER_NAME, TIER, gift=True, total_gifted=TOTAL)
         user = self.create_partialuser(BROACASTER_ID)
         await user.send_message(sender=self.user, message=f"[BOT] - ¡Gracias por la{'s' if TOTAL>1 else ''} {TOTAL if TOTAL>1 else ''} sub{'s' if TOTAL>1 else ''} @{CHATTER_NAME}! 🎉")
 
