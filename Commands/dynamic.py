@@ -47,6 +47,29 @@ class dynamic_commands(commands.Component):
             return False
         finally:
             ctx.message.text = old_text
+
+    async def _dispatch_internal_command_with_args(self, ctx, command_name, arg_mode):
+        target_cmd = self.bot.commands.get(command_name)
+        if target_cmd is None:
+            return False
+
+        if command_name in {"bot", "gpt", "b", "r"}:
+            return False
+
+        old_text = ctx.message.text
+        try:
+            if arg_mode == "SELF":
+                simulated_text = f"!{command_name} @{ctx.chatter.name}"
+            else:
+                simulated_text = f"!{command_name}"
+            ctx.message.text = simulated_text
+            await target_cmd.invoke(ctx)
+            return True
+        except Exception as exc:
+            printlog(f"Error ejecutando comando interno desde !bot ({command_name}): {exc}", "ERROR")
+            return False
+        finally:
+            ctx.message.text = old_text
     """
                     COMANDOS DINAMICOS
 
@@ -196,14 +219,24 @@ class dynamic_commands(commands.Component):
             return
 
         command_names = sorted({
-            cmd.name.strip().lower()
+            name.strip().lower()
             for cmd in self.bot.commands.values()
-            if getattr(cmd, "name", None)
+            for name in ([getattr(cmd, "name", "")] + list(getattr(cmd, "aliases", []) or []))
+            if name
         })
 
         route = await decide_bot_route(prompt, command_names)
-        if route != "CHAT":
-            executed = await self._dispatch_internal_command(ctx, route, prompt)
+        action = route.get("action")
+        target_command = route.get("command")
+        args_mode = route.get("args", "NONE")
+
+        if action == "suggest" and target_command:
+            await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)
+            await ctx.send(f"[BotGPT] - Para eso usa !{target_command}")
+            return
+
+        if action == "execute" and target_command:
+            executed = await self._dispatch_internal_command_with_args(ctx, target_command, args_mode)
             await update_global_stats("xp_Astucia",ctx.chatter.id,0.15)
             if executed:
                 return

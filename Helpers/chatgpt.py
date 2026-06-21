@@ -18,9 +18,15 @@ CONVERSATIONS_FILE = "Gpt/user_conversations.json"
 MAX_CONTEXT_MESSAGES = 20
 
 ROUTER_SYSTEM_PROMPT = (
-    "Clasifica la solicitud. Responde SOLO una palabra: CHAT o el NOMBRE EXACTO de un comando permitido. "
-    "Si la solicitud se puede resolver ejecutando un comando interno, devuelve ese comando. "
-    "Si no, devuelve CHAT. Sin explicaciones."
+    "Eres un router de intenciones para un bot de Twitch. "
+    "Responde SOLO en uno de estos formatos compactos: "
+    "C | S|comando | E|comando|SELF | E|comando|NONE. "
+    "Reglas: "
+    "1) Si el usuario pide COMO usar o CUAL comando usar, responde S|comando (no ejecutar). "
+    "2) Si la peticion requiere accion directa con comando, responde E|comando|SELF o E|comando|NONE. "
+    "3) Si no aplica comando interno, responde C. "
+    "4) Usa solo comandos permitidos exactamente como aparecen en la lista. "
+    "5) Si el mensaje es solo el nombre del comando (ej: 'cumpleanos'), no ejecutar: responde S|comando."
 )
 
 
@@ -141,39 +147,70 @@ async def decide_bot_route(prompt, command_names):
             printlog("OPENAI_API_KEY no está definida en .env", "ERROR")
             return "CHAT"
 
-        # Fast-path: si viene comando explícito, evitar consumo de tokens.
+        # Fast-path: si viene comando explícito, sugerir y no ejecutar.
         prompt_stripped = (prompt or "").strip().lower()
         if prompt_stripped.startswith("!"):
             explicit = prompt_stripped[1:].split(" ", 1)[0]
             if explicit in command_names:
-                return explicit
+                return {"action": "suggest", "command": explicit, "args": "NONE"}
+
+        # Si el mensaje es solo el nombre de un comando, sugerir uso (mas natural).
+        if prompt_stripped in command_names:
+            return {"action": "suggest", "command": prompt_stripped, "args": "NONE"}
 
         client = OpenAI(api_key=OPENAI_API_KEY)
         command_list = ",".join(command_names)
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0,
-            max_tokens=6,
+            max_tokens=12,
             messages=[
                 {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": f"Comandos permitidos: {command_list}\nSolicitud: {prompt}\nSalida:",
+                    "content": (
+                        f"Comandos permitidos: {command_list}\n"
+                        f"Solicitud: {prompt}\n"
+                        "Salida:"
+                    ),
                 },
             ],
         )
 
         if not completion.choices:
-            return "CHAT"
+            return {"action": "chat", "command": None, "args": "NONE"}
 
-        decision = (completion.choices[0].message.content or "CHAT").strip().lower()
-        if decision in command_names:
-            return decision
-        return "CHAT"
+        decision = (completion.choices[0].message.content or "C").strip()
+        parts = [p.strip() for p in decision.split("|") if p is not None]
+        if not parts:
+            return {"action": "chat", "command": None, "args": "NONE"}
+
+        code = parts[0].upper()
+        if code == "C":
+            return {"action": "chat", "command": None, "args": "NONE"}
+
+        if code in {"S", "E"} and len(parts) >= 2:
+            command = parts[1].lower()
+            if command not in command_names:
+                return {"action": "chat", "command": None, "args": "NONE"}
+
+            args_mode = "NONE"
+            if code == "E" and len(parts) >= 3:
+                candidate = parts[2].upper()
+                if candidate in {"SELF", "NONE"}:
+                    args_mode = candidate
+
+            return {
+                "action": "suggest" if code == "S" else "execute",
+                "command": command,
+                "args": args_mode,
+            }
+
+        return {"action": "chat", "command": None, "args": "NONE"}
 
     except OpenAIError as e:
         printlog(f"Error en la solicitud de ruteo OpenAI: {e}", "ERROR")
-        return "CHAT"
+        return {"action": "chat", "command": None, "args": "NONE"}
 
 def contar_tokens(mensaje, modelo="gpt-3.5-turbo"):
     encoder = tiktoken.encoding_for_model(modelo)
