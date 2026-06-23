@@ -16,4 +16,8 @@ newcmd
 testsub
 testfollow
 testcheer
-
+streamtest
+streamtestend
+resetstream
+restart
+status
